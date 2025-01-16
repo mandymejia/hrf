@@ -1,0 +1,14 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^README\.Rmd$
+^LICENSE\.md$
+^deprecated$
+^tests/run_hrf_tests\.R$
+^vignettes/hrf_vignette\.html$
+^codecov\.yml$
+^cran-comments\.md
+^CRAN-RELEASE$
+^CRAN-SUBMISSION$
+^doc$
+^Meta$

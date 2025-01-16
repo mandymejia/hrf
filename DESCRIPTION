@@ -1,0 +1,60 @@
+Type: Package
+Package: hrf
+Title: Hemodynmaic response function
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Amanda",
+           family = "Mejia",
+           email = "mandy.mejia@gmail.com",
+           role = c("aut", "cre")),
+    person(given = "Damon",
+           family = "Pham",
+           email = "damondpham@gmail.com",
+           role = c("ctb"),
+           comment = c(ORCID = "0000-0001-7563-4727")),
+    person(given = "David",
+           family = "Bolin",
+           email = "david.bolin@kaust.edu.sa",
+           role = c("ctb")),
+    person(given = "Yu (Ryan)",
+           family = "Yue",
+           email = "yybaruch@gmail.com",
+           role = c("ctb")),
+    person(given = "Daniel",
+           family = "Spencer",
+           email = "danieladamspencer@gmail.com",
+           role = c("aut"),
+           comment = c(ORCID = "0000-0002-9705-3605")),
+    person(given = "Sarah",
+           family = "Ryan",
+           email = "sarahryan320@gmail.com",
+           role = c("ctb"))
+           )
+Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
+Description: Computes the hemodynamic response function (hrf) for task 
+    functional magnetic resonance imaging (fMRI) data.
+License: GPL-3
+URL: https://github.com/mandymejia/hrf
+BugReports: https://github.com/mandymejia/hrf/issues
+Depends: R (>= 3.6.0)
+Imports: 
+    ciftiTools (>= 0.17.2),
+    fMRItools,
+    Matrix,
+    matrixStats,
+    methods,
+    stats
+Suggests:
+    covr,
+    dplyr,
+    ggplot2,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    spelling
+VignetteBuilder:
+    knitr
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Language: en-US
