@@ -18,6 +18,11 @@
 #'
 #' @return HRF vector (or dHRF, or d2HRF) corresponding to time vector t
 #'
+#' @examples
+#' samples_per_sec <- 200
+#' nsec <- 50
+#' HRF_calc(seq(nsec*samples_per_sec)/samples_per_sec)
+#' 
 #' @importFrom fMRItools is_1
 #' @export
 #'
@@ -83,6 +88,10 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
 #'
 #' @return HRF vector corresponding to time vector t
 #'
+#' @examples
+#' upsample <- 100
+#' HRF_main(seq(0, 30, by=1/upsample))
+#' 
 #' @importFrom fMRItools is_1
 #' @importFrom stats dgamma
 #' @export

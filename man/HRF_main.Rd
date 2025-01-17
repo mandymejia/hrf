@@ -30,3 +30,8 @@ first or second derivative of the HRF instead. Form of HRF is similar to SPM
 but here the response and undershoot are scaled so the difference of the HRFs
 peaks at 1 and -c
 }
+\examples{
+upsample <- 100
+HRF_main(seq(0, 30, by=1/upsample))
+
+}

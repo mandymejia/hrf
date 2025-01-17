@@ -30,8 +30,7 @@ An example of a properly-formatted \code{EVs} is:
 \code{on_s1 <- list(taskA=cbind(on=c(1,9,17), dr=rep(1,3)),
  taskB=cbind(on=c(3,27), dr=rep(5,2)))}.
 In this example, there are two tasks: the first has three 1s-long stimuli,
-while the second has two 5s-long stimuli.
-with \code{on_s2} formatted similarly to \code{on_s1}.}
+while the second has two 5s-long stimuli.}
 
 \item{nTime}{the number of timepoints (volumes) in the task fMRI data.}
 
@@ -89,4 +88,11 @@ A \code{"BfMRI_design"} object: a list with elements
 }
 \description{
 Make the design matrix for the GLM, from the task information.
+}
+\examples{
+EVs <- list(taskA=cbind(on=c(1,9,17), dr=rep(1,3)), taskB=cbind(on=c(3,27), dr=rep(5,2)))
+TR <- .72
+nTime <- ceiling(65/TR)
+make_design(EVs, nTime, TR)
+
 }

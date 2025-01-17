@@ -46,9 +46,11 @@ Imports:
     stats
 Suggests:
     covr,
+    ggplot2,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
+    tidyr,
     spelling
 VignetteBuilder:
     knitr

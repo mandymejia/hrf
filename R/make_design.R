@@ -13,7 +13,6 @@
 #'  taskB=cbind(on=c(3,27), dr=rep(5,2)))}.
 #'  In this example, there are two tasks: the first has three 1s-long stimuli,
 #'  while the second has two 5s-long stimuli.
-#'  with \code{on_s2} formatted similarly to \code{on_s1}.
 #' @param nTime the number of timepoints (volumes) in the task fMRI data.
 #' @param TR the temporal resolution of the data, in seconds.
 #' @param dHRF Controls the extent of HRF derivatives modeling.
@@ -62,6 +61,13 @@
 #'    \item{dHRF}{The input \code{dHRF} parameter.}
 #'    \item{HRF_info}{Additional HRF modeling results.}
 #' }
+#' 
+#' @examples
+#' EVs <- list(taskA=cbind(on=c(1,9,17), dr=rep(1,3)), taskB=cbind(on=c(3,27), dr=rep(5,2)))
+#' TR <- .72
+#' nTime <- ceiling(65/TR)
+#' make_design(EVs, nTime, TR)
+#' 
 #' @export
 make_design <- function(
   EVs, nTime, TR, dHRF=0, upsample=100,

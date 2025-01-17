@@ -1,10 +1,14 @@
+#' @importFrom stats cor
+#' @keywords internal
 checkX_cor <- function(X){
   suppressWarnings(corX <- cor(X))
   diag(corX) <- NA
   corX
 }
 
-#' @importFrom stats rnorm
+#' @importFrom car vif
+#' @importFrom stats lm rnorm
+#' @keywords internal
 checkX_VIF <- function(X){
   nT <- nrow(X)
   nK <- ncol(X)

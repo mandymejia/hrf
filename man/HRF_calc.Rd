@@ -40,3 +40,9 @@ HRF vector (or dHRF, or d2HRF) corresponding to time vector t
 Calculate the HRF from a time vector and parameters, or its derivative with
 respect to delay or dispersion.
 }
+\examples{
+samples_per_sec <- 200
+nsec <- 50
+HRF_calc(seq(nsec*samples_per_sec)/samples_per_sec)
+
+}
