@@ -35,14 +35,10 @@
 #'  }
 #'
 #' @importFrom matrixStats colVars
-#' @importFrom Matrix bandSparse bdiag crossprod solve Diagonal
 #' @importFrom parallel detectCores makeCluster clusterMap stopCluster
 #' @importFrom stats as.formula var
 #' @importFrom fMRItools is_1 nuisance_regression scale_timeseries
 #'
-#' @importFrom utils tail
-#'
-#' @importFrom methods as
 #' @export
 multiGLM_fun <- function(
   BOLD,

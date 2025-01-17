@@ -4,6 +4,7 @@
 #' @param Xc (Optional) canonical design matrix
 #' @param verbose verbose?
 #' @return Results for GLM multi
+#' @importFrom Matrix solve crossprod
 #' @importFrom stats as.formula var pf pchisq
 #' @keywords internal
 GLM_multi <- function(y, X, X2, Xc=NULL, verbose=TRUE) {
