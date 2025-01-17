@@ -29,22 +29,11 @@ Locations which do not meet these thresholds are masked out of the analysis.
 Default: \code{1e-6} for mean and variance, \code{50} for SNR.}
 }
 \value{
-A \code{"CompareGLM"} object: a list with elements
+A list with elements
 \describe{
-\item{field_estimates}{The estimated coefficients for the Bayesian model.}
-\item{mask}{A mask of \code{mesh} indicating the locations inside \code{mesh}.}
-\item{design}{The design matrix, after centering and scaling, but before any nuisance regression or prewhitening.}
-\item{field_names}{The names of the fields.}
-\item{session_names}{The names of the sessions.}
-\item{hyperpar_posteriors}{Hyperparameter posterior densities.}
-\item{theta_estimates}{Theta estimates from the Bayesian model.}
-\item{posterior_Sig_inv}{For joint group modeling.}
-\item{mu_theta}{For joint group modeling.}
-\item{Q_theta}{For joint group modeling.}
-\item{y}{For joint group modeling: The BOLD data after any centering, scaling, nuisance regression, or prewhitening.}
-\item{X}{For joint group modeling: The design matrix after any centering, scaling, nuisance regression, or prewhitening.}
-\item{prewhiten_info}{Vectors of values across locations: \code{phi} (AR coefficients averaged across sessions), \code{sigma_sq} (residual variance averaged across sessions), and AIC (the maximum across sessions).}
-\item{call}{match.call() for this function call.}
+\item{bestmodel}{...}
+\item{Fstat}{...}
+\item{pvalF}{...}
 }
 }
 \description{

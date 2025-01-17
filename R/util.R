@@ -1,30 +1,3 @@
-#' Unmask data
-#' 
-#' \code{maskMdat} is a subset of \code{maskIn}. \code{x} is masked by
-#'  \code{maskMdat}; this function makes it masked by \code{maskIn} instead
-#'  and uses \code{fill_val} for the previously masked-out locations.
-#' 
-#' @param x The matrix to unmask 
-#' @param maskIn,maskMdat The input mask, and the modeled locations mask, as
-#'  logical vectors. The latter should be a subset of the former. They should
-#'  have the same length.
-#' @param fill_val The fill value. Default: \code{NA}.
-#' @keywords internal 
-unmask_Mdat2In <- function(x, maskIn, maskMdat, fill_val=NA) {
-  x_was_vec <- is.vector(x)
-  x <- as.matrix(x)
-
-  stopifnot(is.logical(maskIn))
-  stopifnot(is.logical(maskMdat))
-  stopifnot(length(maskIn) == length(maskMdat))
-  nV_model <- sum(maskIn)
-
-  out <- matrix(fill_val, nrow=nV_model, ncol=ncol(x))
-  out[maskMdat[maskIn],] <- x 
-  if (x_was_vec) { out <- out[,1] }
-  out
-}
-
 #' Mask out invalid data
 #'
 #' Mask out data locations that are invalid (missing data, low mean, or low

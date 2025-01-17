@@ -4,34 +4,18 @@
 #'
 #' @param BOLD,design,nuisance Session-length list of numeric matrices/arrays,
 #'  each with volumes along the first dimension.
-#' @inheritParams session_names_Param
-# @inheritParams EM_Param
-#' @inheritParams n_threads_Param
 #' @param design_canonical TO DO
 #' @inheritParams verbose_Param
-# @inheritParams combine_sessions_Param
 #' @param meanTol,varTol Tolerance for mean, variance and SNR of each data location.
 #'  Locations which do not meet these thresholds are masked out of the analysis.
 #'  Default: \code{1e-6} for mean and variance, \code{50} for SNR.
 # Note: \code{snrTol} currently not in use, but SNR maps are returned for visualization.
-# @inheritParams emTol_Param
 #'
-#' @return A \code{"CompareGLM"} object: a list with elements
+#' @return A list with elements
 #'  \describe{
-#'    \item{field_estimates}{The estimated coefficients for the Bayesian model.}
-#'    \item{mask}{A mask of \code{mesh} indicating the locations inside \code{mesh}.}
-#'    \item{design}{The design matrix, after centering and scaling, but before any nuisance regression or prewhitening.}
-#'    \item{field_names}{The names of the fields.}
-#'    \item{session_names}{The names of the sessions.}
-#'    \item{hyperpar_posteriors}{Hyperparameter posterior densities.}
-#'    \item{theta_estimates}{Theta estimates from the Bayesian model.}
-#'    \item{posterior_Sig_inv}{For joint group modeling.}
-#'    \item{mu_theta}{For joint group modeling.}
-#'    \item{Q_theta}{For joint group modeling.}
-#'    \item{y}{For joint group modeling: The BOLD data after any centering, scaling, nuisance regression, or prewhitening.}
-#'    \item{X}{For joint group modeling: The design matrix after any centering, scaling, nuisance regression, or prewhitening.}
-#'    \item{prewhiten_info}{Vectors of values across locations: \code{phi} (AR coefficients averaged across sessions), \code{sigma_sq} (residual variance averaged across sessions), and AIC (the maximum across sessions).}
-#'    \item{call}{match.call() for this function call.}
+#'    \item{bestmodel}{...}
+#'    \item{Fstat}{...}
+#'    \item{pvalF}{...}
 #'  }
 #'
 #' @importFrom matrixStats colVars
@@ -70,7 +54,7 @@ multiGLM_fun <- function(
   #   matrix/array rather than lists.
   ### Check `BOLD`. ------------------------------------------------------------
   nS <- 1
-  if(nS!=1) stop("Not supported: multi-session in `compareGLM`.")
+  if(nS!=1) stop("Not supported: multi-session in `multiGLM_fun`.")
   ### Check `design`. ----------------------------------------------------------
   # Make `design` a sessions-length list of design matrices.
   #   Get `nK`, `field_names`, and `do$perLocDesign`. Check for consistent dims
@@ -83,7 +67,7 @@ multiGLM_fun <- function(
   field_names <- x$field_names
   design_names <- x$design_names
   x$per_location_design <- FALSE #workaround for multiGLM_fun since the multiple design matrices are not per-location in this case
-  if(x$per_location_design) stop("Not supported: per-location design in `compareGLM`.")
+  if(x$per_location_design) stop("Not supported: per-location design in `multiGLM_fun`.")
   rm(x)
 
   ### Get `session_names`. -----------------------------------------------------

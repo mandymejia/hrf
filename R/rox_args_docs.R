@@ -41,48 +41,6 @@ NULL
 #' @name ar_smooth_Param
 NULL
 
-#'  Bayes
-#'
-#' @param Bayes Perform spatial Bayesian modeling? Default: \code{TRUE}. If
-#'  \code{FALSE}, only perform classical (massive univariate) modeling. (The classical GLM
-#'  result is always returned, whether \code{Bayes} is \code{TRUE} or \code{FALSE}.)
-#'
-#' @name Bayes_Param
-NULL
-
-#' buffer
-#'
-#' @param buffer For volumetric model. The number of extra voxel layers around
-#'  the bounding box. Set to \code{NULL} for no buffer. (We recommend not
-#'  changing \code{buffer} unless you know what you're doing. Instead, to reduce
-#'  the number of boundary voxels, adjust \code{nbhd_order}).
-#'
-#' @name buffer_Param
-NULL
-
-#' contrasts
-#'
-#' @param contrasts List of contrast vectors to be passed to \code{inla::inla}.
-#'
-#' @name contrasts_Param
-NULL
-
-#' EM
-#'
-#' @param EM (logical) Should the EM implementation of the Bayesian GLM be used?
-#'  Default: \code{FALSE}. This method is still in development.
-#'
-#' @name EM_Param
-NULL
-
-#' emTol
-#'
-#' @param emTol The stopping tolerance for the EM algorithm. Default:
-#'  \code{1e-3}.
-#'
-#' @name emTol_Param
-NULL
-
 #'  faces
 #'
 #' @param faces An \eqn{F \times 3} matrix, where each row contains the vertex
@@ -109,37 +67,6 @@ NULL
 #' @name mean_var_Tol_Param
 NULL
 
-#' max_threads
-#'
-#' @param max_threads The maximum number of threads to use in the inla-program
-#'  for model estimation. \code{0} (default) will use the maximum number of
-#'  threads allowed by the system.
-#'
-#' @name max_threads_Param
-NULL
-
-#' nbhd_order
-#'
-#' @param nbhd_order For volumetric model. What order neighborhood around data
-#' locations to keep? \code{0} for no neighbors, \code{1} for 1st-order
-#'  neighbors, \code{2} for 1st- and 2nd-order neighbors, etc. Smaller values
-#'  will provide greater computational efficiency at the cost of higher variance
-#'  around the edge of the data.
-#'
-#' @name nbhd_order_Param
-#'
-NULL
-
-#' n_threads
-#'
-#' @param n_threads The maximum number of threads to use for parallel
-#'  computations: prewhitening parameter estimation, and the inla-program model
-#'  estimation. Default: \code{4}. Note that parallel prewhitening requires the
-#'  \code{parallel} package.
-#'
-#' @name n_threads_Param
-NULL
-
 #' scale_BOLD
 #'
 #' @param scale_BOLD Controls scaling the BOLD response at each location.
@@ -150,13 +77,6 @@ NULL
 #' }
 #'
 #' @name scale_BOLD_Param
-NULL
-
-#' seed
-#'
-#' @param seed Random seed (optional). Default: \code{NULL}.
-#'
-#' @name seed_Param
 NULL
 
 #' session_names
@@ -183,13 +103,4 @@ NULL
 #'  verbose mode (if \code{Bayes}), or \code{0} for no printed updates.
 #'
 #' @name verbose_Param
-NULL
-
-#' vertices
-#'
-#' @param vertices A \eqn{V \times 3} matrix, where each row contains the Euclidean
-#'  coordinates at which a given vertex in the mesh is located. \eqn{V} is the
-#'  number of vertices in the mesh
-#'
-#' @name vertices_Param
 NULL
