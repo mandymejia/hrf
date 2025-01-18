@@ -2,7 +2,7 @@
 #'
 #' @param design The design matrix/array
 #' @keywords internal
-BayesGLM_is_valid_one_design <- function(design) {
+is_valid_one_design <- function(design) {
   stopifnot(is.matrix.or.df(design) || length(dim(design))==3)
   stopifnot(all(apply(design, 2, function(q){all(is.na(q)) || is.numeric(q)})))
   stopifnot(all(dim(design) > 0))
@@ -13,7 +13,7 @@ BayesGLM_is_valid_one_design <- function(design) {
 #'
 #' @param nuisance The nuisance matrix
 #' @keywords internal
-BayesGLM_is_valid_one_nuisance <- function(nuisance) {
+is_valid_one_nuisance <- function(nuisance) {
   stopifnot(is.matrix.or.df(nuisance))
   stopifnot(all(apply(nuisance, 2, is.numeric)))
   stopifnot(all(dim(nuisance) > 0))
@@ -24,7 +24,7 @@ BayesGLM_is_valid_one_nuisance <- function(nuisance) {
 #'
 #' @param scrub The scrub matrix
 #' @keywords internal
-BayesGLM_is_valid_one_scrub <- function(scrub) {
+is_valid_one_scrub <- function(scrub) {
   if (is.null(scrub)) { return(TRUE) }
   if (is.logical(scrub)) { return(TRUE) }
 
@@ -57,7 +57,7 @@ BayesGLM_is_valid_one_scrub <- function(scrub) {
 #'  design has three dimensions.)
 #' @keywords internal
 #' @return \code{design}
-BayesGLM_format_design <- function(
+format_design <- function(
   design, scale_design=TRUE,
   nS_expect=NULL, nT_expect=NULL, nD_expect=NULL,
   per_location_design=NULL
@@ -80,7 +80,7 @@ BayesGLM_format_design <- function(
   }
 
   for (ss in seq(nS)) {
-    stopifnot(BayesGLM_is_valid_one_design(design[[ss]]))
+    stopifnot(is_valid_one_design(design[[ss]]))
     if (is.data.frame(design[[ss]])) { design[[ss]] <- as.matrix(design[[ss]]) }
   }
 
@@ -263,7 +263,7 @@ BayesGLM_format_design <- function(
 #'  multi-session data this is a session-length vector.
 #' @keywords internal
 #' @return \code{nuisance}
-BayesGLM_format_nuisance <- function(
+format_nuisance <- function(
   nuisance, nS_expect=NULL, nT_expect=NULL
   ){
 
@@ -278,7 +278,7 @@ BayesGLM_format_nuisance <- function(
   }
 
   for (ss in seq(nS)) {
-    stopifnot(BayesGLM_is_valid_one_nuisance(nuisance[[ss]]))
+    stopifnot(is_valid_one_nuisance(nuisance[[ss]]))
     if (is.data.frame(nuisance[[ss]])) { nuisance[[ss]] <- as.matrix(nuisance[[ss]]) }
   }
 
@@ -315,7 +315,7 @@ BayesGLM_format_nuisance <- function(
 #'  multi-session data this is a session-length vector.
 #' @keywords internal
 #' @return \code{scrub}
-BayesGLM_format_scrub <- function(
+format_scrub <- function(
   scrub, nS_expect=NULL, nT_expect=NULL
   ){
 
@@ -330,7 +330,7 @@ BayesGLM_format_scrub <- function(
   }
 
   for (ss in seq(nS)) {
-    stopifnot(BayesGLM_is_valid_one_scrub(scrub[[ss]]))
+    stopifnot(is_valid_one_scrub(scrub[[ss]]))
     if (is.logical(scrub[[ss]])) {
       stopifnot(!is.null(nT_expect))
       if (length(scrub[[ss]]) != nT_expect[ss]) {

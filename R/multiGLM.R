@@ -130,7 +130,7 @@ multiGLM <- function(
   # Make `design` a sessions-length list of design matrices.
   #   Get `nK`, `field_names`, and `do$perLocDesign`. Check for consistent dims
   #   across sessions.
-  x <- BayesGLM_format_design(design, scale_design=FALSE, nS_expect=nS)
+  x <- format_design(design, scale_design=FALSE, nS_expect=nS)
   design <- x$design
   nT <- x$nT
   nK <- x$nK
@@ -152,7 +152,7 @@ multiGLM <- function(
 
   ### Check `nuisance`. --------------------------------------------------------
   if (!is.null(nuisance)) {
-    nuisance <- BayesGLM_format_nuisance(nuisance, nS_expect=nS, nT_expect=nT)
+    nuisance <- format_nuisance(nuisance, nS_expect=nS, nT_expect=nT)
   } else {
     nuisance <- list(NULL)
   }

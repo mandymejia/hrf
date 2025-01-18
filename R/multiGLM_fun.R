@@ -59,7 +59,7 @@ multiGLM_fun <- function(
   # Make `design` a sessions-length list of design matrices.
   #   Get `nK`, `field_names`, and `do$perLocDesign`. Check for consistent dims
   #   across sessions.
-  x <- BayesGLM_format_design(design, scale_design=scale_design, nS_expect=nS)
+  x <- format_design(design, scale_design=scale_design, nS_expect=nS)
   design <- x$design[[1]]
   nT <- x$nT
   nK <- x$nK
@@ -77,7 +77,7 @@ multiGLM_fun <- function(
 
   ### Check `nuisance`. --------------------------------------------------------
   if (!is.null(nuisance)) {
-    nuisance <- BayesGLM_format_nuisance(nuisance, nS_expect=nS, nT_expect=nT)[[1]]
+    nuisance <- format_nuisance(nuisance, nS_expect=nS, nT_expect=nT)[[1]]
 
     if (!is.null(names(nuisance)) && !all(names(nuisance) == session_names)) {
       #warning("Ignoring `names(nuisance)`; use `session_names` in `make_design`.")

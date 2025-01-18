@@ -39,7 +39,7 @@ BugReports: https://github.com/mandymejia/hrf/issues
 Depends: R (>= 3.6.0)
 Imports: 
     car,
-    ciftiTools (>= 0.17.2),
+    ciftiTools (>= 0.15.0),
     fMRItools,
     Matrix,
     matrixStats,
