@@ -1,7 +1,7 @@
 Type: Package
 Package: hrf
-Title: Hemodynmaic response function
-Version: 0.1.0
+Title: Hemodynamic Response Function
+Version: 0.1.1
 Authors@R: c(
     person(given = "Amanda",
            family = "Mejia",
@@ -31,7 +31,7 @@ Authors@R: c(
            role = c("ctb"))
            )
 Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
-Description: Computes the hemodynamic response function (hrf) for task 
+Description: Computes the hemodynamic response function (HRF) for task 
     functional magnetic resonance imaging (fMRI) data.
 License: GPL-3
 URL: https://github.com/mandymejia/hrf

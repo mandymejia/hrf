@@ -1,0 +1,67 @@
+---
+title: "Hemodynamic Response Function Modeling with `hrf`"
+author: "Damon Pham & Amanda Mejia"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+  toc: true
+  keep_md: true
+vignette: >
+  %\VignetteIndexEntry{Hemodynamic Response Function Modeling with `hrf`}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(autodep = TRUE, cache = FALSE)
+```
+
+`hrf` is an R package for modeling the hemodynamic response function (HRF). It also includes functions for constructing a design matrix for a general linear model (GLM), and for comparing multiple GLMs with different design matrices.
+
+```{r}
+library(hrf)
+```
+
+# HRF modeling
+
+```{r format="jpg"}
+TR <- 2.2
+upsample <- 1000
+upsample <- round(TR*upsample)/TR # TR*upsample must be an int
+
+u <- seq(0, 30, by=1/upsample) #go out 30 sec
+HRF <- HRF_calc(t = u, deriv=0)
+dHRF <- HRF_calc(t = u, deriv=1)
+
+matplot(cbind(HRF, dHRF), type="l", lwd=2, col=c("black", "blue"))
+```
+
+# Design matrix construction
+
+```{r}
+# Read in data. 
+events <- read.csv("../tests/data/motor1-events.tsv", sep="\t")
+
+# Convert 3-col data.frame to list of 2-col data.frames
+events$trial_type <- as.factor(events$trial_type)
+trials <- levels(events$trial_type)
+events <- setNames(lapply(
+  trials, 
+  function(x){events[events$trial_type==x,seq(2)]}
+), trials)
+```
+
+```{r}
+des <- make_design(events, nTime=370, TR=0.72)
+```
+
+```{r}
+des
+```
+
+
+
+```{r fig.width=5.5, format="jpg"}
+plot(des)
+```
