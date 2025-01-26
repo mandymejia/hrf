@@ -211,8 +211,8 @@ make_design <- function(
   nK <- nK_block + nJ_on + nJ_off
 
   if ((!is.null(onset)) || (!is.null(offset))) {
-    if (dHRF>0) { cat("Not making fields for HRF derivatives of onsets and/or",
-      "offsets. If these are desired, provide with `EVs`.\n")
+    if (dHRF>0) { message("Not making fields for HRF derivatives of onsets ",
+      "and/or offsets. If these are desired, provide with `EVs`.\n")
     }
   }
 

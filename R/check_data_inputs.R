@@ -130,10 +130,11 @@ format_design <- function(
   field_names <- field_names[[1]]
   # Set `field_names` if not provided.
   if (is.null(field_names)) {
-    cat("Setting field names to 'field_1'")
-    if (nK>1) { cat(", 'field_2'") }
-    if (nK>2) { cat(", and so on") }
-    cat(".\n")
+    msg <- "Setting field names to 'field_1'"
+    if (nK>1) { msg <- paste0(msg, ", 'field_2'") }
+    if (nK>2) { msg <- paste0(msg, ", and so on") }
+    msg <- paste0(msg, ".\n")
+    message(msg)
     field_names <- paste0("field_", seq(nK))
   }
   if (any(duplicated(field_names))) { stop("All field names should be unique.") }
@@ -167,10 +168,11 @@ format_design <- function(
       design_names <- design_names[[1]]
       # Set `design_names` for multiGLM, if not provided.
       if (is.null(design_names)) {
-        cat("Setting design names to 'design_1'")
-        if (nK>1) { cat(", 'design_2'") }
-        if (nK>2) { cat(", and so on") }
-        cat(".\n")
+        msg <- "Setting design names to 'design_1'"
+        if (nK>1) { msg <- paste0(msg, ", 'design_2'") }
+        if (nK>2) { msg <- paste0(msg, ", and so on") }
+        msg <- paste0(msg, ".\n")
+        message(msg)
         design_names <- paste0("design_", seq(des_nD))
       }
     }
