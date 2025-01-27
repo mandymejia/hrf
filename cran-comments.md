@@ -14,32 +14,40 @@ This is a new package.
 
 All tests pass.
 
-## Previous submission (0.1.0)
+## Previous submission (0.1.1)
 
-Possibly misspelled words in DESCRIPTION:
-  Hemodynmaic (3:8)
-  hemodynamic (34:27)
-  hrf (34:58)
+The Description field is intended to be a (one paragraph) description of
+what the package does and why it may be useful. Please add more details
+about the package functionality and implemented methods in your
+Description text.
+For more details:
+<https://contributor.r-project.org/cran-cookbook/general_issues.html#description-length>
 
-* The misspelling has been corrected. "hemodynamic" and "hrf" have been added to the WORDLIST.
+* A fuller Description has been added.
 
-Package has a VignetteBuilder field but no prebuilt vignette index.
+If there are references describing the methods in your package, please
+add these in the description field of your DESCRIPTION file in the form
+authors (year) <doi:...>
+authors (year, ISBN:...)
+or if those are not available: <https:...>
+with no space after 'doi:', 'https:' and angle brackets for
+auto-linking. (If you want to add a title as well please put it in
+quotes: "Title")
+For more details:
+<https://contributor.r-project.org/cran-cookbook/description_issues.html#references>
 
-* A vignette has been added.
+* There are no references necessary (yet).
 
-The Title field should be in title case. Current version is:
-  'Hemodynmaic response function'
-In title case that is:
-  'Hemodynmaic Response Function'
+You write information messages to the console that cannot be easily
+suppressed.
+It is more R like to generate objects that can be used to extract the
+information a user is interested in, and then print() that object.
+Instead of print()/cat() rather use message()/warning() or
+if(verbose)cat(..) (or maybe stop()) if you really have to write text to
+the console. (except for print, summary, interactive functions)
+-> R/check_data_inputs.R; R/GLM_multi.R; R/make_design.methods.R;
+R/make_design.R; R/multiGLM.R; R/util.R
+For more details:
+<https://contributor.r-project.org/cran-cookbook/code_issues.html#using-printcat>
 
-Flavor: r-devel-linux-x86_64-debian-gcc, r-devel-windows-x86_64
-Check: S3 generic/method consistency, Result: NOTE
-  Mismatches for apparent methods not registered:
-  is.matrix:
-    function(x)
-  is.matrix.or.df:
-    function(q)
-  See section 'Registering S3 methods' in the 'Writing R Extensions'
-  manual.
-
-* This function has been renamed to is_matrix_or_df
+* `print()` and `cat()` messages not inside an `if(verbose){...}` statement have been replaced with `message` or `warning`, or wrapped in an `if(verbose){...}` statement.

@@ -38,7 +38,6 @@ Description: Computes the hemodynamic response function (HRF) for task
     wrapper function is provided for GLM analysis of CIFTI-format data. Lastly,
     there are supporting functions which provide visual summaries of the
     HRFs and design matrices.
-
 License: GPL-3
 URL: https://github.com/mandymejia/hrf
 BugReports: https://github.com/mandymejia/hrf/issues
