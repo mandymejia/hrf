@@ -32,7 +32,13 @@ Authors@R: c(
            )
 Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
 Description: Computes the hemodynamic response function (HRF) for task 
-    functional magnetic resonance imaging (fMRI) data.
+    functional magnetic resonance imaging (fMRI) data. Also includes functions
+    for constructing a design matrix from task fMRI event timings, and for
+    comparing multiple design matrices in a general linear model (GLM). A
+    wrapper function is provided for GLM analysis of CIFTI-format data. Lastly,
+    there are supporting functions which provide visual summaries of the
+    HRFs and design matrices.
+
 License: GPL-3
 URL: https://github.com/mandymejia/hrf
 BugReports: https://github.com/mandymejia/hrf/issues
