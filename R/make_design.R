@@ -367,7 +367,7 @@ make_design <- function(
     } else {
       tdiff_min <- NA
     }
-    cat("\n")
+    if (verbose) { cat("\n") }
   }
 
   # Format results and return. -------------------------------------------------
