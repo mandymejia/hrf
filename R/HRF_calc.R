@@ -73,7 +73,12 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
     if (taper_start >= taper_end) stop("taper_start must be less than taper_end.")
     if (taper_start > max(t)) stop("taper_start is beyond the end of the time vector.")
     t_peak <- t[if (c > 0) which.min(h) else which.max(h)]
-    if (taper_start < t_peak) warning(paste0("Taper begins at ", round(taper_start, 2), " sec but HRF peak is at ", round(t_peak, 2), " sec — taper may produce unusual results."))
+    if (taper_start < t_peak) {
+      warning(paste0("Taper begins at ", round(taper_start, 2),
+                     " sec but HRF peak is at ", round(t_peak, 2),
+                     " sec - taper may produce unusual results."
+      ))
+    }
 
     # Apply the taper
     h <- cosine_taper(h, t, taper_start, taper_end, taper_power)
