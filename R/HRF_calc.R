@@ -15,6 +15,9 @@
 #' @param b2 dispersion of undershoot. Default: \code{b1 = 1}
 #' @param c scale of undershoot. Default: \code{1/6}
 #' @param o onset of response. Default: \code{0}
+#' @param taper_start start time of taper (NULL to disable). Default: NULL
+#' @param taper_end time (in seconds) to taper to 0. Default: 30
+#' @param taper_power exponent to shape taper curve. Default: 1
 #'
 #' @return HRF vector (or dHRF, or d2HRF) corresponding to time vector t
 #'
@@ -22,11 +25,12 @@
 #' samples_per_sec <- 200
 #' nsec <- 50
 #' HRF_calc(seq(nsec*samples_per_sec)/samples_per_sec)
-#' 
+#'
 #' @importFrom fMRItools is_1
 #' @export
 #'
-HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1/6, o=0){
+HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1/6, o=0,
+                     taper_start=NULL, taper_end=30, taper_power=1) {
 
   # Arg checks
   stopifnot(is.numeric(t)); stopifnot(min(t) >= 0)
@@ -62,6 +66,19 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
     h <- (fplus - fminus)/(2*delta)
   }
 
+  # Start tapering if taper_start is given
+  if (!is.null(taper_start)) {
+    # Issue warnings or stops on important issues
+    if (c == 0) warning("Taper applied even though c = 0 (no undershoot).")
+    if (taper_start >= taper_end) stop("taper_start must be less than taper_end.")
+    if (taper_start > max(t)) stop("taper_start is beyond the end of the time vector.")
+    t_peak <- t[if (c > 0) which.min(h) else which.max(h)]
+    if (taper_start < t_peak) warning(paste0("Taper begins at ", round(taper_start, 2), " sec but HRF peak is at ", round(t_peak, 2), " sec — taper may produce unusual results."))
+
+    # Apply the taper
+    h <- cosine_taper(h, t, taper_start, taper_end, taper_power)
+  }
+
   # Drop first value, which equals zero.
   h <- h[-1]
 
@@ -91,7 +108,7 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
 #' @examples
 #' upsample <- 100
 #' HRF_main(seq(0, 30, by=1/upsample))
-#' 
+#'
 #' @importFrom fMRItools is_1
 #' @importFrom stats dgamma
 #' @export
@@ -266,4 +283,21 @@ cderiv <- function(x){
   x <- as.matrix(x)
   dx <- diff(x)
   (rbind(0, dx) + rbind(dx, 0)) / 2
+}
+
+#' Apply power-adjusted cosine taper
+#'
+#' @param h HRF vector
+#' @param t time vector (same length as h)
+#' @param taper_start time (in seconds) to begin taper
+#' @param taper_end time (in seconds) to fully decay to zero
+#' @param taper_power exponent to shape the taper curve (P=1 is cosine arc)
+#'
+#' @return tapered HRF vector
+cosine_taper <- function(h, t, taper_start, taper_end = 30, taper_power = 1) {
+  taper <- rep(1, length(h))
+  in_taper_region <- which(t >= taper_start & t <= taper_end)
+  taper[in_taper_region] <- 0.5 * (1 + cos(pi * ((t[in_taper_region] - taper_start) / (taper_end - taper_start))^taper_power))
+  taper[t > taper_end] <- 0
+  h * taper
 }
