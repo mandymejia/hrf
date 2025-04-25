@@ -79,9 +79,6 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
     h <- cosine_taper(h, t, taper_start, taper_end, taper_power)
   }
 
-  # Drop first value, which equals zero.
-  h <- h[-1]
-
   h
 }
 
@@ -293,6 +290,7 @@ cderiv <- function(x){
 #' @param taper_end time (in seconds) to fully decay to zero
 #' @param taper_power exponent to shape the taper curve (P=1 is cosine arc)
 #'
+#' @keywords internal
 #' @return tapered HRF vector
 cosine_taper <- function(h, t, taper_start, taper_end = 30, taper_power = 1) {
   taper <- rep(1, length(h))
