@@ -1,7 +1,7 @@
 Type: Package
 Package: hrf
 Title: Hemodynamic Response Function
-Version: 0.1.3
+Version: 0.2.1
 Authors@R: c(
     person(given = "Amanda",
            family = "Mejia",
