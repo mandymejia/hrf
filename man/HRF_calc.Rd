@@ -12,7 +12,10 @@ HRF_calc(
   a2 = 16/6 * a1 * sqrt(b1),
   b2 = b1,
   c = 1/6,
-  o = 0
+  o = 0,
+  taper_start = NULL,
+  taper_end = 30,
+  taper_power = 1
 )
 }
 \arguments{
@@ -32,6 +35,12 @@ of the HRF, or \code{2} for the dispersion derivative of the HRF.}
 \item{c}{scale of undershoot. Default: \code{1/6}}
 
 \item{o}{onset of response. Default: \code{0}}
+
+\item{taper_start}{start time of taper (NULL to disable). Default: NULL}
+
+\item{taper_end}{time (in seconds) to taper to 0. Default: 30}
+
+\item{taper_power}{exponent to shape taper curve. Default: 1}
 }
 \value{
 HRF vector (or dHRF, or d2HRF) corresponding to time vector t
