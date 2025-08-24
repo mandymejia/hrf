@@ -8,6 +8,7 @@ multiGLM_fun(
   BOLD,
   design,
   nuisance = NULL,
+  scrub = NULL,
   design_canonical = NULL,
   verbose = 1,
   meanTol = 1e-06,
@@ -17,6 +18,15 @@ multiGLM_fun(
 \arguments{
 \item{BOLD, design, nuisance}{Session-length list of numeric matrices/arrays,
 each with volumes along the first dimension.}
+
+\item{scrub}{(Optional) A \eqn{T \times N_{scrub}} matrix of spike regressors
+(one 1 value at the timepoint to scrub, and 0 for all other values), or a
+logical vector indicating the timepoints to scrub (\code{TRUE} to scrub, and
+\code{FALSE} to keep).
+
+The spike regressors will be included in the nuisance
+regression, and afterwards the timepoints indicated in \code{scrub} will be
+removed from the BOLD data and design matrix.}
 
 \item{design_canonical}{TO DO}
 

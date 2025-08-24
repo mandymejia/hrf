@@ -104,3 +104,37 @@ NULL
 #'
 #' @name verbose_Param
 NULL
+
+#' scrub
+#'
+#' @param scrub (Optional) A \eqn{T \times N_{scrub}} matrix of spike regressors
+#'  (one 1 value at the timepoint to scrub, and 0 for all other values), or a
+#'  logical vector indicating the timepoints to scrub (\code{TRUE} to scrub, and
+#'  \code{FALSE} to keep).
+#'
+#'  The spike regressors will be included in the nuisance
+#'  regression, and afterwards the timepoints indicated in \code{scrub} will be
+#'  removed from the BOLD data and design matrix.
+#'
+#' @name scrub_Param
+NULL
+
+
+#' nT
+#'
+#' @param nT The number of timepoints in the dataset. Used to validate that
+#'  scrub vectors, spike regressors, and nuisance regressors have consistent
+#'  dimensions.
+#'
+#' @name nT_Param
+NULL
+
+#' spike_matrix
+#'
+#' @param spike_matrix A binary \eqn{T \times N} spike regressor matrix, where
+#'  \eqn{T} is the number of timepoints and \eqn{N} is the number of spike
+#'  regressors (one per scrubbed timepoint). Each column must contain exactly
+#'  one `1` and \eqn{T-1} zeros.
+#'
+#' @name spike_matrix_Param
+NULL
