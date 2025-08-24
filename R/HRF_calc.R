@@ -84,7 +84,7 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
     h <- cosine_taper(h, t, taper_start, taper_end, taper_power)
   }
 
-  h
+  h <- h[-1] # This needs to be here otherwise calculations and compute get thrown off.
 }
 
 #' Canonical (double-gamma) HRF
