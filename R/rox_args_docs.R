@@ -138,3 +138,71 @@ NULL
 #'
 #' @name spike_matrix_Param
 NULL
+
+#' onset_skip
+#'
+#' @param onset_skip Minimum event duration (in seconds) for tasks to be
+#'  included in onset/offset regressors. Tasks where ANY event has duration less than
+#'  the threshold will be excluded from the respective onset/offset regressors. This is
+#'  useful for excluding short events (e.g., cues) from block-based onset/offset modeling.
+#'  Default: 5 seconds. Set to \code{NULL} or 0 to include all tasks.
+#'
+#' @name onset_skip_Param
+NULL
+
+#' offset_skip
+#'
+#' @param offset_skip Minimum event duration (in seconds) for tasks to be
+#'  included in onset/offset regressors. Tasks where ANY event has duration less than
+#'  the threshold will be excluded from the respective onset/offset regressors. This is
+#'  useful for excluding short events (e.g., cues) from block-based onset/offset modeling.
+#'  Default: 5 seconds. Set to \code{NULL} or 0 to include all tasks.
+#'
+#' @name offset_skip_Param
+NULL
+
+#' onsets_sep
+#'
+#' @param onsets_sep Model the onsets separately for each task? Default: \code{FALSE}, to
+#'  model all onsets together as a single field in the design.
+#'
+#' @name onsets_sep_Param
+NULL
+
+#' offsets_sep
+#'
+#' @param offsets_sep Model the offsets separately for each task? Default: \code{FALSE}, to
+#'  model all offsets together as a single field in the design.
+#'
+#' @name offsets_sep_Param
+NULL
+
+#' onset
+#'
+#' @param onset Add task regressors indicating the onset of each event block? 
+#'  Provide the names of the tasks as a character vector. All onsets across the 
+#'  specified tasks will be represented by one additional column in the design matrix. 
+#'  The task names must match the names of \code{EVs}. Can also be \code{TRUE} or 
+#'  \code{"all"} to use all tasks.
+#'
+#'  Onsets/offset modeling is only compatible with a block design experiment.
+#'  An error will be raised if the events in \code{EVs} do not have duration
+#'  greater than one second.
+#'
+#' @name onset_Param
+NULL
+
+#' offset
+#'
+#' @param offset Add task regressors indicating the offset of each event block? 
+#'  Provide the names of the tasks as a character vector. All offsets across the 
+#'  specified tasks will be represented by one additional column in the design matrix. 
+#'  The task names must match the names of \code{EVs}. Can also be \code{TRUE} or 
+#'  \code{"all"} to use all tasks.
+#'
+#'  Onsets/offset modeling is only compatible with a block design experiment.
+#'  An error will be raised if the events in \code{EVs} do not have duration
+#'  greater than one second.
+#'
+#' @name offset_Param
+NULL
