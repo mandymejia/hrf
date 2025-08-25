@@ -420,6 +420,9 @@ format_EV <- function(EV){
 #'   }
 #' @keywords internal
 process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, onsets_sep, offsets_sep, task_names) {
+  onset_original <- onset
+  offset_original <- offset
+  
   nJ0 <- length(task_names) # not including `onset` or `offset`
 
   if (!is.null(onset) || !is.null(offset)) {
@@ -439,8 +442,8 @@ process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, on
     stopifnot(all(onset %in% task_names))
     onset <- EVs[onset]
 
-    # Filter by duration if onset_skip is provided
-    if (!is.null(onset_skip)) {
+    # Filter by duration if onset_skip is provided or if user set TRUE
+    if (!is.null(onset_skip) && identical(onset_original, TRUE)) {
       stopifnot(is.numeric(onset_skip) && length(onset_skip)==1 && onset_skip >= 0)
       # Keep only tasks where ALL events have duration >= onset_skip
       onset_keep <- sapply(onset, function(q) all(q$duration >= onset_skip))
@@ -478,8 +481,8 @@ process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, on
     stopifnot(all(offset %in% task_names))
     offset <- EVs[offset]
 
-    # Filter by duration if offset_skip is provided
-    if (!is.null(offset_skip)) {
+    # Filter by duration if offset_skip is provided or if user set TRUE
+    if (!is.null(offset_skip) && identical(offset_original, TRUE)) {
       stopifnot(is.numeric(offset_skip) && length(offset_skip)==1 && offset_skip >= 0)
       # Keep only tasks where ALL events have duration >= offset_skip
       offset_keep <- sapply(offset, function(q) all(q$duration >= offset_skip))
