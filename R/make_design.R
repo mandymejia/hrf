@@ -435,29 +435,26 @@ process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, on
 
   # [TO DO] check design is actually block design
 
-  if (!is.null(onset)) {
+  if (!is.null(onset) && !identical(onset, FALSE)) {
     if (is.logical(onset) && length(onset)==1 && onset==TRUE) {onset <- "all"}
     stopifnot(is.character(onset))
     if (length(onset)==1 && onset=="all") { onset <- task_names }
     stopifnot(all(onset %in% task_names))
     onset <- EVs[onset]
 
-    # Filter by duration if onset_skip is provided or if user set TRUE
+    # Only filter if user passed TRUE (auto-select mode)
     if (!is.null(onset_skip) && identical(onset_original, TRUE)) {
       stopifnot(is.numeric(onset_skip) && length(onset_skip)==1 && onset_skip >= 0)
-      # Keep only tasks where ALL events have duration >= onset_skip
       onset_keep <- sapply(onset, function(q) all(q$duration >= onset_skip))
       onset <- onset[onset_keep]
       if (length(onset) == 0) {
         warning("No tasks have all events with duration >= ", onset_skip, ". No onset regressor created.")
         onset <- NULL
-        nJ_on <- 0
       }
     }
 
-    # Only proceed if we still have tasks after filtering
+    # Create regressors if we still have tasks
     if (!is.null(onset)) {
-      # Same onset, but set new duration at zero
       onset <- lapply(onset, function(q){q$duration <- 0; q})
       if (!onsets_sep) {
         nJ_on <- 1
@@ -469,34 +466,33 @@ process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, on
         names(onset) <- paste0("onset_", names(onset))
         EVs <- c(EVs, onset)
       }
+    } else {
+      nJ_on <- 0
     }
   } else {
     nJ_on <- 0
   }
 
-  if (!is.null(offset)) {
+  if (!is.null(offset) && !identical(offset, FALSE)) {
     if (is.logical(offset) && length(offset)==1 && offset==TRUE) {offset <- "all"}
     stopifnot(is.character(offset))
     if (length(offset)==1 && offset=="all") { offset <- task_names }
     stopifnot(all(offset %in% task_names))
     offset <- EVs[offset]
 
-    # Filter by duration if offset_skip is provided or if user set TRUE
+    # Only filter if user passed TRUE (auto-select mode)
     if (!is.null(offset_skip) && identical(offset_original, TRUE)) {
       stopifnot(is.numeric(offset_skip) && length(offset_skip)==1 && offset_skip >= 0)
-      # Keep only tasks where ALL events have duration >= offset_skip
       offset_keep <- sapply(offset, function(q) all(q$duration >= offset_skip))
       offset <- offset[offset_keep]
       if (length(offset) == 0) {
         warning("No tasks have all events with duration >= ", offset_skip, ". No offset regressor created.")
         offset <- NULL
-        nJ_off <- 0
       }
     }
 
-    # Only proceed if we still have tasks after filtering
+    # Create regressors if we still have tasks
     if (!is.null(offset)) {
-      # New onset is onset+duration; new duration is zero
       offset <- lapply(offset, function(q){q$onset <- q$onset + q$duration; q$duration <- 0; q})
       if (!offsets_sep) {
         nJ_off <- 1
@@ -508,10 +504,12 @@ process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, on
         names(offset) <- paste0("offset_", names(offset))
         EVs <- c(EVs, offset)
       }
+    } else {
+      nJ_off <- 0
     }
-  } else {
+    } else {
     nJ_off <- 0
-  }
+    }
 
   J_on_idx <- if (is.null(onset)) { NULL } else { seq(nJ0+1, nJ0+nJ_on) }
   J_off_idx <- if (is.null(offset)) { NULL } else { seq(nJ0+nJ_on+1, nJ0+nJ_on+nJ_off) }
