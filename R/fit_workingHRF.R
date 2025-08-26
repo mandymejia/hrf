@@ -357,19 +357,344 @@ run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures,
     )
   })
 }
-run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                       hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose) {
 
-  lapply(1:length(BOLD), function(i) {
-    process_single_subject_df(
-      subject_idx = i,
-      BOLD_file = BOLD[i],
-      EVs = EVs[[i]],
-      nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
-      scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
-      TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-      hpf = hpf, hrf_params = hrf_params, derivatives = derivatives,
-      onsets = onsets, offsets = offsets, verbose = verbose
+#' Process one subject through complete pipeline
+#'
+#' Executes the full working-HRF pipeline for a single subject:
+#' loads BOLD data, creates design matrix, fits GLM, and returns results.
+#' Includes error handling and timing information. Called by both parallel
+#' and sequential processing functions.
+#'
+#' @inheritParams subject_idx_Param
+#' @param BOLD_file Character. File path to subject's CIFTI data.
+#' @inheritParams EVs_Param
+#' @param nuisance_file Character or NULL. File path to nuisance regressors.
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hpf_Param
+#' @inheritParams hrf_params_Param
+#' @inheritParams derivatives_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#'
+#' @return List with elements:
+#'   \item{subject_idx}{Subject identifier}
+#'   \item{n_locations}{Number of brain locations}
+#'   \item{nT}{Number of timepoints}
+#'   \item{design_dims}{Dimensions of design matrix}
+#'   \item{design_matrix}{The design matrix used}
+#'   \item{field_names}{Names of design matrix columns}
+#'   \item{glm_results}{Output from multiGLM()}
+#'   \item{processing_time}{Time taken in seconds}
+#'   \item{status}{"success" or "error"}
+#'   \item{error}{Error message (only if status = "error")}
+#'
+#' @keywords internal
+process_single_subject_df <- function(subject_idx, BOLD_file, EVs, nuisance_file,
+                                      TR, brainstructures, resamp_res, hpf,
+                                      hrf_params, derivatives, onsets, offsets, scrub, verbose) {
+  start_time <- Sys.time()
+  if(verbose > 1) cat("Subject", subject_idx, ": Starting pipeline...\n")
+
+  tryCatch({
+    tictoc::tic()
+    # Step 1a: Load data and create design matrix
+    bold_and_design <- create_design_matrix(
+      BOLD_file, EVs, TR, brainstructures, resamp_res, hrf_params, derivatives,
+      onsets, offsets, verbose, subject_idx
     )
+    cat("***Subject", subject_idx, ": Design matrix created in: ")
+    tictoc::toc()
+
+    # Step 1b: Fit GLM models
+    tictoc::tic()
+    glm_results <- fit_glm_model(
+      bold_and_design$BOLD_xii, bold_and_design$design_array,
+      nuisance_file, TR, brainstructures, hpf, scrub, verbose, subject_idx
+    )
+    cat("***Subject", subject_idx, ": GLM fitted in: ")
+    tictoc::toc()
+
+    bold_and_design$BOLD_xii <- NULL
+    bold_and_design$design_array <- NULL
+    gc()
+
+    processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
+    if(verbose > 1) cat("Subject", subject_idx, ": Completed in", round(processing_time, 1), "s\n")
+
+    return(list(
+      subject_idx = subject_idx,
+      n_locations = bold_and_design$n_locations,
+      nT = bold_and_design$nT,
+      design_dims = bold_and_design$design_dims,
+      design_matrix = bold_and_design$design_matrix,
+      field_names = bold_and_design$field_names,
+      glm_results = glm_results,
+      processing_time = processing_time,
+      status = "success"
+    ))
+
+  }, error = function(e) {
+    cat("Error processing subject", subject_idx, "\n")
+    cat("Error message:", conditionMessage(e), "\n")
+    processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
+
+    return(list(
+      subject_idx = subject_idx,
+      processing_time = processing_time,
+      status = "error",
+      error = e$message
+    ))
   })
+}
+
+#' Create design matrix for one subject
+#'
+#' Loads BOLD data and creates GLM design matrix by convolving event definitions
+#' with specified HRF. Handles derivatives, onset/offset modeling, and converts
+#' to array format required by multiGLM().
+#'
+#' @param BOLD_file Character. File path to subject's CIFTI data.
+#' @inheritParams EVs_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hrf_params_Param
+#' @inheritParams derivatives_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams verbose_Param
+#' @inheritParams subject_idx_Param
+#'
+#' @return List with elements:
+#'   \item{BOLD_xii}{Loaded xifti object}
+#'   \item{n_locations}{Number of brain locations}
+#'   \item{nT}{Number of timepoints}
+#'   \item{design_matrix}{Design matrix (timepoints × regressors)}
+#'   \item{design_array}{3D array version for multiGLM()}
+#'   \item{field_names}{Names of design matrix columns}
+#'   \item{design_dims}{Dimensions of design matrix}
+#'
+#' @keywords internal
+create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res,
+                                 hrf_params, derivatives, onsets, offsets, verbose, subject_idx) {
+  if(verbose > 1) cat("Subject", subject_idx, ": Loading BOLD and creating design matrix...\n")
+
+  tictoc::tic()
+  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res)
+  cat("***Subject", subject_idx, ": BOLD data loaded in: ")
+  tictoc::toc()
+  nT <- bold_data$nT
+  n_locations <- bold_data$n_locations
+
+  # Create design matrix
+  dHRF <- if(derivatives) 2 else 0
+ 
+  tictoc::tic("Made design matrix")
+  design_result <- make_design(
+    EVs = EVs, nTime = nT, TR = TR, dHRF = dHRF,
+    onset = onsets,
+    offset = offsets,
+    a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
+    a2 = hrf_params$a2, b2 = hrf_params$b2
+  )
+  tictoc::toc()
+
+  # Convert to array format for multiGLM (research code pattern)
+  design_array <- convert_design_to_array(design_result$design)
+
+  if(verbose > 1) {
+    cat("Subject", subject_idx, ": Design dims =", paste(dim(design_result$design), collapse="x"), "\n")
+    cat("Subject", subject_idx, ": Field names =", paste(design_result$field_names, collapse=", "), "\n")
+  }
+
+  return(list(
+    BOLD_xii = bold_data$BOLD_xii,
+    n_locations = n_locations,
+    nT = nT,
+    design_matrix = design_result$design,
+    design_array = design_array,
+    field_names = design_result$field_names,
+    design_dims = dim(design_result$design)
+  ))
+}
+
+#' Convert design matrix to array format required by multiGLM
+#'
+#' Creates 3D array with noisy duplicate design to satisfy multiGLM requirements.
+#'
+#' @inheritParams design_matrix_Param
+#'
+#' @return 3D array (timepoints × regressors × 2)
+#'
+#' @keywords internal
+convert_design_to_array <- function(design_matrix) {
+  design_array <- array(design_matrix, dim=c(dim(design_matrix), 2))
+  design_array[,,2] <- design_array[,,2] + rnorm(length(design_array[,,2]))
+  return(design_array)
+}
+
+#' Load BOLD data and extract dimensions
+#'
+#' Reads CIFTI file using ciftiTools, applies optional resampling, and extracts
+#' key dimensional information needed for GLM setup.
+#'
+#' @param BOLD_file Character. File path to CIFTI data file.
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#'
+#' @return List with elements:
+#'   \item{BOLD_xii}{Loaded xifti object containing BOLD time-series}
+#'   \item{nT}{Number of timepoints (volumes)}
+#'   \item{n_locations}{Total number of brain locations}
+#'
+#' @keywords internal
+load_bold_data <- function(BOLD_file, brainstructures, resamp_res) {
+  BOLD_xii <- ciftiTools::read_cifti(BOLD_file,
+                                     brainstructures = brainstructures,
+                                     resamp_res = resamp_res)
+  nT <- ncol(BOLD_xii)
+  n_locations <- nrow(as.matrix(BOLD_xii))
+
+  return(list(
+    BOLD_xii = BOLD_xii,
+    nT = nT,
+    n_locations = n_locations
+  ))
+}
+
+#' Fit GLM model for one subject
+#'
+#' Loads nuisance regressors and fits multiGLM to BOLD data using provided
+#' design array. Handles filtering and scrubbing as specified.
+#'
+#' @inheritParams BOLD_xii_Param
+#' @inheritParams design_array_Param
+#' @inheritParams nuisance_file_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams hpf_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#' @inheritParams subject_idx_Param
+#'
+#' @return Output from multiGLM() containing GLM results and statistics.
+#'
+#' @keywords internal
+fit_glm_model <- function(BOLD_xii, design_array, nuisance_file, TR, brainstructures,
+                          hpf, scrub, verbose, subject_idx) {
+  if(verbose > 1) cat("Subject", subject_idx, ": Fitting GLM model...\n")
+
+  # Load nuisance regressors
+  nuisance <- load_nuisance_regressors(nuisance_file)
+
+  # Fit single GLM - multiGLM handles whatever design matrix we give it
+  glm_result <- multiGLM(
+    BOLD = BOLD_xii,
+    brainstructures = brainstructures,
+    resamp_res = NULL,
+    design = design_array,  # Just pass the whole design array
+    design_canonical = design_array[,,1],  # Use first design as canonical
+    nuisance = nuisance,
+    scrub = scrub,
+    TR = TR,
+    hpf = hpf
+  )
+
+  return(glm_result)  # Return single result,
+}
+
+#' Load nuisance regressors from file
+#'
+#' Reads nuisance regressor file and converts to matrix format.
+#'
+#' @inheritParams nuisance_file_Param
+#'
+#' @return Matrix of nuisance regressors or NULL if file not provided.
+#'
+#' @keywords internal
+load_nuisance_regressors <- function(nuisance_file) {
+  if(is.null(nuisance_file)) return(NULL)
+  return(as.matrix(read.table(nuisance_file, header=FALSE)))
+}
+
+
+#' Report subject processing errors
+#'
+#' Prints error messages for failed subjects and issues warnings. Only reports
+#' errors without stopping execution - failed subjects are excluded from
+#' subsequent cross-subject analyses.
+#'
+#' @inheritParams subject_results_Param  
+#' @inheritParams verbose_Param
+#'
+#' @return NULL (called for side effects only)
+#' @keywords internal
+report_design_fit_errors <- function(subject_results, verbose = 1) {
+  # Fatal errors
+  errors <- sapply(subject_results, function(x) x$status == "error")
+  if (any(errors)) {
+    error_subjects <- which(errors)
+    for (i in error_subjects) {
+      cat("Subject", i, "ERROR:", subject_results[[i]]$error, "\n")
+    }
+    warning("Processing failed for ", sum(errors), " subjects. These subjects will not be
+            used when making the activation masks")
+  }
+
+}
+
+#' Create activation masks and proportion maps
+#'
+#' Generates cross-subject activation masks by thresholding F-test p-values
+#' and computing proportion maps showing consistency of activation across subjects.
+#' This implements the "1c functionality" from the research pipeline.
+#'
+#' @inheritParams subject_results_Param
+#' @inheritParams alpha_Param
+#' @inheritParams verbose_Param
+#'
+#' @return List with elements:
+#'   \item{masks}{Logical matrix (locations × subjects) of significant activations}
+#'   \item{prop}{Numeric vector of activation proportions across subjects}
+#'   \item{alpha}{The threshold used}
+#'   \item{n_subjects}{Number of successful subjects}
+#'
+#' @keywords internal
+create_activation_masks <- function(subject_results, alpha = 0.01, verbose = 1) {
+  successful_subjects <- which(sapply(subject_results, function(x) x$status == "success"))
+  n_successful <- length(successful_subjects)
+
+  if(n_successful == 0) {
+    stop("No subjects processed successfully - cannot create activation masks")
+  }
+
+  # Get dimensions from first subject
+  first_subject <- subject_results[[successful_subjects[1]]]
+  first_pvals <- as.vector(as.matrix(first_subject$glm_results$pvalF_xii))
+  n_locations <- length(first_pvals)
+
+  # Collect p-values across all successful subjects
+  pvals_matrix <- matrix(NA, nrow = n_locations, ncol = n_successful)
+
+  for(i in seq_along(successful_subjects)) {
+    subj_idx <- successful_subjects[i]
+    pvals <- as.vector(as.matrix(subject_results[[subj_idx]]$glm_results$pvalF_xii))
+    pvals_matrix[, i] <- pvals
+  }
+
+  # Create masks and proportions
+  masks <- (pvals_matrix < alpha)
+  colnames(masks) <- successful_subjects
+  prop <- rowSums(masks, na.rm = TRUE) / rowSums(!is.na(masks))
+
+  return(list(
+    masks = masks,
+    prop = prop,
+    alpha = alpha,
+    n_subjects = n_successful
+  ))
 }

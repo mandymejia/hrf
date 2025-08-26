@@ -397,3 +397,12 @@ NULL
 #'
 #' @name BOLD_xii_Param
 NULL
+
+#' Nuisance File Path
+#'
+#' @param nuisance_file Character or NULL. File path to nuisance regressors
+#'   text file. Expected format: tab/space-separated values, no header, 
+#'   one timepoint per row. If NULL, no nuisance regression is performed.
+#'
+#' @name nuisance_file_Param
+NULL
