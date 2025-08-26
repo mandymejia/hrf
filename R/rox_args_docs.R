@@ -415,3 +415,11 @@ NULL
 #'
 #' @name log_dir_Param
 NULL
+
+#' HRF Parameter Grid
+#'
+#' @param hrf_grid Data frame or function returning HRF parameter combinations.
+#'   Must contain columns: a1, b1, c, a2, b2. If function, called with ... arguments.
+#'
+#' @name hrf_grid_Param
+NULL

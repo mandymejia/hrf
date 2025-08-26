@@ -21,7 +21,7 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     library(ciftiTools)
     library(qs)
     library(pryr)# debugging remember to remove from DESCRIPTION
-    library(ps) #debugging remember to remove from DESCRIPTION
+    library(ps) # debugging remember to remove from DESCRIPTION
     library(tictoc) #debugging remember to remove from DESCRIPTION
   })
 
