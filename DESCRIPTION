@@ -56,7 +56,8 @@ Suggests:
     rmarkdown,
     testthat (>= 3.0.0),
     tidyr,
-    spelling
+    spelling,
+    tictoc 
 VignetteBuilder:
     knitr
 Encoding: UTF-8

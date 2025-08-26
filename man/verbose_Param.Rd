@@ -4,10 +4,15 @@
 \alias{verbose_Param}
 \title{verbose}
 \arguments{
-\item{verbose}{\code{1} (default) to print occasional updates during model
-computation; \code{2} for occasional updates as well as running INLA in
-verbose mode (if \code{Bayes}), or \code{0} for no printed updates.}
+\item{verbose}{Integer controlling output verbosity:
+\itemize{
+\item 0 = silent
+\item 1 = high-level progress messages
+\item 2 = detailed per-subject information
+}}
 }
 \description{
 verbose
+
+Verbosity Level
 }

@@ -9,22 +9,20 @@ apply_scrubbing_single(nuisance = NULL, scrub = NULL, nT, verbose = 1)
 \arguments{
 \item{nuisance}{Nuisance matrix (timepoints x nuisance_regressors) or NULL.}
 
-\item{scrub}{(Optional) A \eqn{T \times N_{scrub}} matrix of spike regressors
-(one 1 value at the timepoint to scrub, and 0 for all other values), or a
-logical vector indicating the timepoints to scrub (\code{TRUE} to scrub, and
-\code{FALSE} to keep).
-
-The spike regressors will be included in the nuisance
-regression, and afterwards the timepoints indicated in \code{scrub} will be
-removed from the BOLD data and design matrix.}
+\item{scrub}{List (one logical vector per subject) or \code{NULL}.
+Frames set to \code{TRUE} are excluded from the GLM. Used to remove
+high-motion or artifact-contaminated timepoints.}
 
 \item{nT}{The number of timepoints in the dataset. Used to validate that
 scrub vectors, spike regressors, and nuisance regressors have consistent
 dimensions.}
 
-\item{verbose}{\code{1} (default) to print occasional updates during model
-computation; \code{2} for occasional updates as well as running INLA in
-verbose mode (if \code{Bayes}), or \code{0} for no printed updates.}
+\item{verbose}{Integer controlling output verbosity:
+\itemize{
+\item 0 = silent
+\item 1 = high-level progress messages
+\item 2 = detailed per-subject information
+}}
 }
 \value{
 Updated nuisance matrix with spike regressors appended.

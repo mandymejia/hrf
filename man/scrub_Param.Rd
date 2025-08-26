@@ -4,15 +4,12 @@
 \alias{scrub_Param}
 \title{scrub}
 \arguments{
-\item{scrub}{(Optional) A \eqn{T \times N_{scrub}} matrix of spike regressors
-(one 1 value at the timepoint to scrub, and 0 for all other values), or a
-logical vector indicating the timepoints to scrub (\code{TRUE} to scrub, and
-\code{FALSE} to keep).
-
-The spike regressors will be included in the nuisance
-regression, and afterwards the timepoints indicated in \code{scrub} will be
-removed from the BOLD data and design matrix.}
+\item{scrub}{List (one logical vector per subject) or \code{NULL}.
+Frames set to \code{TRUE} are excluded from the GLM. Used to remove
+high-motion or artifact-contaminated timepoints.}
 }
 \description{
 scrub
+
+Scrubbing Parameters
 }

@@ -206,3 +206,194 @@ NULL
 #'
 #' @name offset_Param
 NULL
+
+#' BOLD Data Input
+#'
+#' @param BOLD Character vector of file paths to CIFTI files; 
+#'   one entry per subject/session. CIFTI files should
+#'   contain preprocessed BOLD time-series data.
+#'
+#' @name BOLD_Param
+NULL
+
+#' Event Definitions
+#'
+#' @param EVs List, same length as \code{BOLD}. Each element is a data frame
+#'   (or similar) giving event onsets and durations for that subject. Each
+#'   data frame should have columns for onset times and durations in seconds.
+#'
+#' @name EVs_Param
+NULL
+
+#' Nuisance Regressors
+#'
+#' @param nuisance Character vector of file paths (one per subject) or
+#'   \code{NULL}. Each file must contain a design matrix of nuisance
+#'   regressors (e.g., motion parameters, physiological noise). If \code{NULL},
+#'   no nuisance regression is performed.
+#'
+#' @name nuisance_Param
+NULL
+
+#' Scrubbing Parameters
+#'
+#' @param scrub List (one logical vector per subject) or \code{NULL}.
+#'   Frames set to \code{TRUE} are excluded from the GLM. Used to remove
+#'   high-motion or artifact-contaminated timepoints.
+#'
+#' @name scrub_Param
+NULL
+
+#' Temporal Resolution
+#'
+#' @param TR Numeric. Repetition time in seconds. The temporal sampling
+#'   rate of the BOLD acquisition.
+#'
+#' @name TR_Param
+NULL
+
+#' Brain Structures
+#'
+#' @param brainstructures Character vector passed to
+#'   \code{ciftiTools::read_cifti()}, specifying which brain structures
+#'   to analyze. Typical values: \code{c("left", "right")} for cortical
+#'   hemispheres, or \code{c("left", "right", "subcortical")}.
+#'
+#' @name brainstructures_Param
+NULL
+
+#' Surface Resampling
+#'
+#' @param resamp_res Integer or \code{NULL}. Surface resampling resolution
+#'   (e.g., 10000 for 10k vertices per hemisphere). If \code{NULL}, uses
+#'   native resolution of the input data.
+#'
+#' @name resamp_res_Param
+NULL
+
+#' High-Pass Filtering
+#'
+#' @param hpf Numeric or \code{NULL}. High-pass filter cut-off frequency
+#'   in Hz. Set \code{NULL} to disable filtering. Recommended for removing
+#'   low-frequency drift in fMRI data.
+#'
+#' @name hpf_Param
+NULL
+
+#' HRF Parameters
+#'
+#' @param hrf_params Named list with at least \code{a1}, \code{b1}, \code{c}.
+#'   Additional parameters \code{a2}, \code{b2} are optional and default to
+#'   SPM values. Controls the shape of the hemodynamic response function:
+#'   \itemize{
+#'     \item \code{a1}: Delay of main response (default: 6)
+#'     \item \code{b1}: Dispersion of main response (default: 1)  
+#'     \item \code{c}: Scale of undershoot (default: 1/6)
+#'     \item \code{a2}: Delay of undershoot (default: 16)
+#'     \item \code{b2}: Dispersion of undershoot (default: 1)
+#'   }
+#'
+#' @name hrf_params_Param
+NULL
+
+#' HRF Derivatives
+#'
+#' @param derivatives Logical. Include temporal and dispersion derivatives
+#'   of the HRF in the design matrix? This allows for flexibility in HRF
+#'   timing and shape across brain regions.
+#'
+#' @name derivatives_Param
+NULL
+
+#' Onset Modeling
+#'
+#' @param onsets Logical or character vector. Add separate onset regressors
+#'   per trial type? If \code{TRUE}, adds onset regressors for all tasks.
+#'   If character vector, specifies which tasks to model onsets for.
+#'   Only compatible with block designs (events with duration > 1s).
+#'
+#' @name onsets_Param  
+NULL
+
+#' Offset Modeling
+#'
+#' @param offsets Logical or character vector. Add separate offset regressors
+#'   per trial type? If \code{TRUE}, adds offset regressors for all tasks.
+#'   If character vector, specifies which tasks to model offsets for.
+#'   Only compatible with block designs (events with duration > 1s).
+#'
+#' @name offsets_Param
+NULL
+
+#' Statistical Threshold
+#'
+#' @param alpha Numeric. P-value threshold used when generating activation
+#'   masks across subjects. Typical values: 0.05, 0.01, or 0.001.
+#'
+#' @name alpha_Param
+NULL
+
+#' Verbosity Level
+#'
+#' @param verbose Integer controlling output verbosity:
+#'   \itemize{
+#'     \item 0 = silent
+#'     \item 1 = high-level progress messages  
+#'     \item 2 = detailed per-subject information
+#'   }
+#'
+#' @name verbose_Param
+NULL
+
+#' Parallel Processing
+#'
+#' @param n_cores Positive integer. Number of physical CPU cores to allocate
+#'   for parallel processing. If \code{n_cores > 1}, subjects are processed
+#'   in parallel using \code{parLapplyLB()}. Each core may spawn multiple
+#'   workers to mask I/O latency.
+#'
+#' @name n_cores_Param
+NULL
+
+#' Subject Index
+#'
+#' @param subject_idx Integer. Index identifying the current subject being
+#'   processed (used internally for progress reporting and error tracking).
+#'
+#' @name subject_idx_Param
+NULL
+
+#' Design Matrix Data
+#'
+#' @param design_matrix Numeric matrix containing the GLM design matrix
+#'   (timepoints × regressors). Created from event definitions and HRF
+#'   convolution.
+#'
+#' @name design_matrix_Param
+NULL
+
+#' Design Array Format
+#'
+#' @param design_array 3-dimensional array version of design matrix,
+#'   formatted for compatibility with \code{multiGLM()}. Third dimension
+#'   contains multiple design variations.
+#'
+#' @name design_array_Param
+NULL
+
+#' Subject Results
+#'
+#' @param subject_results List containing GLM results for all processed
+#'   subjects. Each element contains model fits, statistics, and metadata
+#'   for one subject.
+#'
+#' @name subject_results_Param
+NULL
+
+#' BOLD Data Object
+#'
+#' @param BOLD_xii A \code{xifti} object containing loaded BOLD time-series
+#'   data, typically after resampling and preprocessing.
+#'
+#' @name BOLD_xii_Param
+NULL

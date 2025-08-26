@@ -73,20 +73,18 @@ Do not add spike regressors for scrubbing to the \code{nuisance} matrix.
 Rather, provide these in \code{scrub} so that their corresponding timepoints
 are also removed from the BOLD data after nuisance regression.}
 
-\item{scrub}{(Optional) A \eqn{T \times N_{scrub}} matrix of spike regressors
-(one 1 value at the timepoint to scrub, and 0 for all other values), or a
-logical vector indicating the timepoints to scrub (\code{TRUE} to scrub, and
-\code{FALSE} to keep).
-
-The spike regressors will be included in the nuisance
-regression, and afterwards the timepoints indicated in \code{scrub} will be
-removed from the BOLD data and design matrix.}
+\item{scrub}{List (one logical vector per subject) or \code{NULL}.
+Frames set to \code{TRUE} are excluded from the GLM. Used to remove
+high-motion or artifact-contaminated timepoints.}
 
 \item{design_canonical}{TO DO}
 
-\item{verbose}{\code{1} (default) to print occasional updates during model
-computation; \code{2} for occasional updates as well as running INLA in
-verbose mode (if \code{Bayes}), or \code{0} for no printed updates.}
+\item{verbose}{Integer controlling output verbosity:
+\itemize{
+\item 0 = silent
+\item 1 = high-level progress messages
+\item 2 = detailed per-subject information
+}}
 
 \item{meanTol, varTol}{Tolerance for mean and variance of each data location.
 Locations which do not meet these thresholds are masked out of the analysis.
