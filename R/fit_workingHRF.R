@@ -261,3 +261,115 @@ validate_inputs <- function(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, of
 
   return(TRUE)
 }
+
+#' Process subjects in parallel using cluster workers
+#'
+#' Sets up a parallel cluster and processes all subjects simultaneously using
+#' load-balanced \code{parLapplyLB()}.
+#'
+#' @inheritParams BOLD_Param
+#' @inheritParams EVs_Param
+#' @inheritParams nuisance_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hpf_Param
+#' @inheritParams hrf_params_Param
+#' @inheritParams derivatives_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#' @inheritParams n_cores_Param
+#'
+#' @return List of subject results, each containing GLM outputs, design matrices,
+#'   processing times, and status information.
+#'
+#' @keywords internal
+run_parallel_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
+                                     hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores) {
+
+  if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores.\n")
+
+  n_workers = n_cores
+  cl <- parallel::makeCluster(n_workers, outfile = "hrf_log_500.txt") # Over subscription
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+
+  vars_to_export <- c("BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
+                      "hpf", "hrf_params", "derivatives", "onsets", "offsets", "verbose")
+  setup_parallel_cluster(cl, verbose, vars_to_export)
+
+  if(verbose > 0) cat("Processing subjects in parallel\n")
+
+  subject_results <- parallel::parLapplyLB(cl, 1:length(BOLD), function(i) {
+    process_single_subject_df(
+      subject_idx = i,
+      BOLD_file = BOLD[i],
+      EVs = EVs[[i]],
+      nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+      scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+      TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+      hpf = hpf, hrf_params = hrf_params, derivatives = derivatives,
+      onsets = onsets, offsets = offsets, verbose = verbose
+    )
+  })
+
+  if(verbose > 0) cat("Parallel processing completed\n")
+  return(subject_results)
+}
+
+#' Process subjects sequentially (single-threaded)
+#'
+#' Processes all subjects one at a time using \code{lapply()}. Used when
+#' \code{n_cores = 1} or when parallel processing is not desired.
+#' Simpler than parallel version but slower for multiple subjects.
+#'
+#' @inheritParams BOLD_Param
+#' @inheritParams EVs_Param
+#' @inheritParams nuisance_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hpf_Param
+#' @inheritParams hrf_params_Param
+#' @inheritParams derivatives_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#'
+#' @return List of subject results, identical structure to parallel version.
+#'
+#' @keywords internal
+run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
+                                       hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose) {
+
+  lapply(1:length(BOLD), function(i) {
+    process_single_subject_df(
+      subject_idx = i,
+      BOLD_file = BOLD[i],
+      EVs = EVs[[i]],
+      nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+      scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+      TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+      hpf = hpf, hrf_params = hrf_params, derivatives = derivatives,
+      onsets = onsets, offsets = offsets, verbose = verbose
+    )
+  })
+}
+run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
+                                       hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose) {
+
+  lapply(1:length(BOLD), function(i) {
+    process_single_subject_df(
+      subject_idx = i,
+      BOLD_file = BOLD[i],
+      EVs = EVs[[i]],
+      nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+      scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+      TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+      hpf = hpf, hrf_params = hrf_params, derivatives = derivatives,
+      onsets = onsets, offsets = offsets, verbose = verbose
+    )
+  })
+}
