@@ -20,6 +20,7 @@ fit_workingHRF(
   alpha = 0.01,
   verbose = 1,
   n_cores = 1,
+  log_dir = "logs",
   ...
 )
 }
@@ -96,6 +97,10 @@ masks across subjects. Typical values: 0.05, 0.01, or 0.001.}
 for parallel processing. If \code{n_cores > 1}, subjects are processed
 in parallel using \code{parLapplyLB()}. Each core may spawn multiple
 workers to mask I/O latency.}
+
+\item{log_dir}{Character or NULL. Directory path for saving log files
+and temporary outputs during processing. If NULL, uses current working
+directory or system temp directory.}
 
 \item{...}{Reserved for future arguments (currently ignored).}
 }

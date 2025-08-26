@@ -47,6 +47,7 @@
 #' @inheritParams alpha_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
+#' @inheritParams log_dir_Param
 #' @param ... Reserved for future arguments (currently ignored).
 #'
 #' @return An object of class \code{"workingHRF"}; a named list with elements:
@@ -278,6 +279,7 @@ validate_inputs <- function(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, of
 #' @inheritParams scrub_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
+#' @inheritParams log_dir_Param
 #'
 #' @return List of subject results, each containing GLM outputs, design matrices,
 #'   processing times, and status information.

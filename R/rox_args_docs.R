@@ -406,3 +406,12 @@ NULL
 #'
 #' @name nuisance_file_Param
 NULL
+
+#' Log Directory Path
+#'
+#' @param log_dir Character or NULL. Directory path for saving log files
+#'   and temporary outputs during processing. If NULL, uses current working
+#'   directory or system temp directory.
+#'
+#' @name log_dir_Param
+NULL
