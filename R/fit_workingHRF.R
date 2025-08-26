@@ -116,10 +116,6 @@
 #'   verbose = 1
 #' )
 #' 
-#' # Examine activation patterns
-#' summary(result$activation_masks$prop)
-#' plot(result$activation_masks$prop)  # Requires ciftiTools plotting
-#' 
 #' # Access subject-specific results
 #' subj1_glm <- result$subject_results[[1]]$glm_results
 #' }
