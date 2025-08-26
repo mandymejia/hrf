@@ -1,0 +1,124 @@
+starting worker pid=34137 on localhost:11125 at 20:55:04.168
+starting worker pid=34150 on localhost:11125 at 20:55:04.266
+qs 0.27.3. Announcement: https://github.com/qsbase/qs/issues/103
+qs 0.27.3. Announcement: https://github.com/qsbase/qs/issues/103
+SubjectSubject  12  : Starting pipeline...
+: Starting pipeline...
+Subject 2 : Loading BOLD and creating design matrix...
+Subject 1 : Loading BOLD and creating design matrix...
+***Subject***Subject  12  : BOLD data loaded in: : BOLD data loaded in: 6.867 sec elapsed
+6.867 sec elapsed
+[DEBUG] Using onsets: cue, left_hand, right_hand, left_foot, right_foot, tongue 
+[DEBUG] Using onsets:[DEBUG] Using offsets:  cue, left_hand, right_hand, left_foot, right_foot, tonguecue, left_hand, right_hand, left_foot, right_foot, tongue  
+
+[DEBUG] Using offsets: cue, left_hand, right_hand, left_foot, right_foot, tongue 
+Maximum corr.:  0.827 
+Maximum corr.:  0.827 
+Maximum VIF:    5.567 
+Min. time btwn onset/offset (s):  3.127 
+
+Made design matrix: 9.188 sec elapsed
+Subject 1 : Design dims = 284x8 
+Subject 1 : Field names = cue, left_hand, right_hand, left_foot, right_foot, tongue, onset, offset 
+***Subject 1 : Design matrix created in: 16.055 sec elapsed
+Subject 1 : Fitting GLM model...
+Maximum VIF:    5.566 
+Min. time btwn onset/offset (s):  3.127 
+
+Made design matrix: 9.188 sec elapsed
+Subject 2 : Design dims = 284x8 
+Subject 2 : Field names = cue, left_hand, right_hand, left_foot, right_foot, tongue, onset, offset 
+***Subject 2 : Design matrix created in: 16.056 sec elapsed
+Subject 2 : Fitting GLM model...
+Setting field names to 'field_1', 'field_2', and so on.
+
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284Number of timepoints:      
+284Number of fields:          
+8 Number of fields:        
+ 8Brain structures:          
+left, right Brain structures:        
+ left, rightField names:               
+field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 Field names:             
+ field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Including 4 IncludingDCT bases in `nuisance` for highpass filtering.
+ 4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+
+Left cortex analysis:
+	Fitting models: Model 1		Fitting models: Model 1	2	2	
+
+
+Right cortex analysis:
+
+Right cortex analysis:
+	Fitting models: Model 1		Fitting models: Model 1	2	2	
+
+Formatting results.
+Formatting results.
+***Subject 1 : GLM fitted in: 0.874 sec elapsed
+***Subject 2 : GLM fitted in: 0.877 sec elapsed
+Subject 1 : Completed in 17 s
+Subject 2 : Completed in 17 s
+Subject 3 : Starting pipeline...
+Subject 3 : Loading BOLD and creating design matrix...
+Subject 4 : Starting pipeline...
+Subject 4 : Loading BOLD and creating design matrix...
+***Subject 3 : BOLD data loaded in: 6.525 sec elapsed
+[DEBUG] Using onsets: cue, left_hand, right_hand, left_foot, right_foot, tongue 
+[DEBUG] Using offsets: cue, left_hand, right_hand, left_foot, right_foot, tongue 
+***Subject 4 : BOLD data loaded in: 6.53 sec elapsed
+[DEBUG] Using onsets: cue, left_hand, right_hand, left_foot, right_foot, tongue 
+[DEBUG] Using offsets: cue, left_hand, right_hand, left_foot, right_foot, tongue 
+Maximum corr.:  0.827 
+Maximum VIF:    5.573 
+Min. time btwn onset/offset (s):  3.127 
+
+Made design matrix: 9.254 sec elapsed
+Subject 3 : Design dims = 284x8 
+Subject 3 : Field names = cue, left_hand, right_hand, left_foot, right_foot, tongue, onset, offset 
+***Subject 3 : Design matrix created in: 15.78 sec elapsed
+Subject 3 : Fitting GLM model...
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284 
+Number of fields:         8 
+Brain structures:         left, right 
+Field names:              field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Maximum corr.:  0.827Including  
+4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+Maximum VIF:    5.572 
+Min. time btwn onset/offset (s):  3.127 
+
+Made design matrix: 9.257 sec elapsed
+Subject 4 : Design dims = 284x8 
+Subject 4 : Field names = cue, left_hand, right_hand, left_foot, right_foot, tongue, onset, offset 
+***Subject 4 : Design matrix created in: 15.787 sec elapsed
+Subject 4 : Fitting GLM model...
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284 
+Number of fields:         8 
+Brain structures:         left, right 
+Field names:              field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Including 4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+	Fitting models: Model 1		Fitting models: Model 1	2	2	
+
+
+Right cortex analysis:
+
+Right cortex analysis:
+	Fitting models: Model 1		Fitting models: Model 1	2	2	
+
+Formatting results.
+***Subject 4 : GLM fitted in: 0.793 sec elapsed
+Formatting results.
+***Subject 3 : GLM fitted in: 0.842 sec elapsed
+Subject 4 : Completed in 16.6 s
+Subject 3 : Completed in 16.7 s

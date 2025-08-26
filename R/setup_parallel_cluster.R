@@ -44,17 +44,17 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     "fit_glm_model",
     "load_nuisance_regressors",
     "convert_design_to_array",
-    "load_bold_data",
-    "get_onset_offset_tasks",
+    "load_bold_data"
+    # "get_onset_offset_tasks",
     # fit_allHRFs
-    "process_entire_subject",
-    "create_all_design_matrices",
-    "fit_multiGLM_all_designs",
-    "extract_hrf_params",
+    # "process_entire_subject",
+    # "create_all_design_matrices",
+    # "fit_multiGLM_all_designs",
+    # "extract_hrf_params",
     # file handling
-    "save_object",
-    "load_object",
-    "try_save_debug"
+    # "save_object",
+    # "load_object",
+    # "try_save_debug"
   ), envir = parent.frame())  # ensures calling environment is used
 
   # Export vars if given

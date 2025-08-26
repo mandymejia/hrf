@@ -136,7 +136,8 @@ fit_workingHRF <- function(
     scrub = NULL,
     alpha = 0.01,
     verbose = 1,
-    n_cores = 1, ...
+    n_cores = 1, 
+    log_dir = "logs", ...
 ) {
   call_match <- match.call()
   cat("========Version 3.4444=========\n")
@@ -149,7 +150,7 @@ fit_workingHRF <- function(
   if(n_cores > 1) {
     subject_results <- run_parallel_subjects_df(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores
+      hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores, log_dir
     )
   } else {
     if(verbose > 0) cat("Using sequential processing\n")
@@ -283,12 +284,18 @@ validate_inputs <- function(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, of
 #'
 #' @keywords internal
 run_parallel_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                     hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores) {
+                                     hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores, log_dir) {
 
   if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores.\n")
 
   n_workers = n_cores
-  cl <- parallel::makeCluster(n_workers, outfile = "hrf_log_500.txt") # Over subscription
+
+  if (!dir.exists(log_dir)) { dir.create(log_dir, recursive = TRUE)}
+  log_file <- file.path(log_dir, sprintf("fit_workingHRF_log_%s.txt", format(Sys.time(), "%Y%m%d_%H%M%S")))
+  message("Cluster logs will be saved to: ", normalizePath(log_file, mustWork = FALSE))
+
+  cl <- parallel::makeCluster(n_workers, outfile = log_file)
+
   on.exit(parallel::stopCluster(cl), add = TRUE)
 
   vars_to_export <- c("BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
@@ -489,7 +496,7 @@ create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res
   # Create design matrix
   dHRF <- if(derivatives) 2 else 0
  
-  tictoc::tic("Made design matrix")
+  tictoc::tic("***Made design matrix")
   design_result <- make_design(
     EVs = EVs, nTime = nT, TR = TR, dHRF = dHRF,
     onset = onsets,
