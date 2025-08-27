@@ -48,7 +48,8 @@ Imports:
     fMRItools,
     Matrix,
     matrixStats,
-    stats
+    stats,
+    qs
 Suggests:
     covr,
     ggplot2,
