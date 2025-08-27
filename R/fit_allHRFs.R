@@ -412,3 +412,117 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     ))
   })
 }
+
+#' Create all design matrices for HRF parameter grid
+#'
+#' Generates design matrices for every HRF parameter combination in the grid.
+#' Returns a 3D array where the third dimension indexes different HRF models.
+#' This is the computationally intensive "Step 2b" of the allHRFs pipeline.
+#'
+#' @inheritParams EVs_Param
+#' @inheritParams nT_Param
+#' @inheritParams TR_Param
+#' @inheritParams hrf_grid_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams verbose_Param
+#' @inheritParams subject_idx_Param
+#'
+#' @return 3D array with dimensions (nT × nK × nModels), where nK is the
+#'   number of regressors and nModels is the number of HRF parameter combinations.
+#'
+#' @keywords internal
+create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, verbose, subject_idx) {
+  if(verbose > 1) cat("Subject", subject_idx, ": Creating", nrow(hrf_grid), "design matrices...\n")
+
+  # Determine task structure
+  task_names <- names(EVs)
+  onset_tasks  <- if (isTRUE(onsets)) task_names else NULL
+  offset_tasks <- if (isTRUE(offsets)) task_names else NULL
+
+  # Get number of fields from first design (to determine array dimensions)
+  hrf_params_1 <- extract_hrf_params(hrf_grid, 1)
+  cat("Running make_design idx=1\n")
+  design_1 <- make_design(
+    EVs = EVs, nTime = nT, TR = TR, dHRF = 0,  # No derivatives in allHRFs
+    onset = onset_tasks, offset = offset_tasks,
+    a1 = hrf_params_1$a1, b1 = hrf_params_1$b1, c = hrf_params_1$c,
+    a2 = hrf_params_1$a2, b2 = hrf_params_1$b2
+  )
+  nK <- ncol(design_1$design)
+
+  # Initialize 3D array: nT x nK x nModels
+  design_3D <- array(NA, dim = c(nT, nK, nrow(hrf_grid)))
+  # design_3D <- array(NA, dim = c(nT, nK, 3))
+
+  # Store first design
+  design_3D[,,1] <- design_1$design
+
+  # Create remaining designs
+  for (pp in 2:nrow(hrf_grid)) {
+    tic()
+    cat(sprintf("***Running make_design idx=%d\n", pp))
+    hrf_params <- extract_hrf_params(hrf_grid, pp)
+
+    design_pp <- make_design(
+      EVs = EVs, nTime = nT, TR = TR, dHRF = 0,
+      onset = onset_tasks, offset = offset_tasks,
+      a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
+      a2 = hrf_params$a2, b2 = hrf_params$b2
+    )
+
+    design_3D[,,pp] <- design_pp$design
+    cat("time elapsed for make_design idx=", pp, ": ")
+    toc()
+  }
+
+  if(verbose > 1) cat("Subject", subject_idx, ": Design array dims =", paste(dim(design_3D), collapse="x"), "\n")
+  return(design_3D)
+}
+
+#' Fit multiGLM with all HRF designs
+#'
+#' Fits multiGLM comparing all HRF parameter combinations simultaneously.
+#' This is "Step 2c" of the allHRFs pipeline and typically the most 
+#' computationally expensive step.
+#'
+#' @inheritParams BOLD_xii_Param
+#' @param design_3D 3D array of design matrices (timepoints × regressors × models).
+#' @inheritParams nuisance_file_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams hpf_Param
+#' @inheritParams scrub_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams verbose_Param
+#' @inheritParams subject_idx_Param
+#'
+#' @return Complete multiGLM result object with bestmodel_xii indicating
+#'   which HRF model fits best at each brain location.
+#'
+#' @keywords internal
+fit_multiGLM_all_designs <- function(BOLD_xii, design_3D, nuisance_file, TR, brainstructures,
+                                     hpf, scrub, resamp_res, verbose, subject_idx) {
+  if(verbose > 1) cat("Subject", subject_idx, ": Fitting multiGLM with", dim(design_3D)[3], "designs...\n")
+
+  # Load nuisance regressors
+  nuisance <- load_nuisance_regressors(nuisance_file)
+
+  # Fit multiGLM with all designs
+  tictoc::tic("Fitting multiGLM:")
+  glm_result <- multiGLM(
+    BOLD = BOLD_xii,
+    brainstructures = brainstructures,
+    resamp_res = NULL, # load_bold_data resamples, if asked.
+    design = design_3D,  # 3D array with all designs
+    nuisance = nuisance, # Can be NULL
+    scrub = scrub,
+    TR = TR,
+    hpf = hpf
+  )
+  cat("*****#%#time elapsed (subject#: ", subject_idx, ") for multiGLM: ")
+  tictoc::toc()
+
+
+  return(glm_result)
+}
