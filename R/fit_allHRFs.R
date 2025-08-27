@@ -460,7 +460,7 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
 
   # Create remaining designs
   for (pp in 2:nrow(hrf_grid)) {
-    tic()
+    tictoc::tic()
     cat(sprintf("***Running make_design idx=%d\n", pp))
     hrf_params <- extract_hrf_params(hrf_grid, pp)
 
@@ -473,7 +473,7 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
 
     design_3D[,,pp] <- design_pp$design
     cat("time elapsed for make_design idx=", pp, ": ")
-    toc()
+    tictoc::toc()
   }
 
   if(verbose > 1) cat("Subject", subject_idx, ": Design array dims =", paste(dim(design_3D), collapse="x"), "\n")
@@ -526,3 +526,119 @@ fit_multiGLM_all_designs <- function(BOLD_xii, design_3D, nuisance_file, TR, bra
 
   return(glm_result)
 }
+
+#' Extract HRF parameters from grid by index
+#'
+#' Extracts HRF parameter values from grid for a specific row index.
+#' Computes a2, b2 if not present in the grid.
+#'
+#' @inheritParams hrf_grid_Param
+#' @param idx Integer. Row index in the HRF grid.
+#'
+#' @return Named list with elements: a1, b1, c, a2, b2.
+#'
+#' @keywords internal
+extract_hrf_params <- function(hrf_grid, idx) {
+  # Support both row-indexing and field-indexing styles
+  if (length(idx) != 1) stop("extract_hrf_params only supports a single index.")
+
+  params <- as.list(hrf_grid[idx, ])
+
+  # Calculate a2, b2 if not provided
+  if (is.null(params$a2) || !("a2" %in% names(params))) {
+    params$a2 <- (16 / sqrt(6)) * sqrt(params$a1) * sqrt(params$b1)
+  }
+  if (is.null(params$b2) || !("b2" %in% names(params))) {
+    params$b2 <- params$b1
+  }
+
+  return(params)
+}
+
+#' Extract best parameters across all subjects
+#'
+#' Collects best-fitting HRF parameters from all subjects and combines
+#' into a single data frame. This implements "Step 2d" of the allHRFs pipeline.
+#'
+#' @inheritParams subject_results_Param
+#' @inheritParams hrf_grid_Param
+#' @inheritParams verbose_Param
+#'
+#' @return Data frame with columns: a1, b1, c, voxel, subject.
+#'
+#' @keywords internal
+extract_best_params_all_subjects <- function(subject_results, hrf_grid, verbose) {
+  if(verbose > 0) cat("Extracting best parameters from", length(subject_results), "subjects\n")
+
+  best_params_df <- NULL
+
+  # For each subject:
+  for(i in 1:length(subject_results)) {
+
+    # Skip failed subjects
+    if(subject_results[[i]]$status != "success") next
+    #&# Store failed subjects for user to debug
+
+    # 1. Get the best model indices from GLM results
+    bestmodel_xii <- subject_results[[i]]$glm_result$bestmodel_xii
+    bestmodel_mat <- as.matrix(bestmodel_xii)
+
+    # 2. Convert model indices to parameter values using vectorized approach
+    bestmodel_vec <- as.vector(bestmodel_mat)
+    best_params_df_i <- data.frame(
+      a1 = hrf_grid$a1[bestmodel_vec],
+      b1 = hrf_grid$b1[bestmodel_vec],
+      c = hrf_grid$c[bestmodel_vec],
+      voxel = seq_along(bestmodel_vec),
+      subject = i  # Subject index
+    )
+
+    # 3. Accumulate across subjects
+    best_params_df <- rbind(best_params_df, best_params_df_i)
+  }
+
+  return(best_params_df)
+}
+
+#' Input validation for fit_allHRFs
+#'
+#' Validates inputs specific to the allHRFs pipeline, including HRF grid
+#' structure and parameter combinations.
+#'
+#' @inheritParams BOLD_Param
+#' @inheritParams EVs_Param
+#' @inheritParams nuisance_Param
+#' @inheritParams hrf_grid_Param
+#' @inheritParams n_cores_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams verbose_Param
+#'
+#' @return TRUE if validation passes (called for side effects).
+#'
+#' @keywords internal
+validate_inputs_allHRFs <- function(BOLD, EVs, nuisance, hrf_grid, n_cores, onsets, offsets, verbose) {
+  # Basic input validation (similar to fit_workingHRF)
+  if(length(BOLD) == 0) stop("BOLD must contain at least one file path or xifti object")
+  if(length(EVs) != length(BOLD)) stop("EVs must have the same length as BOLD")
+  if(!is.null(nuisance) && length(nuisance) != length(BOLD)) {
+    stop("nuisance must have the same length as BOLD or be NULL")
+  }
+
+  # HRF grid validation
+  if(!is.data.frame(hrf_grid)) stop("hrf_grid must be a data frame")
+  required_cols <- c("a1", "b1", "c", "a2", "b2")
+  if(!all(required_cols %in% names(hrf_grid))) {
+    stop("hrf_grid must contain columns: ", paste(required_cols, collapse=", "))
+  }
+  if(nrow(hrf_grid) == 0) stop("hrf_grid must contain at least one row")
+
+  # Cores validation (reuse from fit_workingHRF logic)
+  if(!is.numeric(n_cores) || n_cores < 1 || n_cores != round(n_cores)) {
+    stop("n_cores must be a positive integer")
+  }
+
+  return(TRUE)
+}
+
+
