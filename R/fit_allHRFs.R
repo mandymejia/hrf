@@ -164,3 +164,126 @@ fit_allHRFs <- function(
   class(result) <- "allHRFs"
   return(result)
 }
+
+#' Process subjects in parallel for allHRFs
+#'
+#' Sets up parallel cluster for grid-based HRF fitting. Uses save/load system
+#' to manage large result objects in memory. Each worker processes one subject
+#' through the complete allHRFs pipeline (design matrices + multiGLM).
+#'
+#' @inheritParams BOLD_Param
+#' @inheritParams EVs_Param
+#' @inheritParams nuisance_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hpf_Param
+#' @inheritParams hrf_grid_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#' @inheritParams n_cores_Param
+#'
+#' @return List of processing summaries, each containing subject_idx, status 
+#'   ("saved" or "error"), and file_path (for successful subjects).
+#'
+#' @keywords internal
+run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
+                                          hpf, hrf_grid, onsets, offsets, scrub, verbose, n_cores) {
+
+  if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n... Logfile is all_hrf_log.txt.\n")
+
+  n_workers = n_cores
+  cat("Processing with cores of:", n_cores)
+  cl <- parallel::makeCluster(n_workers, outfile = "all_hrf_logv2.txt")
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+
+
+  vars_to_export <- c(
+    "BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
+    "hpf", "hrf_grid", "onsets", "offsets", "verbose"
+  )
+
+  setup_parallel_cluster(cl, verbose, vars_to_export)
+
+  if(verbose > 0) cat("Processing subjects in parallel\n")
+
+
+  subject_results <- parallel::parLapplyLB(cl, 1:length(BOLD), function(i) {
+    tryCatch({
+      cat(sprintf("###Worker starting subject %d\n", i))
+      result <-  process_entire_subject(
+        subject_idx = i,
+        BOLD_file = BOLD[i],
+        EVs = EVs[[i]],
+        nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+        scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+        TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
+      )
+
+
+      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE)
+
+      cat(sprintf("###Worker finished subject %d successfully\n", i))
+      # result
+      list(subject_idx = i, status = "saved", file_path = file_path)
+    }, error = function(e) {
+      cat(sprintf("###Worker FAILED subject %d: %s\n", i, e$message))
+      list(subject_idx = i, status = "error", error = e$message)
+    })
+  })
+
+  # subject_results <- parallel::parLapplyLB(cl, 1:length(BOLD), function(i) {
+  #   process_entire_subject(
+  #     subject_idx = i,
+  #     BOLD_file = BOLD[i],
+  #     EVs = EVs[[i]],
+  #     nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+  #     scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+  #     TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+  #     hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
+  #   )
+  # })
+
+  if(verbose > 0) cat("Parallel processing completed\n")
+  return(subject_results)
+}
+
+#' Process subjects sequentially for allHRFs
+#'
+#' Processes subjects one at a time for grid-based HRF fitting. Used when
+#' parallel processing is disabled. Returns full result objects (no save/load).
+#'
+#' @inheritParams BOLD_Param
+#' @inheritParams EVs_Param
+#' @inheritParams nuisance_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hpf_Param
+#' @inheritParams hrf_grid_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#'
+#' @return List of full subject results from \code{process_entire_subject}.
+#'
+#' @keywords internal
+run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
+                                            hpf, hrf_grid, onsets, offsets, scrub, verbose) {
+
+  lapply(1:length(BOLD), function(i) {
+    process_entire_subject(
+      subject_idx = i,
+      BOLD_file = BOLD[i],
+      EVs = EVs[[i]],
+      nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+      scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+      TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+      hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
+    )
+  })
+}
