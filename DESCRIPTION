@@ -58,7 +58,9 @@ Suggests:
     testthat (>= 3.0.0),
     tidyr,
     spelling,
-    tictoc 
+    tictoc,
+    pryr,
+    ps 
 VignetteBuilder:
     knitr
 Encoding: UTF-8

@@ -8,6 +8,7 @@
 #'
 #' @importFrom stats runif
 #' @importFrom utils read.table
+#' @importFrom utils object.size
 NULL
 
 # ======================================================================

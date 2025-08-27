@@ -287,3 +287,128 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
     )
   })
 }
+
+#' Process entire subject through allHRFs pipeline
+#'
+#' Executes the complete grid-based HRF pipeline for one subject: loads BOLD data,
+#' creates design matrices for all HRF parameter combinations (Step 2b), and fits
+#' multiGLM comparing all models (Step 2c). Includes extensive memory monitoring
+#' and timing diagnostics.
+#'
+#' @inheritParams subject_idx_Param
+#' @param BOLD_file Character. File path to subject's CIFTI data.
+#' @inheritParams EVs_Param
+#' @inheritParams nuisance_file_Param
+#' @inheritParams TR_Param
+#' @inheritParams brainstructures_Param
+#' @inheritParams resamp_res_Param
+#' @inheritParams hpf_Param
+#' @inheritParams hrf_grid_Param
+#' @inheritParams onsets_Param
+#' @inheritParams offsets_Param
+#' @inheritParams scrub_Param
+#' @inheritParams verbose_Param
+#'
+#' @return List with elements:
+#'   \item{subject_idx}{Subject identifier}
+#'   \item{nT}{Number of timepoints}
+#'   \item{glm_result}{Complete multiGLM output with bestmodel_xii}
+#'   \item{processing_time}{Total time in seconds}
+#'   \item{status}{"success" or "error"}
+#'   \item{error}{Error message (if status = "error")}
+#'
+#' @keywords internal
+process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
+                                   TR, brainstructures, resamp_res, hpf,
+                                   hrf_grid, onsets, offsets, scrub, verbose) {
+
+  tictoc::tic()
+  cat("***START OF PROCESS_ENTIRE_SUBJECT ZZZ!!!***\n")
+  start_time <- Sys.time()
+  if(verbose > 1) cat("Subject", subject_idx, ": Starting allHRFs pipeline...\n")
+
+  tryCatch({
+    # Debug ------ ------ ------ ------ ------ ------ ------ ------ ------ ------ ------
+    if (!requireNamespace("ps", quietly = TRUE)) stop("Please install the 'ps' package.")
+    if (!requireNamespace("pryr", quietly = TRUE)) stop("Please install the 'pryr' package.")
+
+    rss_report <- function(when, subject_idx) {
+      rss <- ps::ps_memory_info(ps::ps_handle())[["rss"]]
+      cat(sprintf("***Subject %d - %s - RSS: %.2f MB\n", subject_idx, when, rss / 1024^2))
+    }
+    rss_report("Start", subject_idx)
+    mem_before <- pryr::mem_used()
+    #------ ------ ------ ------ ------ ------ ------ ------ ------ ------ ------
+
+    # Step 1: Load BOLD data (reuse from fit_workingHRF)
+    tictoc::tic()
+    bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res)
+    cat("*****#%#time elapsed for load_bold_data: ")
+    tictoc::toc()
+    nT <- bold_data$nT
+    if(verbose > 1) cat("Subject", subject_idx, ": BOLD loaded, nT =", bold_data$nT, "\n")
+
+    # Step 2b: Create ALL design matrices for all HRF parameters
+    rss_report("***Before design matrix", subject_idx)
+    tictoc::tic()
+    design_3D <- create_all_design_matrices(
+      EVs, nT, TR, hrf_grid, onsets, offsets, verbose, subject_idx
+    )
+    rss_report("***After design matrix", subject_idx)
+    cat("***design_3D RAM size:", format(object.size(design_3D), units = "MB"), "\n")
+    cat("****all design matrices took: ")
+    tictoc::toc()
+
+    # Step 2c: Fit multiGLM with all designs
+    rss_report("***Before GLM fit", subject_idx)
+    tictoc::tic()
+    glm_result <- fit_multiGLM_all_designs(
+      bold_data$BOLD_xii, design_3D, nuisance_file, TR, brainstructures,
+      hpf, scrub, resamp_res, verbose, subject_idx
+    )
+    cat("*****#%#time elapsed for multiGLM: ")
+    tictoc::toc()
+    rss_report("***After GLM fit", subject_idx)
+    cat("***glm_result RAM size:", format(object.size(glm_result), units = "MB"), "\n")
+
+    cat("\n--- MEMORY Z! REPORT for Subject", subject_idx, "---\n")
+    cat("Size of BOLD data      :", format(object.size(bold_data), units = "MB"), "\n")
+    cat("Size of design_3D      :", format(object.size(design_3D), units = "MB"), "\n")
+    cat("Size of glm_result     :", format(object.size(glm_result), units = "MB"), "\n")
+    cat("Total mem in function  :", format(object.size(environment()), units = "MB"), "\n")
+    cat("--------------------------------------\n")
+    cat("line261\n")
+    # Clean up memory before returning
+    # rm(bold_data, design_3D); gc()
+
+    processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
+    if(verbose > 1) cat("Subject", subject_idx, ": Completed in", round(processing_time, 1), "s\n")
+
+
+    mem_after <- pryr::mem_used()
+    cat("line269\n")
+    cat(sprintf("***Subject %d - Total mem change: %.2f MB\n", subject_idx,
+                as.numeric(mem_after - mem_before) / 1024^2))
+    cat("*******ls()***********\n")
+    ls()
+    cat("^^^***Subject", subject_idx, ": EVERYTHING DONE: ")
+    tictoc::toc()
+    return(list(
+      subject_idx = subject_idx,
+      nT = nT,
+      glm_result = glm_result,  # Contains bestmodel_xii
+      processing_time = processing_time,
+      status = "success"
+    ))
+
+  }, error = function(e) {
+    processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
+
+    return(list(
+      subject_idx = subject_idx,
+      processing_time = processing_time,
+      status = "error",
+      error = e$message
+    ))
+  })
+}
