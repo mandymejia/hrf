@@ -54,7 +54,10 @@ Imports:
     matrixStats,
     stats,
     qs,
-    Rcpp
+    Rcpp,
+    reshape2,
+    dplyr,
+    magrittr
 Suggests:
     covr,
     ggplot2,

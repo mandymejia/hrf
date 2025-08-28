@@ -16,6 +16,8 @@
 #' @importFrom stats runif
 #' @importFrom utils read.table
 #' @importFrom utils object.size
+#' @importFrom dplyr group_by summarize left_join
+#' @importFrom magrittr %>%
 NULL
 
 # ======================================================================
@@ -37,18 +39,15 @@ NULL
 # ======================================================================
 
 # 1. Internal ciftiTools helpers
-# These are used internally within this package but are *not exported*
-# by the ciftiTools package. We register them here so that R CMD check
-# knows they are intentionally referenced and does not flag them.
 utils::globalVariables(c(
   "ciftiTools.getOption",
   "ciftiTools.setOption"
 ))
 
 # 2. Dynamically Generated Column Names
-# In functions like generate_default_hrf_grid(), certain column names
-# are created programmatically (e.g., "time_to_peak", "peak2_time").
 utils::globalVariables(c(
   "time_to_peak",
-  "peak2_time"
+  "peak2_time",
+  "voxel",
+  "mask"
 ))

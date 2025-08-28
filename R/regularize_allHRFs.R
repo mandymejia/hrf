@@ -1,0 +1,273 @@
+#' Regularize HRF Parameters Across Subjects
+#'
+#' Performs spatial regularization of hemodynamic response function (HRF)
+#' parameters by combining activation masks from working HRF analysis with
+#' best-fitting parameters from all-HRFs analysis. The function applies both
+#' ordinary least squares (OLS) and weighted least squares (WLS) methods to
+#' estimate subject-level deviations from population averages.
+#'
+#' @param workingHRF_results Results object from \code{fit_workingHRF()},
+#'   containing activation masks that indicate which voxels showed significant
+#'   activation for each subject using the working HRF model.
+#' @param allHRF_results Results object from \code{fit_allHRFs()}, containing
+#'   best-fitting HRF parameters (a1, b1, c) for each voxel-subject combination
+#'   from fitting multiple HRF variants.
+#' @param rounding Logical; if TRUE (default), round the regularized HRF parameters 
+#'   to the nearest values in the provided HRF grid for better interpretability.
+#'
+#' @return An object of class \code{"regularizeHRFs"} containing:
+#'   \describe{
+#'     \item{best_params_df}{Combined dataframe with HRF parameters and
+#'       activation masks for all subjects and voxels.}
+#'     \item{regularized_params}{Nested list structure with regularization
+#'       results for each parameter (a1, b1, c), including population averages,
+#'       subject-level estimates, residual variances, and brain visualization
+#'       objects for both OLS and WLS methods.}
+#'   }
+#'
+#' @details
+#' The regularization process consists of several steps:
+#' \enumerate{
+#'   \item Validates input dimensions and extracts brain template
+#'   \item Merges activation masks with parameter estimates
+#'   \item For each parameter (a1, b1, c):
+#'     \itemize{
+#'       \item Computes population-averaged parameter estimates
+#'       \item Estimates subject-level slopes and intercepts using OLS
+#'       \item Calculates residual variances for uncertainty quantification
+#'       \item Re-estimates parameters using WLS with inverse variance weights
+#'       \item Creates brain visualization objects for all results
+#'     }
+#' }
+#'
+#' The function handles missing data through activation masking and provides
+#' both unweighted (OLS) and precision-weighted (WLS) estimates to account
+#' for heteroscedastic variance across brain regions.
+#'
+#' @seealso \code{\link{fit_workingHRF}}, \code{\link{fit_allHRFs}},
+#'   \code{\link{HRF_regularize}}
+#'
+#' @examples
+#' \dontrun{
+#' # Assuming you have results from previous steps
+#' working_results <- fit_workingHRF(BOLD, EVs, TR = 0.72)
+#' all_results <- fit_allHRFs(BOLD, EVs, TR = 0.72, hrf_grid = my_grid)
+#'
+#' # Regularize parameters
+#' regularized <- regularize_allHRFs(working_results, all_results)
+#'
+#' }
+#'
+#' @export
+regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TRUE) {
+  cat("****************Version 0.1.11********************")
+
+  xii <- validate_previous_results(workingHRF_results, allHRF_results)
+  result <- create_best_params_df(workingHRF_results, allHRF_results)
+
+  best_params_df <- result$best_params_df
+  mask_prop_NA <- result$mask_prop_NA
+
+  hrf_grid <- allHRF_results$hrf_grid
+  rm(workingHRF_results, allHRF_results); gc()
+  regularized_params <- HRF_regularize(best_params_df, mask_prop_NA, xii, mask = TRUE,
+                                       log = TRUE, truncate = TRUE,WLS = TRUE)
+
+  if (rounding) {
+    rounded <-round_regularized_params(regularized_params,
+                                       hrf_grid, model = "A", inside_grid = TRUE)
+  }
+
+  result <- list (
+    best_params_df = best_params_df,
+    regularized_params = regularized_params,
+    rounded_params = rounded
+  )
+
+  class(result) <- "regularizeHRFs"
+  return(result)
+
+}
+
+#' Create Best Parameters Dataframe for HRF Regularization
+#'
+#' This function merges activation masks from working HRF analysis with best-fitting
+#' HRF parameters from all-HRFs analysis to create a consolidated dataframe for
+#' regularization. It prepares the data structure needed for the regularization
+#' step by combining subject-specific activation information with overfitted
+#' parameter estimates.
+#'
+#' @param workingHRF_results Results object from \code{fit_workingHRF()}, containing
+#'   activation masks that indicate which voxels showed significant activation
+#'   for each subject using the working HRF model.
+#' @param allHRF_results Results object from \code{fit_allHRFs()}, containing
+#'   best-fitting HRF parameters (a1, b1, c) for each voxel-subject combination
+#'   from fitting multiple HRF variants.
+#'
+#' @return A dataframe with the following columns:
+#'   \describe{
+#'     \item{a1, b1, c}{HRF parameters (numeric) from the best-fitting model}
+#'     \item{voxel}{Voxel/location identifier (integer)}
+#'     \item{subject}{Subject identifier (character)}
+#'     \item{mask}{Logical indicating significant activation for this voxel-subject pair}
+#'   }
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Extracts activation masks from working HRF results
+#'   \item Reshapes masks from wide to long format using \code{reshape2::melt()}
+#'   \item Extracts best-fitting parameters from all-HRFs results
+#'   \item Converts parameters to factors then back to numeric (matching research pipeline)
+#'   \item Merges masks with parameters using \code{dplyr::left_join()}
+#' }
+#'
+#' The resulting dataframe contains both the overfitted parameter estimates and
+#' activation information needed for spatial regularization of HRF parameters.
+#'
+#' @keywords internal
+create_best_params_df <- function(workingHRF_results, allHRF_results ) {
+  masks <- workingHRF_results[["activation_masks"]][["masks"]]
+  masks_df <- masks_df <- as.data.frame(masks) # Reshape dataframe
+  masks_df$voxel <- 1:nrow(masks_df)
+  masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
+
+  masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
+  mask_prop <- (masks_df_prop$prop > 0.1)
+  mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
+
+
+  # At this point research code saves mask_prop_NA
+  #################################################
+
+  # best_params_df creation
+  best_params_df <- allHRF_results[["best_params_results"]]
+  a1_vals <- sort(unique(best_params_df$a1))
+  b1_vals <- sort(unique(best_params_df$b1))
+  c_vals <- sort(unique(best_params_df$c))
+  best_params_df$a1 <- factor(best_params_df$a1, levels=a1_vals)
+  best_params_df$b1 <- factor(best_params_df$b1, levels=b1_vals)
+  best_params_df$c <- factor(best_params_df$c, levels=c_vals)
+
+  best_params_df$subject <- as.character(best_params_df$subject) # Convert to left join
+  masks_df$subject <- as.character(masks_df$subject)
+
+
+  #1. merge masks into best_params_df
+  best_params_df <- left_join(best_params_df, masks_df)
+
+  best_params_df$a1 <- as.numeric(as.character(best_params_df$a1))
+  best_params_df$b1 <- as.numeric(as.character(best_params_df$b1))
+  best_params_df$c <- as.numeric(as.character(best_params_df$c))
+
+  return(list(
+    best_params_df = best_params_df,
+    mask_prop_NA = mask_prop_NA
+  ))
+
+}
+
+#' Regularize HRF Parameters Using Hierarchical Modeling
+#'
+#' Performs hierarchical regularization of HRF parameters by modeling
+#' subject-specific deviations from population averages. The function
+#' implements both ordinary least squares (OLS) and weighted least squares
+#' (WLS) approaches to estimate subject-level parameters while accounting
+#' for spatial heterogeneity in estimation uncertainty.
+#'
+#' @param best_params_df Dataframe containing HRF parameter estimates with
+#'   columns for parameters (a1, b1, c), voxel identifiers, subject
+#'   identifiers, and activation masks.
+#' @param xii Template xifti object used for creating brain visualizations
+#'   with proper anatomical structure and dimensions.
+#' @param mask Logical. If \code{TRUE} (default), only analyze voxels that
+#'   showed significant activation in the working HRF analysis. If \code{FALSE},
+#'   analyze all voxels.
+#' @param log Logical. Reserved for future log-transformation of parameters.
+#'   Currently not implemented.
+#' @param truncate Logical. If \code{TRUE} (default), subjects with negative
+#'   slopes are identified and their slopes are set to zero, with intercepts
+#'   re-estimated accordingly.
+#' @param WLS Logical. If \code{TRUE} (default), performs weighted least
+#'   squares estimation using inverse variance weights after initial OLS
+#'   estimation. If \code{FALSE}, only performs OLS estimation.
+#'
+#' @return A nested list with one entry per parameter (a1, b1, c), where each
+#'   parameter's results contain:
+#'   \describe{
+#'     \item{pop_mean_xii}{Brain map of population-averaged parameter values}
+#'     \item{best_params_df_est_OLS}{Subject-level OLS estimates (slopes,
+#'       intercepts, offsets)}
+#'     \item{results_OLS}{Full dataframe with OLS predictions, residuals,
+#'       and variances}
+#'     \item{residual_variance_xii_A_OLS, residual_variance_xii_B_OLS}{Brain
+#'       maps of OLS residual variances for Model A and B}
+#'     \item{best_params_df_est_WLS}{Subject-level WLS estimates (if WLS=TRUE)}
+#'     \item{results_WLS}{Full dataframe with WLS predictions, residuals,
+#'       and variances (if WLS=TRUE)}
+#'     \item{residual_variance_xii_A_WLS, residual_variance_xii_B_WLS}{Brain
+#'       maps of WLS residual variances (if WLS=TRUE)}
+#'   }
+#'
+#' @details
+#' The regularization process for each parameter involves:
+#' \enumerate{
+#'   \item \strong{Population Estimation}: Computing voxel-wise averages
+#'     across subjects for activated regions
+#'   \item \strong{OLS Subject Modeling}: For each subject, fitting linear
+#'     models relating individual estimates to population averages:
+#'     \itemize{
+#'       \item Model A: \eqn{param_{ij} = intercept_i + slope_i \times pop\_avg_j}
+#'       \item Model B: \eqn{param_{ij} = offset_i + pop\_avg_j}
+#'     }
+#'   \item \strong{Variance Estimation}: Computing residual variances to
+#'     quantify estimation uncertainty
+#'   \item \strong{WLS Re-estimation}: Using inverse variance weights to
+#'     improve parameter estimates in heteroscedastic regions
+#' }
+#'
+#' Negative slope truncation prevents unrealistic parameter relationships where
+#' subjects systematically deviate in the opposite direction from population trends.
+#'
+#' @keywords internal
+HRF_regularize <- function(best_params_df, mask_prop_NA, xii, mask = TRUE,
+                           log = TRUE, truncate = TRUE, WLS = TRUE) {
+  param_names <-  extract_param_names(best_params_df)
+  model_outputs <- list() # To store the results for each param
+
+  best_params_df$use <- if(!mask) TRUE else best_params_df$mask
+
+  for(pp in param_names) {
+    print(paste("Running analysis for param", pp, "..."))
+
+    pop_results <- estimate_population_parameters(best_params_df, mask_prop_NA, pp, xii, mask)
+    best_params_df <- pop_results$best_params_df
+    mean0_xii <- pop_results$mean0_xii
+
+    # Initialize an empty list and save pop_mean_xii as function output
+    model_outputs[[pp]] <- list()
+    model_outputs[[pp]]$pop_mean_xii <- mean0_xii
+
+    # OLS estimation and variance calculation
+    ols_results <- estimate_ols_and_variance(best_params_df, truncate, xii)
+    best_params_df <- ols_results$best_params_df
+    model_outputs[[pp]]$best_params_df_est_OLS <- ols_results$best_params_df_est
+    model_outputs[[pp]]$results_OLS <- ols_results$best_params_df
+    model_outputs[[pp]]$residual_variance_xii_A_OLS <- ols_results$variance_xii_A
+    model_outputs[[pp]]$residual_variance_xii_B_OLS <- ols_results$variance_xii_B
+
+    print("Completed OLS")
+
+    if(WLS) {
+
+      wls_results <- estimate_wls_and_variance(best_params_df, truncate, mean0_xii)
+      model_outputs[[pp]]$best_params_df_est_WLS <- wls_results$best_params_df_est
+      model_outputs[[pp]]$results_WLS <- wls_results$best_params_df
+      model_outputs[[pp]]$residual_variance_xii_A_WLS <- wls_results$variance_xii_A
+      model_outputs[[pp]]$residual_variance_xii_B_WLS <- wls_results$variance_xii_B
+
+      print("Completed WLS")
+    }
+  }
+  return(model_outputs)
+}
