@@ -451,7 +451,7 @@ estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
     filter(use) %>%
     group_by(subject) %>%
     summarize(param_offset = weighted.mean(param - param_mean0, weight_B, na.rm = TRUE),
-              param_slope = slope_fun_WLS_old(param, param_mean0, weight_A, lm=FALSE),
+              param_slope = slope_fun_WLS(param, param_mean0, weight_A, lm=FALSE),
               param_int = weighted.mean(param, weight_A, na.rm = TRUE) -
                 param_slope * weighted.mean(param_mean0, weight_A, na.rm = TRUE))
 
@@ -616,7 +616,7 @@ slope_fun <- function(gamma_iv, gamma_v, lm=TRUE){
 #' the weight normalization and reuse normalized weights efficiently.
 #'
 #' @keywords internal
-slope_fun_WLS_old <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
+slope_fun_WLS <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
   # Center gamma_v using weighted mean
   gamma_v_mean <- weighted.mean(gamma_v, weight_A, na.rm = TRUE)
   gamma_iv_mean <- weighted.mean(gamma_iv, weight_A, na.rm = TRUE)
@@ -635,41 +635,4 @@ slope_fun_WLS_old <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
   # if (lm) {
   #   return(coefficients(lm(gamma_iv ~ gamma_v, weights = weight_A))[2])
   # }
-}
-
-slope_fun_WLS <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
-
-  # Step 1: Remove observations with NA or infinite weights
-  valid_idx <- !is.na(weight_A) & !is.na(gamma_iv) & !is.na(gamma_v) &
-    is.finite(weight_A) & weight_A > 0
-
-  # Check if we have enough valid observations
-  stopifnot("Insufficient valid observations for WLS slope calculation" = sum(valid_idx) >= 2)
-
-  # Step 2: Use only valid observations
-  gamma_iv_clean <- gamma_iv[valid_idx]
-  gamma_v_clean <- gamma_v[valid_idx]
-  weight_A_clean <- weight_A[valid_idx]
-
-  # Step 3: Center gamma_v using weighted mean (now on clean data)
-  gamma_v_mean <- weighted.mean(gamma_v_clean, weight_A_clean)
-  gamma_iv_mean <- weighted.mean(gamma_iv_clean, weight_A_clean)
-  gamma_v_ctr <- gamma_v_clean - gamma_v_mean
-
-  # Step 4: Normalize weights to sum to 1 (now guaranteed to work)
-  weight_sum <- sum(weight_A_clean)
-  stopifnot("Sum of weights must be positive" = weight_sum > 0)
-
-  weight_A_norm <- weight_A_clean / weight_sum
-
-  # Step 5: Verification check (now on clean weights)
-  stopifnot("Weights failed to normalize properly" = abs(sum(weight_A_norm) - 1) <= 1e-10)
-
-  # Step 6: Calculate weighted slope
-  numerator <- sum(weight_A_norm * gamma_v_ctr * (gamma_iv_clean - gamma_iv_mean))
-  denominator <- sum(weight_A_norm * gamma_v_ctr^2)
-
-  stopifnot("Denominator too small for slope calculation" = abs(denominator) >= 1e-12)
-
-  return(numerator / denominator)
 }
