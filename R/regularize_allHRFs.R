@@ -502,3 +502,56 @@ estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
     variance_xii_B = variance_xii_B
   ))
 }
+
+
+
+#' Truncate Negative Slopes and Re-estimate Intercepts
+#'
+#' This function finds subjects with negative slopes in the parameter estimates
+#' and sets their slopes to zero. It then re-estimates their intercepts as the
+#' simple mean of the parameter values. The resulting estimates are merged back
+#' into the original set of estimates.
+#'
+#' @param best_params_df The full dataframe containing parameter values,
+#'   population means, and subject IDs.
+#' @param best_params_df_est A summarized dataframe with columns `subject`,
+#'   `param_offset`, `param_slope`, and `param_int`.
+#'
+#' @return A modified version of `best_params_df_est` with negative slopes
+#'   truncated to 0 and corresponding intercepts re-estimated.
+#'
+#' @keywords internal
+truncate_negative_slopes <- function(best_params_df, best_params_df_est, method = "OLS") {
+  print("In truncataion*****************")
+  if (sum(best_params_df_est$param_slope < 0) > 0) {
+    if (method == "OLS") {
+      cat("OLS: Some subjects had negative slopes, truncating...\n")
+      subj_neg_slope <- best_params_df_est$subject[best_params_df_est$param_slope < 0]
+
+      best_params_df_est2 <- best_params_df %>%
+        filter(subject %in% subj_neg_slope) %>%
+        filter(use) %>%
+        group_by(subject) %>%
+        summarize(param_offset = mean(param - param_mean0),
+                  param_slope = 0,
+                  param_int = mean(param))
+
+      best_params_df_est <- rbind(filter(best_params_df_est, param_slope >= 0), best_params_df_est2)
+    } else if (method == "WLS") {
+      cat("WLS: Some subjects had negative slopes, truncating...\n")
+      subj_neg_slope <- best_params_df_est$subject[best_params_df_est$param_slope < 0]
+
+      best_params_df_est2 <- best_params_df %>%
+        filter(subject %in% subj_neg_slope) %>%
+        filter(use) %>%
+        group_by(subject) %>%
+        summarize(param_offset = weighted.mean(param - param_mean0, weight_B, na.rm = TRUE),
+                  param_slope = 0,
+                  param_int = weighted.mean(param, weight_B, na.rm = TRUE))
+
+      best_params_df_est <- rbind(filter(best_params_df_est, param_slope >= 0), best_params_df_est2)
+    } else { stop("Attempted to truncate slopes but passed through WLS and OLS methods.")}
+  } else {print("***********No need for truncation.")}
+
+  best_params_df_est
+}
