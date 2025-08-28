@@ -11,6 +11,8 @@ session_data <- readRDS(here("dev", "fixtures", "session_data_motorlr_4s.rds"))
 data("default_hrf_grid")
 head(default_hrf_grid)
 
+t <- 1 # Temporary till we loop
+
 fit_allHRFs_result <- fit_allHRFs(
   BOLD = session_data$BOLD_files,
   EVs = session_data$EVs_list,
@@ -24,7 +26,8 @@ fit_allHRFs_result <- fit_allHRFs(
   offsets = if(t == 3) FALSE else TRUE,   # No offsets for gambling
   scrub = NULL,
   verbose = 2,
-  n_cores = 1
+  n_cores = 1,
+  log_dir = "dev/logs"
 )
 
 

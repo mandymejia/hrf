@@ -32,6 +32,7 @@
 #' @inheritParams scrub_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
+#' @inheritParams log_dir_Param
 #' @param ... Additional arguments passed to \code{hrf_grid} if it's a function.
 #'
 #' @return Object of class \code{"allHRFs"}; a named list with elements:
@@ -90,7 +91,7 @@ fit_allHRFs <- function(
     scrub = NULL,
     verbose = 1,
     n_cores = 1,
-    ...
+    log_dir = "logs", ...
 ) {
   cat("***********Version 1.2222************\n")
 
@@ -104,7 +105,7 @@ fit_allHRFs <- function(
   if(n_cores > 1) {
     subject_results <- run_parallel_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, verbose, n_cores
+      hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir
     )
   } else {
     if(verbose > 0) cat("Using sequential processing\n")
@@ -184,19 +185,25 @@ fit_allHRFs <- function(
 #' @inheritParams scrub_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
+#' @inheritParams log_dir_Param
 #'
 #' @return List of processing summaries, each containing subject_idx, status 
 #'   ("saved" or "error"), and file_path (for successful subjects).
 #'
 #' @keywords internal
 run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                          hpf, hrf_grid, onsets, offsets, scrub, verbose, n_cores) {
+                                          hpf, hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir) {
 
-  if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n... Logfile is all_hrf_log.txt.\n")
+  if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n")
 
   n_workers = n_cores
   cat("Processing with cores of:", n_cores)
-  cl <- parallel::makeCluster(n_workers, outfile = "all_hrf_logv2.txt")
+
+  if (!dir.exists(log_dir)) { dir.create(log_dir, recursive = TRUE)}
+  log_file <- file.path(log_dir, sprintf("fit_allHRFs_log_%s.txt", format(Sys.time(), "%Y%m%d_%H%M%S")))
+  message("Cluster logs will be saved to: ", normalizePath(log_file, mustWork = FALSE))
+
+  cl <- parallel::makeCluster(n_workers, outfile = log_file)
   on.exit(parallel::stopCluster(cl), add = TRUE)
 
 
@@ -323,7 +330,7 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
                                    hrf_grid, onsets, offsets, scrub, verbose) {
 
   tictoc::tic()
-  cat("***START OF PROCESS_ENTIRE_SUBJECT ZZZ!!!***\n")
+  cat("***STARTING NEW SUBJECT....***\n")
   start_time <- Sys.time()
   if(verbose > 1) cat("Subject", subject_idx, ": Starting allHRFs pipeline...\n")
 
@@ -377,7 +384,6 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     cat("Size of glm_result     :", format(object.size(glm_result), units = "MB"), "\n")
     cat("Total mem in function  :", format(object.size(environment()), units = "MB"), "\n")
     cat("--------------------------------------\n")
-    cat("line261\n")
     # Clean up memory before returning
     # rm(bold_data, design_3D); gc()
 
@@ -386,11 +392,9 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
 
 
     mem_after <- pryr::mem_used()
-    cat("line269\n")
     cat(sprintf("***Subject %d - Total mem change: %.2f MB\n", subject_idx,
                 as.numeric(mem_after - mem_before) / 1024^2))
-    cat("*******ls()***********\n")
-    ls()
+
     cat("^^^***Subject", subject_idx, ": EVERYTHING DONE: ")
     tictoc::toc()
     return(list(
@@ -403,6 +407,9 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
 
   }, error = function(e) {
     processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
+    cat("ERROR in process_entire_subject for subject", subject_idx, "\n")
+    cat("Error message:", conditionMessage(e), "\n")
+    cat("Error details:", e$message, "\n")
 
     return(list(
       subject_idx = subject_idx,
