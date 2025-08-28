@@ -555,3 +555,121 @@ truncate_negative_slopes <- function(best_params_df, best_params_df_est, method 
 
   best_params_df_est
 }
+
+#' Compute Subject-Level Slope Relative to Population HRF Estimate
+#'
+#' Computes the slope of subject-level parameter estimates (`gamma_iv`)
+#' against population-averaged estimates (`gamma_v`) either via direct formula
+#' or linear regression.
+#'
+#' @param gamma_iv Numeric vector of subject-specific HRF parameter estimates
+#'   (length = number of vertices used for a specific subject).
+#' @param gamma_v Numeric vector of voxel-wise population-averaged HRF parameters.
+#' @param lm Logical; if `TRUE`, uses linear regression. If `FALSE`, computes slope manually.
+#'
+#' @return Numeric scalar representing the slope estimate.
+#'
+#' @examples
+#' slope_fun(c(1.2, 1.5, 2.0), c(1.0, 1.4, 1.8))
+#'
+#' @keywords internal
+slope_fun <- function(gamma_iv, gamma_v, lm=TRUE){
+  # All arguments must be of length V, where V is the number of vertices
+  # included in a particular model (which may differ by subject).
+  # gamma_v contains the voxel-wise parameter estimates, averaged across subjects.
+  # gamma_iv contains the subject-level, voxel-wise parameter estimates.
+
+  if(!lm) {
+    gamma_v_ctr <- gamma_v - mean(gamma_v)
+    return(sum(gamma_v_ctr * (gamma_iv - mean(gamma_iv))) / sum(gamma_v_ctr^2))
+  }
+
+  if(lm) coefficients(lm(gamma_iv ~ gamma_v))[2]
+}
+
+#' Compute Subject-Level Slope Using Weighted Least Squares
+#'
+#' Computes the weighted slope of subject-level parameter estimates (`gamma_iv`)
+#' against population-averaged estimates (`gamma_v`) using inverse variance
+#' weighting for improved estimation accuracy.
+#'
+#' @param gamma_iv Numeric vector of subject-specific HRF parameter estimates
+#'   (length = number of vertices used for a specific subject).
+#' @param gamma_v Numeric vector of voxel-wise population-averaged HRF parameters.
+#' @param weight_A Numeric vector of weights (typically inverse variance) for
+#'   weighted least squares estimation.
+#' @param lm Logical; currently unused, kept for compatibility. The function
+#'   uses manual weighted calculation rather than `lm()`.
+#'
+#' @return Numeric scalar representing the weighted slope estimate, or NA if
+#'   weight normalization fails.
+#'
+#' @details
+#' The function performs weighted least squares slope estimation by:
+#' \enumerate{
+#'   \item Computing weighted means for centering both variables
+#'   \item Normalizing weights to sum to 1 for numerical stability
+#'   \item Computing the weighted slope using the manual formula
+#' }
+#'
+#' The manual approach is used instead of `lm()` to maintain control over
+#' the weight normalization and reuse normalized weights efficiently.
+#'
+#' @keywords internal
+slope_fun_WLS_old <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
+  # Center gamma_v using weighted mean
+  gamma_v_mean <- weighted.mean(gamma_v, weight_A, na.rm = TRUE)
+  gamma_iv_mean <- weighted.mean(gamma_iv, weight_A, na.rm = TRUE)
+  gamma_v_ctr <- gamma_v - gamma_v_mean
+
+  # Recompute weights sum to 1
+  weight_A <- weight_A/sum(weight_A) # weighted.mean()
+  if (abs(sum(weight_A) - 1) > 1e-10) {
+    print(paste("ERROR: Sum of weights not normalized to 1; instead:", sum(weight_A)))
+    return(NA)
+  }
+
+  return(sum(weight_A * gamma_v_ctr * (gamma_iv - gamma_iv_mean)) /
+           sum(weight_A * gamma_v_ctr^2))
+
+  # if (lm) {
+  #   return(coefficients(lm(gamma_iv ~ gamma_v, weights = weight_A))[2])
+  # }
+}
+
+slope_fun_WLS <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
+
+  # Step 1: Remove observations with NA or infinite weights
+  valid_idx <- !is.na(weight_A) & !is.na(gamma_iv) & !is.na(gamma_v) &
+    is.finite(weight_A) & weight_A > 0
+
+  # Check if we have enough valid observations
+  stopifnot("Insufficient valid observations for WLS slope calculation" = sum(valid_idx) >= 2)
+
+  # Step 2: Use only valid observations
+  gamma_iv_clean <- gamma_iv[valid_idx]
+  gamma_v_clean <- gamma_v[valid_idx]
+  weight_A_clean <- weight_A[valid_idx]
+
+  # Step 3: Center gamma_v using weighted mean (now on clean data)
+  gamma_v_mean <- weighted.mean(gamma_v_clean, weight_A_clean)
+  gamma_iv_mean <- weighted.mean(gamma_iv_clean, weight_A_clean)
+  gamma_v_ctr <- gamma_v_clean - gamma_v_mean
+
+  # Step 4: Normalize weights to sum to 1 (now guaranteed to work)
+  weight_sum <- sum(weight_A_clean)
+  stopifnot("Sum of weights must be positive" = weight_sum > 0)
+
+  weight_A_norm <- weight_A_clean / weight_sum
+
+  # Step 5: Verification check (now on clean weights)
+  stopifnot("Weights failed to normalize properly" = abs(sum(weight_A_norm) - 1) <= 1e-10)
+
+  # Step 6: Calculate weighted slope
+  numerator <- sum(weight_A_norm * gamma_v_ctr * (gamma_iv_clean - gamma_iv_mean))
+  denominator <- sum(weight_A_norm * gamma_v_ctr^2)
+
+  stopifnot("Denominator too small for slope calculation" = abs(denominator) >= 1e-12)
+
+  return(numerator / denominator)
+}
