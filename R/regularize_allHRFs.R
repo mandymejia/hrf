@@ -718,5 +718,3 @@ create_xifti_with_padding <- function(summary_df, data_col, template_xii) {
 
   return(new_xii)
 }
-
-

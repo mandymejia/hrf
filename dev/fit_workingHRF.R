@@ -8,6 +8,7 @@ devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with 
 
 session_data <- readRDS(here("dev", "fixtures", "session_data_motorlr_4s.rds"))
 
+t <- 1 # Temporary till we loop
 
 fit_workingHRF_result <- fit_workingHRF(
   BOLD = session_data$BOLD_files,
@@ -17,15 +18,20 @@ fit_workingHRF_result <- fit_workingHRF(
   resamp_res = 10000, # 10,000
   hpf = 0.01,
   nuisance = session_data$nuisance_files,
-  onsets = TRUE,
-  offsets = TRUE,
+  onsets = if(t == 3) FALSE else TRUE,    # No onsets for gambling
+  offsets = if(t == 3) FALSE else TRUE,   # No offsets for gambling
   hrf_params = list(a1 = 6, b1 = 1, c = 1/6, a2 = 16, b2 = 1),
   derivatives = FALSE,
   scrub = NULL,
   alpha = 0.01,
   verbose = 2,
-  n_cores = 2,
+  n_cores = 1,
   log_dir = "dev/logs"
+)
+
+saveRDS(
+  fit_workingHRF_result,
+  file = here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds")
 )
 
 statuses <- sapply(fit_workingHRF_result[["subject_results"]], function(x) x[["status"]])

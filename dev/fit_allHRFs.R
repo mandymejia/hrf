@@ -30,6 +30,10 @@ fit_allHRFs_result <- fit_allHRFs(
   log_dir = "dev/logs"
 )
 
+saveRDS(
+  fit_allHRFs_result,
+  file = here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds")
+)
 
 statuses <- sapply(fit_workingHRF_result[["subject_results"]], function(x) x[["status"]])
 table(statuses)
