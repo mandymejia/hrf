@@ -60,7 +60,7 @@
 #'
 #' @export
 regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TRUE) {
-  cat("****************Version 0.1.11********************")
+  cat("****************Version 0.1.11********************\n")
 
   xii <- validate_previous_results(workingHRF_results, allHRF_results)
   result <- create_best_params_df(workingHRF_results, allHRF_results)
@@ -71,7 +71,7 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
   hrf_grid <- allHRF_results$hrf_grid
   rm(workingHRF_results, allHRF_results); gc()
   regularized_params <- HRF_regularize(best_params_df, mask_prop_NA, xii, mask = TRUE,
-                                       log = TRUE, truncate = TRUE,WLS = TRUE)
+                                       log = TRUE, truncate = TRUE, WLS = TRUE)
 
   if (rounding) {
     rounded <-round_regularized_params(regularized_params,

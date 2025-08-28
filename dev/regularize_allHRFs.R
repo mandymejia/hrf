@@ -8,10 +8,15 @@ devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with 
 workingHRF_results <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
 allHRF_results <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
 
+workingHRF_results <- readRDS("/Users/zeshawnzahid/Downloads/19s_fit_workingHRF_result.rds")
+allHRF_results <- readRDS("/Users/zeshawnzahid/Downloads/19s_fit_allHRFs_result.rds")
+
 regularize_allHRFs_result <- regularize_allHRFs(
   workingHRF_results,
   allHRF_results,
-  rounding = TRUE
+  rounding = TRUE#,
+  # log = TRUE,
+  # TRUNCATE = TRUE,
 )
 
 saveRDS(

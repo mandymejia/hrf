@@ -5,28 +5,34 @@
 \alias{default_hrf_grid}
 \title{Default HRF Parameter Grid}
 \format{
-A data frame with 114 rows and 5 variables:
+A data frame with 101 rows and 5 columns:
 \describe{
-\item{a1}{Numeric. Shape parameter for main response (3-12)}
-\item{b1}{Numeric. Rate parameter for main response (0.5-2.0)}
-\item{c}{Numeric. Undershoot scaling factor (0 or 1/6)}
-\item{a2}{Numeric. Shape parameter for undershoot (computed from a1, b1)}
-\item{b2}{Numeric. Rate parameter for undershoot (equals b1)}
+\item{a1}{Delay of response (seconds). Range: 3–12}
+\item{b1}{Response dispersion (seconds). Range: 0.5–2}
+\item{c}{Undershoot scale. Values: 0 (no undershoot) or 1/6 (canonical)}
+\item{a2}{Delay of undershoot (seconds). Calculated from a1 and b1}
+\item{b2}{Dispersion of undershoot (seconds). Equal to b1}
 }
+}
+\source{
+Generated from systematic parameter exploration based on
+double-gamma HRF model with physiological constraints
 }
 \usage{
 default_hrf_grid
 }
 \description{
-A pre-computed grid of HRF parameters used for multi-model fitting.
-Contains validated parameter combinations that produce physiologically
-plausible HRF shapes with reasonable timing characteristics.
+A pre-computed grid of hemodynamic response function (HRF) parameters
+for systematic HRF modeling in fMRI data analysis.
 }
 \details{
-Grid is filtered to exclude HRFs with:
-\itemize{
-\item Time-to-peak < 2 seconds (too fast)
-\item Undershoot peak > 22.74 seconds (too long)
+This grid was constructed by systematically varying HRF parameters around
+the SPM canonical HRF (a1=6, b1=1, c=1/6) and filtering for physiologically
+plausible responses. All calculations assume TR = 2 seconds.
 }
+\examples{
+head(default_hrf_grid)
+summary(default_hrf_grid)
+table(default_hrf_grid$c)
 }
 \keyword{datasets}

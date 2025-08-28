@@ -8,7 +8,7 @@ devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with 
 session_data <- readRDS(here("dev", "fixtures", "session_data_motorlr_4s.rds"))
 EVs <- session_data[["EVs_list"]][[1]]
 
-design_1 <- make_design(
+design_3 <- make_design(
   EVs = EVs, nTime = 284, TR = 0.72, dHRF = 0,
   onset = TRUE, offset = TRUE,
   a1 = 3, b1 = 1/2, c = 1/6,

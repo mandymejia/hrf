@@ -3,75 +3,27 @@
 #' A pre-computed grid of hemodynamic response function (HRF) parameters
 #' for systematic HRF modeling in fMRI data analysis.
 #'
-#' @format A data frame with 101 rows and 13 columns:
+#' @format A data frame with 101 rows and 5 columns:
 #' \describe{
-#'   \item{a1}{Delay of response (seconds). Range: 3-12}
-#'   \item{b1}{Response dispersion (seconds). Range: 0.5-2}  
-#'   \item{TR}{Temporal resolution (seconds). Value: 2}
-#'   \item{shape1}{Shape parameter for first gamma (a1/b1). Range: 2-24}
-#'   \item{rate1}{Rate parameter for first gamma (TR/b1). Range: 1-4}
-#'   \item{TRs_to_peak}{Time to peak in TR units. Range: 1-5.75}
-#'   \item{time_to_peak}{Time to HRF peak (seconds). Range: 2-11.5}
-#'   \item{a2}{Delay of undershoot (seconds). Range: 5.66-45.25}
-#'   \item{b2}{Dispersion of undershoot (seconds). Equal to b1. Range: 0.5-2}
-#'   \item{c}{Scale of undershoot. Values: 0 (no undershoot) or 0.167 (1/6, canonical)}
-#'   \item{time_to_end}{Time when HRF resolves (seconds). Range: 6.32-29.34}
-#'   \item{FWHM}{Full width at half maximum (seconds). Range: 2.28-10.6}
-#'   \item{c_label}{Factor describing undershoot: "No Undershoot (c=0)" or "With Undershoot (c=1/6)"}
+#'   \item{a1}{Delay of response (seconds). Range: 3–12}
+#'   \item{b1}{Response dispersion (seconds). Range: 0.5–2}  
+#'   \item{c}{Undershoot scale. Values: 0 (no undershoot) or 1/6 (canonical)}
+#'   \item{a2}{Delay of undershoot (seconds). Calculated from a1 and b1}
+#'   \item{b2}{Dispersion of undershoot (seconds). Equal to b1}
 #' }
 #'
 #' @details
 #' This grid was constructed by systematically varying HRF parameters around
 #' the SPM canonical HRF (a1=6, b1=1, c=1/6) and filtering for physiologically
-#' plausible responses. The grid includes 66 HRFs without undershoot (c=0) 
-#' and 35 HRFs with canonical undershoot (c=1/6).
-#'
-#' All calculations assume TR=2 seconds. Parameters were derived using the 
-#' double-gamma HRF model and filtered to exclude responses with unrealistic
-#' timing characteristics.
+#' plausible responses. All calculations assume TR = 2 seconds.
 #'
 #' @source Generated from systematic parameter exploration based on 
 #' double-gamma HRF model with physiological constraints
 #'
 #' @examples
-#' # View the grid
 #' head(default_hrf_grid)
-#' 
-#' # Basic statistics
 #' summary(default_hrf_grid)
-#' 
-#' # Check distribution of undershoot types
-#' table(default_hrf_grid$c_label)
-#' 
-#' # Get canonical HRF parameters (a1=6, b1=1, c=1/6)
-#' canonical <- default_hrf_grid[default_hrf_grid$a1 == 6 & 
-#'                               default_hrf_grid$b1 == 1 & 
-#'                               abs(default_hrf_grid$c - 1/6) < 1e-6, ]
-#' print(canonical)
-#' 
-#' # Get fast responses (peak time < 5 seconds)
-#' fast_hrfs <- default_hrf_grid[default_hrf_grid$time_to_peak < 5, ]
-#' nrow(fast_hrfs)
-#' 
-#' # Get responses without undershoot only
-#' no_undershoot <- default_hrf_grid[default_hrf_grid$c == 0, ]
-#' nrow(no_undershoot)  # Should be 66
-#' 
-#' # Plot parameter space (if ggplot2 available)
-#' \dontrun{
-#' if(require(ggplot2)) {
-#'   ggplot(default_hrf_grid, aes(x = a1, y = b1, color = c_label)) +
-#'     geom_point(size = 2) +
-#'     labs(title = "HRF Parameter Grid", 
-#'          x = "a1 (delay)", y = "b1 (dispersion)", color = "Undershoot") +
-#'     theme_minimal()
-#' }
-#' }
-#' 
-#' # Use with fit_allHRFs (when available)
-#' \dontrun{
-#' result <- fit_allHRFs(BOLD, EVs, TR = 0.72, hrf_grid = default_hrf_grid)
-#' }
+#' table(default_hrf_grid$c)
 "default_hrf_grid"
 
 #' Generate HRF parameter grid
