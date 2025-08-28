@@ -569,9 +569,6 @@ truncate_negative_slopes <- function(best_params_df, best_params_df_est, method 
 #'
 #' @return Numeric scalar representing the slope estimate.
 #'
-#' @examples
-#' slope_fun(c(1.2, 1.5, 2.0), c(1.0, 1.4, 1.8))
-#'
 #' @keywords internal
 slope_fun <- function(gamma_iv, gamma_v, lm=TRUE){
   # All arguments must be of length V, where V is the number of vertices
@@ -636,3 +633,90 @@ slope_fun_WLS <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
   #   return(coefficients(lm(gamma_iv ~ gamma_v, weights = weight_A))[2])
   # }
 }
+
+
+#' Extract Parameter Column Names
+#'
+#' Given a data frame of HRF parameters along with columns \code{"voxel"},
+#' \code{"subject"}, and \code{"mask"}, this function returns the names of
+#' all remaining numeric columns.
+#'
+#' @param params_df A data frame containing numeric parameter columns and the
+#'   identifier columns \code{"voxel"}, \code{"subject"}, and \code{"mask"}.
+#' @return A character vector of column names in \code{params_df} that are numeric
+#'   and not one of \code{"voxel"}, \code{"subject"}, or \code{"mask"}.
+#' @keywords internal
+extract_param_names <- function(params_df) {
+  param_names <- names(params_df)[
+    vapply(params_df, is.numeric, logical(1)) &
+      !(names(params_df) %in% c("voxel", "subject", "mask"))
+  ]
+  param_names
+}
+
+
+#' Validate Previous Results and Extract Brain Template
+#'
+#' Validates that \code{workingHRF} and \code{allHRF} results have matching
+#' dimensions and extracts a brain template (\code{xii}) for visualization.
+#'
+#' @param workingHRF_results Results from \code{fit_workingHRF()}.
+#' @param allHRF_results Results from \code{fit_allHRFs()}.
+#'
+#' @return A \code{xii} template object (converted to dscalar format).
+#' @keywords internal
+validate_previous_results <- function(workingHRF_results, allHRF_results) {
+
+  # Extract xii objects from both results
+  working_xii <- workingHRF_results[["subject_results"]][[1]][["glm_results"]][["bestmodel_xii"]]
+  all_xii <- allHRF_results[["subject_results"]][[1]][["glm_result"]][["bestmodel_xii"]]
+
+  # Get dimensions
+  working_dims <- dim(as.matrix(working_xii))
+  all_dims <- dim(as.matrix(all_xii))
+
+  # Validate dimensions match
+  if (!identical(working_dims, all_dims)) {
+    stop("Dimension mismatch between workingHRF and allHRF results!\n",
+         "  workingHRF dimensions: ", paste(working_dims, collapse=" x "), "\n",
+         "  allHRF dimensions: ", paste(all_dims, collapse=" x "))
+  }
+
+  cat("Results validation passed - dimensions match:", paste(working_dims, collapse=" x "), "\n")
+
+  # Extract template (following research code pattern)
+  xii <- ciftiTools::convert_xifti(working_xii, "dscalar")
+
+  cat("Brain template extracted successfully\n")
+
+  return(xii)
+}
+
+#' Create xifti Object from Filtered Data with NA Padding
+#'
+#' Takes a dataframe with voxel-wise data and creates an xifti object
+#' by padding missing voxels with NA to match template dimensions.
+#'
+#' @param summary_df Dataframe containing 'voxel' column and data column
+#' @param data_col Name of the column containing the values to extract
+#' @param template_xii Template xifti object to match dimensions and structure
+#' @return New xifti object with data from summary_df and NA padding
+#' @keywords internal
+create_xifti_with_padding <- function(summary_df, data_col, template_xii) {
+  # Create full-length vector with NAs
+  full_vector <- rep(NA, nrow(as.matrix(template_xii)))
+
+  # Fill in available values
+  if (data_col %in% names(summary_df) && "voxel" %in% names(summary_df)) {
+    full_vector[summary_df$voxel] <- summary_df[[data_col]]
+  } else {
+    stop("summary_df must contain 'voxel' column and specified data_col: ", data_col)
+  }
+
+  # Create new xifti object
+  new_xii <- ciftiTools::newdata_xifti(template_xii, full_vector)
+
+  return(new_xii)
+}
+
+

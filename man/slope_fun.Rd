@@ -22,8 +22,4 @@ Computes the slope of subject-level parameter estimates (\code{gamma_iv})
 against population-averaged estimates (\code{gamma_v}) either via direct formula
 or linear regression.
 }
-\examples{
-slope_fun(c(1.2, 1.5, 2.0), c(1.0, 1.4, 1.8))
-
-}
 \keyword{internal}
