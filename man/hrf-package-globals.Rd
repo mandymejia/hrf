@@ -4,8 +4,9 @@
 \alias{hrf-package-globals}
 \title{Global Imports and Known Variables}
 \description{
-This file centralizes package-wide imports and declares known variable names
-used inside non-standard evaluation (NSE) contexts, such as \code{subset()}, \code{transform()},
-or dynamically generated columns. Declaring them here informs R CMD check
-that these variables are intentionally used within the package.
+This file centralizes package-wide imports, Rcpp integration,
+and declares known variable names used inside non-standard evaluation (NSE)
+contexts. NSE occurs in functions like \code{subset()}, \code{transform()}, and
+dynamically generated column names in data frames. Declaring these names here
+informs R CMD check that they are intentional and suppresses false-positive NOTES.
 }

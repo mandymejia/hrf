@@ -28,6 +28,10 @@ Authors@R: c(
     person(given = "Sarah",
            family = "Ryan",
            email = "sarahryan320@gmail.com",
+           role = c("ctb")),
+    person(given = "Zeshawn",
+           family = "Zahid",
+           email = "zeshawn.zahid@gmail.com",
            role = c("ctb"))
            )
 Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
@@ -49,7 +53,8 @@ Imports:
     Matrix,
     matrixStats,
     stats,
-    qs
+    qs,
+    Rcpp
 Suggests:
     covr,
     ggplot2,
@@ -68,3 +73,5 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Language: en-US
 LazyData: true
+LinkingTo: 
+    Rcpp

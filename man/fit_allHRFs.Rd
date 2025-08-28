@@ -18,6 +18,7 @@ fit_allHRFs(
   scrub = NULL,
   verbose = 1,
   n_cores = 1,
+  log_dir = "logs",
   ...
 )
 }
@@ -79,6 +80,10 @@ high-motion or artifact-contaminated timepoints.}
 for parallel processing. If \code{n_cores > 1}, subjects are processed
 in parallel using \code{parLapplyLB()}. Each core may spawn multiple
 workers to mask I/O latency.}
+
+\item{log_dir}{Character or NULL. Directory path for saving log files
+and temporary outputs during processing. If NULL, uses current working
+directory or system temp directory.}
 
 \item{...}{Additional arguments passed to \code{hrf_grid} if it's a function.}
 }
