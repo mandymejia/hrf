@@ -13,7 +13,7 @@
 #' dynamically generated column names in data frames. Declaring these names here
 #' informs R CMD check that they are intentional and suppresses false-positive NOTES.
 #'
-#' @importFrom stats runif
+#' @importFrom stats runif weighted.mean
 #' @importFrom utils read.table
 #' @importFrom utils object.size
 #' @importFrom dplyr group_by summarize left_join filter arrange select any_of
@@ -56,5 +56,7 @@ utils::globalVariables(c(
   "residual_B",
   "subject",
   "param0",
-  "param_mean0"
+  "param_mean0",
+  "weight_A",
+  "weight_B"
 ))

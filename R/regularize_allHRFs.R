@@ -421,3 +421,84 @@ estimate_ols_and_variance <- function(best_params_df, truncate, xii) {
     variance_xii_B = variance_xii_B
   ))
 }
+
+#' Estimate WLS Parameters and Calculate Final Variance
+#'
+#' Performs weighted least squares estimation using inverse variance weights
+#' and calculates final residual variances for Model A and Model B predictions.
+#'
+#' @param best_params_df Dataframe with parameter estimates, population means, and variances
+#' @param truncate Logical, whether to truncate negative slopes
+#' @param mean0_xii Template xifti object for creating variance visualizations
+#'
+#' @return List containing estimates and variance objects
+#' @keywords internal
+estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
+  # Now that we have variances, we will use WLS method to re-estimate the slope and intercept
+  # gamma_iv ->param , gamma_v -> param_mean0
+  # weight_A -> inverse square root of variances for model A
+  # weight_B -> inverse square root of variances for model B
+
+  print("Running weighted Least squares method")
+
+  best_params_df$weight_A <- 1 / sqrt(best_params_df$variance_A)
+  best_params_df$weight_B <- 1 / sqrt(best_params_df$variance_B)
+
+  # Now calculate weighted estimates with proper weights
+  # best_params_df$weight_A[ !is.finite(best_params_df$weight_A) ] <- 0  # zero-out NA / Inf
+  # best_params_df$weight_B[ !is.finite(best_params_df$weight_B) ] <- 0 # FIX FOR ROUND
+  best_params_df_est <- best_params_df %>%
+    filter(use) %>%
+    group_by(subject) %>%
+    summarize(param_offset = weighted.mean(param - param_mean0, weight_B, na.rm = TRUE),
+              param_slope = slope_fun_WLS_old(param, param_mean0, weight_A, lm=FALSE),
+              param_int = weighted.mean(param, weight_A, na.rm = TRUE) -
+                param_slope * weighted.mean(param_mean0, weight_A, na.rm = TRUE))
+
+  if(truncate) best_params_df_est <- truncate_negative_slopes(best_params_df,
+                                                              best_params_df_est,
+                                                              method = "WLS")
+
+
+  # Keep subjects in numerical order
+  best_params_df_est <- arrange(best_params_df_est, subject) #new param_offset, param_slope, param_int
+
+
+  best_params_df <- best_params_df %>%
+    select(-any_of(c("param_int", "param_slope", "param_offset"))) %>%
+    left_join(best_params_df_est, by = "subject")
+
+  # "variance A","variance_B", "param_pred_A","param_pred_B", "residual_A", "residual_B"
+
+  best_params_df$param_pred_A <- best_params_df$param_int + best_params_df$param_slope * best_params_df$param_mean0
+  best_params_df$param_pred_B <- best_params_df$param_offset + best_params_df$param_mean0
+
+  # Compute residuals for final variance calculation
+  best_params_df$residual_A <- best_params_df$weight_A * (best_params_df$param - best_params_df$param_pred_A)
+  best_params_df$residual_B <- best_params_df$weight_B * (best_params_df$param - best_params_df$param_pred_B)
+
+  # Calculate final variance
+  residual_variance <- best_params_df %>%
+    filter(use) %>%
+    group_by(voxel) %>%
+    summarize(variance_A = var(residual_A, na.rm = TRUE),
+              variance_B = var(residual_B, na.rm = TRUE))
+
+  # Create xifti objects for variance datasets
+  variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", mean0_xii)
+  variance_xii_B <- create_xifti_with_padding(residual_variance, "variance_B", mean0_xii)
+
+  # Bring variances back to main dataframe
+  best_params_df <- best_params_df %>%
+    select(-any_of(c("variance_A", "variance_B"))) %>%
+    left_join(residual_variance, by = "voxel")
+
+  print('Saving predictions, residuals, variances, weights, variance xiftis for Weighted Least Squares Method')
+
+  return(list(
+    best_params_df = best_params_df,
+    best_params_df_est = best_params_df_est,
+    variance_xii_A = variance_xii_A,
+    variance_xii_B = variance_xii_B
+  ))
+}
