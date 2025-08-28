@@ -271,3 +271,153 @@ HRF_regularize <- function(best_params_df, mask_prop_NA, xii, mask = TRUE,
   }
   return(model_outputs)
 }
+
+#' Estimate Population-Level HRF Parameters
+#'
+#' Computes population-averaged HRF parameter estimates by averaging individual
+#' subject estimates across voxels. This represents the first step in the HRF
+#' regularization process, creating group-level parameter maps and preparing
+#' data for subsequent subject-level modeling.
+#'
+#' @param best_params_df Dataframe containing HRF parameter estimates with columns
+#'   for parameters (a1, b1, c), voxel identifiers, subject identifiers, and
+#'   activation masks. Modified in place with additional columns.
+#' @param pp Character string specifying which parameter column to process
+#'   (e.g., "a1", "b1", "c").
+#' @param xii Template xifti object used for creating brain visualizations with
+#'   proper anatomical structure and dimensions.
+#'
+#' @return A list containing:
+#'   \describe{
+#'     \item{best_params_df}{Updated dataframe with new columns: \code{param},
+#'       \code{param0}, and \code{param_mean0} joined from population averaging.
+#'       Previous iteration columns are cleared.}
+#'     \item{mean0_xii}{xifti object containing population-averaged parameter
+#'       values properly formatted for brain visualization, with NA padding
+#'       for voxels not meeting activation criteria.}
+#'   }
+#'
+#' @details
+#' The function performs the following operations:
+#' \enumerate{
+#'   \item Selects the current parameter and clears previous iteration columns
+#'   \item Filters to voxels meeting activation criteria (\code{use} column)
+#'   \item Computes voxel-wise averages across subjects
+#'   \item Joins population averages back to the main dataframe
+#'   \item Creates an xifti visualization object with NA padding for missing voxels
+#' }
+#'
+#' This function modifies the input dataframe by adding parameter-specific columns
+#' and clearing columns from previous parameter iterations to ensure a clean state.
+#'
+#' @keywords internal
+estimate_population_parameters <- function(best_params_df, mask_prop_NA, pp, xii, mask) {
+  best_params_df$param <- best_params_df[,pp] #select the current parameter
+  best_params_df$param0 <- best_params_df$param
+
+  best_params_df$param_mean0 <- NULL # Initiliazation
+  best_params_df$param_offset <- best_params_df$param_int <- best_params_df$param_slope <- NULL
+  best_params_df$param_pred_A <- best_params_df$param_pred_B <- NULL
+  print("Running Ordinary Least Squares Method")
+
+  if(mask) {
+    # Use population mask + activation mask
+    best_params_df_avg0 <- best_params_df %>%
+      filter(use & voxel %in% which(!is.na(mask_prop_NA))) %>%
+      group_by(voxel) %>%
+      summarize(param_mean0 = mean(param0, na.rm=TRUE))
+  } else {
+    # Original behavior - all voxels, all subjects
+    best_params_df_avg0 <- best_params_df %>%
+      filter(use) %>%  # When mask=FALSE, use=TRUE for everyone
+      group_by(voxel) %>%
+      summarize(param_mean0 = mean(param0, na.rm=TRUE))
+  }
+
+  best_params_df <- best_params_df %>% left_join(best_params_df_avg0, by = "voxel") # Bing population means back into full df
+
+  best_params_df <- best_params_df %>%
+    filter(!is.na(param_mean0))
+
+  mean0_xii <- create_xifti_with_padding(best_params_df_avg0, "param_mean0", xii)
+  # mean0_xii <- ciftiTools::newdata_xifti(xii, best_params_df_avg0$param_mean0)
+
+  return(list(
+    best_params_df = best_params_df,
+    mean0_xii = mean0_xii
+  ))
+}
+
+#' Estimate OLS Parameters and Calculate Variance
+#'
+#' Performs ordinary least squares estimation for subject-level parameters
+#' and calculates residual variances for Model A and Model B predictions.
+#'
+#' @param best_params_df Dataframe with parameter estimates and population means
+#' @param truncate Logical, whether to truncate negative slopes
+#' @param xii Template xifti object for creating variance visualizations
+#'
+#' @return List containing updated dataframe, estimates, and variance objects
+#' @keywords internal
+estimate_ols_and_variance <- function(best_params_df, truncate, xii) {
+  ### NORMAL METHOD IMPLEMENTATION (NON-WLS)
+  # This section contains the original non-weighted implementation
+
+  ### Step 2: for each subject, fit a model relating the over-fitted estimates to the population average
+  ### Model A: intercept and slope
+  ### Model B: offset-only (an intercept-only model, which might be preferable when model A results in slope = 0 or negative slopes)
+
+  best_params_df_est <- best_params_df %>%
+    filter(use) %>%
+    group_by(subject) %>%
+    summarize(param_offset = mean(param - param_mean0),
+              param_slope = slope_fun(param, param_mean0, lm=FALSE),
+              param_int = mean(param) - param_slope*mean(param_mean0))
+
+
+  ### Step 3: truncate negative slopes, re-estimate intercepts as the straight mean
+  if(truncate) best_params_df_est <- truncate_negative_slopes(best_params_df,
+                                                              best_params_df_est,
+                                                              method = "OLS")
+
+  # Keep subjects in numerical order
+  best_params_df_est <- arrange(best_params_df_est, subject)
+
+
+  # Bring subject-level slopes and intercepts back into full df
+  best_params_df <- best_params_df %>% left_join(best_params_df_est, by = 'subject')
+
+  ### Step 4: generate predictions & update \gamma_v using predictions (for iteration)
+  best_params_df$param_pred_A <- best_params_df$param_int + best_params_df$param_slope * best_params_df$param_mean0
+  best_params_df$param_pred_B <- best_params_df$param_offset + best_params_df$param_mean0
+
+  # Step 4.a: Compute residuals
+  best_params_df$residual_A <- best_params_df$param - best_params_df$param_pred_A
+  best_params_df$residual_B <- best_params_df$param - best_params_df$param_pred_B
+
+
+  # Step 4.b: Estimate variance over subjects (grouping by voxel)
+  residual_variance <- best_params_df %>%
+    filter(use) %>%
+    group_by(voxel) %>%
+    summarize(variance_A = var(residual_A, na.rm = TRUE),
+              variance_B = var(residual_B, na.rm = TRUE))
+
+
+  # Create xifti objects for variance datasets for OLS
+  variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", xii)
+  variance_xii_B <- create_xifti_with_padding(residual_variance, "variance_B", xii)
+
+  # Bring variances back to main dataframe
+  best_params_df <- best_params_df %>%
+    select(-any_of(c("variance_A", "variance_B"))) %>%
+    left_join(residual_variance, by = "voxel")
+
+  print("Saving predictions, residuals, variances, variance xiftis for Ordinary Least Squares Method")
+  return(list(
+    best_params_df = best_params_df,
+    best_params_df_est = best_params_df_est,
+    variance_xii_A = variance_xii_A,
+    variance_xii_B = variance_xii_B
+  ))
+}

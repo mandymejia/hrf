@@ -16,7 +16,7 @@
 #' @importFrom stats runif
 #' @importFrom utils read.table
 #' @importFrom utils object.size
-#' @importFrom dplyr group_by summarize left_join
+#' @importFrom dplyr group_by summarize left_join filter
 #' @importFrom magrittr %>%
 NULL
 
@@ -49,5 +49,7 @@ utils::globalVariables(c(
   "time_to_peak",
   "peak2_time",
   "voxel",
-  "mask"
+  "mask",
+  "param0",
+  "param_mean0"
 ))
