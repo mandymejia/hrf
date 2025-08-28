@@ -442,17 +442,12 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
 create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, verbose, subject_idx) {
   if(verbose > 1) cat("Subject", subject_idx, ": Creating", nrow(hrf_grid), "design matrices...\n")
 
-  # Determine task structure
-  task_names <- names(EVs)
-  onset_tasks  <- if (isTRUE(onsets)) task_names else NULL
-  offset_tasks <- if (isTRUE(offsets)) task_names else NULL
-
   # Get number of fields from first design (to determine array dimensions)
   hrf_params_1 <- extract_hrf_params(hrf_grid, 1)
   cat("Running make_design idx=1\n")
   design_1 <- make_design(
     EVs = EVs, nTime = nT, TR = TR, dHRF = 0,  # No derivatives in allHRFs
-    onset = onset_tasks, offset = offset_tasks,
+    onset = onsets, offset = offsets,
     a1 = hrf_params_1$a1, b1 = hrf_params_1$b1, c = hrf_params_1$c,
     a2 = hrf_params_1$a2, b2 = hrf_params_1$b2
   )
@@ -473,7 +468,7 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
 
     design_pp <- make_design(
       EVs = EVs, nTime = nT, TR = TR, dHRF = 0,
-      onset = onset_tasks, offset = offset_tasks,
+      onset = onsets, offset = offsets,
       a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
       a2 = hrf_params$a2, b2 = hrf_params$b2
     )
