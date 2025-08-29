@@ -12,7 +12,7 @@
 #' @param allHRF_results Results object from \code{fit_allHRFs()}, containing
 #'   best-fitting HRF parameters (a1, b1, c) for each voxel-subject combination
 #'   from fitting multiple HRF variants.
-#' @param rounding Logical; if TRUE (default), round the regularized HRF parameters 
+#' @param rounding Logical; if TRUE (default), round the regularized HRF parameters
 #'   to the nearest values in the provided HRF grid for better interpretability.
 #'
 #' @return An object of class \code{"regularizeHRFs"} containing:
@@ -400,8 +400,14 @@ estimate_ols_and_variance <- function(best_params_df, truncate, xii) {
   residual_variance <- best_params_df %>%
     filter(use) %>%
     group_by(voxel) %>%
-    summarize(variance_A = var(residual_A, na.rm = TRUE),
-              variance_B = var(residual_B, na.rm = TRUE))
+    summarize( 
+      n_obs = dplyr::n(),
+      # Return 0 variance if only one subjects for voxel
+      variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0, 
+      variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
+    )
+    # summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
+    #           variance_B = var(residual_B, na.rm = TRUE))
 
 
   # Create xifti objects for variance datasets for OLS
@@ -441,8 +447,13 @@ estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
 
   print("Running weighted Least squares method")
 
-  best_params_df$weight_A <- 1 / sqrt(best_params_df$variance_A)
-  best_params_df$weight_B <- 1 / sqrt(best_params_df$variance_B)
+  # best_params_df$weight_A <- 1 / sqrt(best_params_df$variance_A)
+  # best_params_df$weight_B <- 1 / sqrt(best_params_df$variance_B) # TODO: Do we need below fix?
+
+  best_params_df$weight_A <- ifelse(best_params_df$variance_A > 1e-10,
+                                    1 / sqrt(best_params_df$variance_A), 0)
+  best_params_df$weight_B <- ifelse(best_params_df$variance_B > 1e-10,
+                                    1 / sqrt(best_params_df$variance_B), 0)
 
   # Now calculate weighted estimates with proper weights
   # best_params_df$weight_A[ !is.finite(best_params_df$weight_A) ] <- 0  # zero-out NA / Inf
@@ -481,8 +492,13 @@ estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
   residual_variance <- best_params_df %>%
     filter(use) %>%
     group_by(voxel) %>%
-    summarize(variance_A = var(residual_A, na.rm = TRUE),
-              variance_B = var(residual_B, na.rm = TRUE))
+    summarize(
+      n_obs = dplyr::n(),
+      variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
+      variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
+    )
+  # summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
+  #           variance_B = var(residual_B, na.rm = TRUE))
 
   # Create xifti objects for variance datasets
   variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", mean0_xii)
@@ -614,6 +630,9 @@ slope_fun <- function(gamma_iv, gamma_v, lm=TRUE){
 #'
 #' @keywords internal
 slope_fun_WLS <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
+  # weight_A[!is.finite(weight_A)] <- 0
+  stopifnot("All weights are zero or invalid - cannot estimate slope" = sum(weight_A) > 0)
+
   # Center gamma_v using weighted mean
   gamma_v_mean <- weighted.mean(gamma_v, weight_A, na.rm = TRUE)
   gamma_iv_mean <- weighted.mean(gamma_iv, weight_A, na.rm = TRUE)
