@@ -1,4 +1,5 @@
 library(here)
+library(tictoc)
 
 ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
 
@@ -10,6 +11,7 @@ session_data <- readRDS(here("dev", "fixtures", "session_data_motorlr_4s.rds"))
 
 t <- 1 # Temporary till we loop
 
+tic("fit_workingHRF done in:")
 fit_workingHRF_result <- fit_workingHRF(
   BOLD = session_data$BOLD_files,
   EVs = session_data$EVs_list,
@@ -28,6 +30,7 @@ fit_workingHRF_result <- fit_workingHRF(
   n_cores = 1,
   log_dir = "dev/logs"
 )
+toc()
 
 saveRDS(
   fit_workingHRF_result,
