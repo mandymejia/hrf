@@ -3,34 +3,64 @@ library(ggplot2)
 library(tidyr)
 library(dplyr)
 library(tictoc)
+library(ciftiTools)
+
+devtools::load_all("~/Documents/Github/hrf-z")
+ciftiTools::ciftiTools.setOption('wb_path', '/Applications/workbench/bin_macosxub/wb_command')
+
+task_names <- c("motor", "wm", "gambling")
+nT_lookup <- c(284, 405, 253)  # motor, wm, gambling respectively
 
 
-ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
 
-devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with latest hrf package changes.
-# devtools::load_all("~/Documents/Github/hrf-HRFcalc-mods") # Temporary while cleaning up hrf-z branch
+for (t in 1) {  # 1 = motor, 2 = wm, 3 = gambling
 
-session_data <- readRDS(here("dev", "fixtures", "session_data_motorlr_4s.rds"))
-EVs <- session_data[["EVs_list"]][[1]]
+  session_data <- readRDS(here(
+    "dev", "fixtures", "session_data_4s",
+    paste0("session_data_", task_names[t], "_lr_4s.rds")
+  ))
 
-tic("***make_design when h")
-design_h <- make_design(
-  EVs = EVs, nTime = 284, TR = 0.72, dHRF = 1,
-  onset = TRUE, offset = TRUE,
-  a1 = 3, b1 = 1/2, c = 1/6,
-  a2 = 8, b2 = 1/2, displace_h = FALSE
-)
-toc()
+  EVs <- session_data[["EVs_list"]][[1]]
+  str(EVs)
+  nTime <- nT_lookup[t]
 
-tic("***make_design when h[-1]")
-design_hneg <- make_design(
-  EVs = EVs, nTime = 284, TR = 0.72, dHRF = 1,
-  onset = TRUE, offset = TRUE,
-  a1 = 3, b1 = 1/2, c = 1/6,
-  a2 = 8, b2 = 1/2, displace_h = TRUE
-)
-toc()
+  # onsets <- c("left_hand",  "right_hand", "left_foot" , "right_foot", "tongue")
+  # offsets <-  c("left_hand",  "right_hand", "left_foot" , "right_foot", "tongue")
+
+  # onsets <- names(EVs)
+  # offsets <- names(EVs)
+
+  cat("\n****Running make_design for", toupper(task_names[t]),"_LR .... \n")
+
+  tic("***make_design when not optimized")
+  design_not_optimized <- make_design(
+    EVs = EVs, nTime = nTime, TR = 0.72, dHRF = 0,
+    onset = if (t == 3) FALSE else TRUE,
+    offset = if (t == 3) FALSE else TRUE,
+    # onset = onsets, offset = offsets,
+    # optimize = FALSE
+  )
+  toc()
+
+  tic("***make_design when optimized")
+  design_optimized <- make_design(
+    EVs = EVs, nTime = nTime, TR = 0.72, dHRF = 0,
+    onset = if (t == 3) FALSE else TRUE,
+    offset = if (t == 3) FALSE else TRUE,
+    # onset = onsets, offset = offsets,
+    # optimize = TRUE
+  )
+  toc()
+
+  plot(design_not_optimized)
+  plot(design_optimized)
+}
 
 
-plot(design_hneg)
-plot(design_h)
+
+
+
+
+
+
+

@@ -226,11 +226,23 @@ make_design <- function(
       end_ii <- round(ots_jj[ii]*upsample + dur_jj[ii]*upsample)
       stim_jj[start_ii:end_ii] <- 1
     }
-    stimulus[[jj]] <- c(stim_jj,0)[inds]
 
     ##### Get `design` by convolving stimulus and HRFs. ------------------------
     # Convolve.
     HRF_jj <- if (is_onset_or_offset) { HRF[1] } else { HRF }
+
+    # FFT optimization: pad stimulus to reach optimal convolution length
+    cat("+++Optimizing convolution length...\n")
+    current_conv_len <- length(stim_jj) + length(HRF_jj$c) - 1
+    target_conv_len <- nextn(current_conv_len, factors = c(2,3,5))
+    padding_needed <- target_conv_len - current_conv_len
+    
+    if (padding_needed > 0) {
+      stim_jj <- c(stim_jj, rep(0, padding_needed))
+      if (scale_design) stim_jj_one <- c(stim_jj_one, rep(0, padding_needed))
+    }
+
+    stimulus[[jj]] <- c(stim_jj,0)[inds]
 
     HRF_conv <- lapply(HRF_jj, function(q){
       convolve(stim_jj, rev(q), type="open")

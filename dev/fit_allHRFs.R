@@ -6,7 +6,7 @@ devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with 
 # devtools::load_all("~/Documents/Github/hrf-HRFcalc-mods") # Temporary while cleaning up hrf-z branch
 
 
-session_data <- readRDS(here("dev", "fixtures", "session_data_motorlr_4s.rds"))
+session_data <- readRDS(here("dev", "fixtures", "session_data_4s", "session_data_motor_lr_4s.rds"))
 
 data("default_hrf_grid")
 head(default_hrf_grid)

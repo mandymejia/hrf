@@ -84,7 +84,7 @@ HRF_calc <- function(t, deriv=0, a1=6, b1=1, a2=16/6 * a1 * sqrt(b1), b2=b1, c=1
     h <- cosine_taper(h, t, taper_start, taper_end, taper_power)
   }
 
-  h <- h[-1] # This needs to be here otherwise calculations and compute get thrown off.
+  h
 }
 
 #' Canonical (double-gamma) HRF
@@ -303,4 +303,24 @@ cosine_taper <- function(h, t, taper_start, taper_end = 30, taper_power = 1) {
   taper[in_taper_region] <- 0.5 * (1 + cos(pi * ((t[in_taper_region] - taper_start) / (taper_end - taper_start))^taper_power))
   taper[t > taper_end] <- 0
   h * taper
+}
+
+#' Check if a number is prime
+#'
+#' Determines if an integer is a prime number using trial division.
+#' Efficient for numbers up to about 1 million.
+#'
+#' @param n Integer to test for primality.
+#'
+#' @return `TRUE` if `n` is prime, `FALSE` otherwise.
+#'
+#' @keywords internal
+is_prime <- function(n) {
+  if (n <= 1) return(FALSE)
+  if (n <= 3) return(TRUE)
+  if (n %% 2 == 0 || n %% 3 == 0) return(FALSE)
+  for (i in seq(5, floor(sqrt(n)), by = 6)) {
+    if (n %% i == 0 || n %% (i + 2) == 0) return(FALSE)
+  }
+  return(TRUE)
 }
