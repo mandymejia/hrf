@@ -232,7 +232,6 @@ make_design <- function(
     HRF_jj <- if (is_onset_or_offset) { HRF[1] } else { HRF }
 
     # FFT optimization: pad stimulus to reach optimal convolution length
-    cat("+++Optimizing convolution length...\n")
     current_conv_len <- length(stim_jj) + length(HRF_jj$c) - 1
     target_conv_len <- nextn(current_conv_len, factors = c(2,3,5))
     padding_needed <- target_conv_len - current_conv_len

@@ -304,23 +304,3 @@ cosine_taper <- function(h, t, taper_start, taper_end = 30, taper_power = 1) {
   taper[t > taper_end] <- 0
   h * taper
 }
-
-#' Check if a number is prime
-#'
-#' Determines if an integer is a prime number using trial division.
-#' Efficient for numbers up to about 1 million.
-#'
-#' @param n Integer to test for primality.
-#'
-#' @return `TRUE` if `n` is prime, `FALSE` otherwise.
-#'
-#' @keywords internal
-is_prime <- function(n) {
-  if (n <= 1) return(FALSE)
-  if (n <= 3) return(TRUE)
-  if (n %% 2 == 0 || n %% 3 == 0) return(FALSE)
-  for (i in seq(5, floor(sqrt(n)), by = 6)) {
-    if (n %% i == 0 || n %% (i + 2) == 0) return(FALSE)
-  }
-  return(TRUE)
-}
