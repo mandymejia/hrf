@@ -24,8 +24,8 @@ for (t in 1) {  # 1 = motor, 2 = wm, 3 = gambling
   str(EVs)
   nTime <- nT_lookup[t]
 
-  # onsets <- c("left_hand",  "right_hand", "left_foot" , "right_foot", "tongue")
-  # offsets <-  c("left_hand",  "right_hand", "left_foot" , "right_foot", "tongue")
+  onsets <- c("left_hand",  "right_hand", "left_foot" , "right_foot", "tongue")
+  offsets <-  c("left_hand",  "right_hand", "left_foot" , "right_foot", "tongue")
 
   # onsets <- names(EVs)
   # offsets <- names(EVs)
@@ -52,7 +52,7 @@ for (t in 1) {  # 1 = motor, 2 = wm, 3 = gambling
   )
   toc()
 
-  plot(design_not_optimized)
+  # plot(design_not_optimized)
   plot(design_optimized)
 }
 
