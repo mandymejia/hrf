@@ -13,7 +13,7 @@
 
 \item{subject}{Integer. Subject index for the design matrix plot (only used if \code{type = "design"}).}
 
-\item{...}{Additional arguments passed to the specific plot function.}
+\item{...}{Additional arguments passed to the specific plot function. If you wish to use you must set all positional arguments.}
 }
 \value{
 A plot is rendered; invisibly returns the underlying object used for plotting.

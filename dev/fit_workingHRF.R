@@ -41,6 +41,14 @@ statuses <- sapply(fit_workingHRF_result[["subject_results"]], function(x) x[["s
 table(statuses)
 
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
+fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_500s.rds"))
 
-plot(fit_workingHRF_result, subject=4)
+plot(fit_workingHRF_result)
 
+plot(fit_workingHRF_result,
+     type = "proportion",
+     alpha = 0.001,
+     fname = here("dev", "test_plots", "proportion_0.001"),
+     shadows = 1,
+     material = list(lit = TRUE, smooth = FALSE),
+     NA_color="#505560")

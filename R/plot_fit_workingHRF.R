@@ -12,7 +12,7 @@
 #' @param x A \code{workingHRF} object.
 #' @param type Type of plot to display. One of \code{"design"}, \code{"proportion"}, or \code{"binary"}.
 #' @param subject Integer. Subject index for the design matrix plot (only used if \code{type = "design"}).
-#' @param ... Additional arguments passed to the specific plot function.
+#' @param ... Additional arguments passed to the specific plot function. If you wish to use you must set all positional arguments.
 #'
 #' @return A plot is rendered; invisibly returns the underlying object used for plotting.
 #'
@@ -26,8 +26,8 @@
 #'
 #' @export
 plot.workingHRF <- function(x, type = c("design", "proportion", "binary"), subject = 1, ...) {
-  cat("Plotting type:", type, "\n")
   type <- match.arg(type)
+  cat("Plotting type:", type, "\n")
 
   switch(type,
     design = plot_design_fit(x, subject = subject, ...),
@@ -112,6 +112,7 @@ plot_design_fit <- function(x, subject = 1, ...) {
           panel.background = element_rect(fill = "white")) +
     theme(legend.position = "right",
           strip.placement = "outside") +
+    list(...) + 
     facet_grid(Task ~ .)
 
   plot_dhrf <- ggplot(data = df_long[df_long$HRF == "dhrf",]) +
@@ -123,6 +124,7 @@ plot_design_fit <- function(x, subject = 1, ...) {
           panel.background = element_rect(fill = "white")) +
     theme(legend.position = "right",
           strip.placement = "outside") +
+    list(...) +
     facet_grid(Task ~ .)
 
   plot_ddhrf <- ggplot(data = df_long[df_long$HRF == "ddhrf",]) +
@@ -134,6 +136,7 @@ plot_design_fit <- function(x, subject = 1, ...) {
           panel.background = element_rect(fill = "white")) +
     theme(legend.position = "right",
           strip.placement = "outside") +
+    list(...) +
     facet_grid(Task ~ .)
 
   if ("main" %in% names(df_list)) print(plot_main)
@@ -147,12 +150,111 @@ plot_design_fit <- function(x, subject = 1, ...) {
   )))
 }
 
+#' Plot cross-subject activation proportion map
+#'
+#' Displays a surface plot of the proportion of subjects showing significant activation
+#' at each location, based on F-test p-values. The surface is generated using the
+#' first successful subject's geometry as a template.
+#'
+#' @param x A \code{workingHRF} object.
+#' @param alpha Optional numeric. Significance threshold for p-values (e.g., 0.001). 
+#'   If not provided, uses the \code{alpha} stored in \code{x$activation_masks}.
+#' @param colors Color map for the surface (default: \code{"viridis"}).
+#' @param title Optional plot title. Auto-generated if not provided.
+#' @param fname Optional filename to save the plot (e.g., \code{"plot.png"}).
+#' @param width,height Pixel dimensions for saved plot (default: 1200x800).
+#' @param shadows Shadow depth for surface rendering (default: 0.3).
+#' @param material List of lighting/material properties (e.g., \code{list(lit = TRUE)}).
+#' @param ... Additional arguments passed to \code{\link[ciftiTools]{view_xifti_surface}}.
+#'
+#' @return Invisibly returns a \code{xifti} object containing the activation proportions.
+#'         The surface plot is rendered or saved as specified.
+#'
 #' @keywords internal
-plot_activation_proportion <- function(x, ...) {
-  stop("plot_activation_proportion() is not implemented yet.")
+plot_activation_proportion <- function(x, alpha = NULL, colors = 'viridis',
+                                                  title = NULL, fname = NULL,
+                                                  width = 1200, height = 800,
+                                                  shadows = 0.3,  # Reduce shadows
+                                                  material = NULL,
+                                                  ...) {
+
+  # Use alpha from object if not provided
+  if(is.null(alpha)) {
+    alpha <- x$activation_masks$alpha
+    proportions <- x$activation_masks$prop
+  } else {
+    # Recalculate proportions with new alpha
+    proportions <- recalculate_proportions(x, alpha)
+  }
+
+  # Get template from first successful subject
+  successful_subjects <- which(sapply(x$subject_results, function(s) s$status == "success"))
+  if(length(successful_subjects) == 0) {
+    stop("No successful subjects found")
+  }
+
+  xii_template <- x$subject_results[[successful_subjects[1]]]$glm_results$pvalF_xii
+
+  # Create title if not provided
+  if(is.null(title)) {
+    title <- paste0('% Subjects Active (F-test p < ', alpha, ')')
+  }
+
+  # Create the xifti object with new data
+  result_xifti <- ciftiTools::newdata_xifti(xii_template, proportions)
+
+  # Use view_xifti_surface with built-in saving
+  plot_result <- view_xifti_surface(
+    xifti = result_xifti,
+    zlim = c(0, 1),
+    colors = colors,
+    title = title,
+    fname = fname,
+    width = width,
+    height = height,
+    shadows = shadows,      # Control shadows like in the example
+    material = material,    # Control material properties
+    bg = "white",           # Background color
+    ...
+  )
+  return(invisible(result_xifti))
 }
 
 #' @keywords internal
 plot_binary_mask <- function(x, ...) {
   stop("plot_binary_mask() is not implemented yet.")
+}
+
+#' Recompute activation proportions across subjects
+#'
+#' Calculates the proportion of subjects showing significant activation at each brain
+#' location, using a user-specified alpha threshold. This is useful when overriding
+#' the default threshold stored in a \code{workingHRF} object.
+#'
+#' @param x A \code{workingHRF} object.
+#' @param alpha Numeric significance threshold (e.g., 0.001).
+#'
+#' @return A numeric vector of length equal to the number of brain locations,
+#'         representing the proportion of subjects with p < alpha at each location.
+#'
+#' @keywords internal
+recalculate_proportions <- function(x, alpha) {
+  # Extract p-values from all subjects
+  n_subjects <- length(x$subject_results)
+  n_locations <- x$subject_results[[1]]$n_locations
+
+  pvals_matrix <- matrix(NA, nrow = n_locations, ncol = n_subjects)
+
+  for(i in 1:n_subjects) {
+    if(x$subject_results[[i]]$status == "success") {
+      pvals <- as.vector(as.matrix(x$subject_results[[i]]$glm_results$pvalF_xii))
+      pvals_matrix[, i] <- pvals
+    }
+  }
+
+  # Create new masks and proportions
+  masks <- (pvals_matrix < alpha)
+  prop <- rowSums(masks, na.rm = TRUE) / rowSums(!is.na(masks))
+
+  return(prop)
 }
