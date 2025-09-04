@@ -39,3 +39,8 @@ saveRDS(
 
 statuses <- sapply(fit_workingHRF_result[["subject_results"]], function(x) x[["status"]])
 table(statuses)
+
+fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
+
+plot(fit_workingHRF_result, subject=4)
+
