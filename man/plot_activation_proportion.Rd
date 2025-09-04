@@ -12,8 +12,8 @@ plot_activation_proportion(
   fname = NULL,
   width = 1200,
   height = 800,
-  shadows = 0.3,
-  material = NULL,
+  shadows = 1,
+  material = list(lit = TRUE, smooth = FALSE),
   ...
 )
 }

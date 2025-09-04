@@ -47,8 +47,10 @@ plot(fit_workingHRF_result)
 
 plot(fit_workingHRF_result,
      type = "proportion",
+     fname = here("dev", "test_plots", "proportion_0.01"))
+
+plot(fit_workingHRF_result,
+     type = "proportion",
      alpha = 0.001,
-     fname = here("dev", "test_plots", "proportion_0.001"),
-     shadows = 1,
-     material = list(lit = TRUE, smooth = FALSE),
-     NA_color="#505560")
+     fname = here("dev", "test_plots", "proportion_0.001"))
+

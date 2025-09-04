@@ -167,6 +167,8 @@ plot_design_fit <- function(x, subject = 1, ...) {
 #' @param material List of lighting/material properties (e.g., \code{list(lit = TRUE)}).
 #' @param ... Additional arguments passed to \code{\link[ciftiTools]{view_xifti_surface}}.
 #'
+#' @importFrom ciftiTools view_xifti_surface
+#'
 #' @return Invisibly returns a \code{xifti} object containing the activation proportions.
 #'         The surface plot is rendered or saved as specified.
 #'
@@ -174,8 +176,8 @@ plot_design_fit <- function(x, subject = 1, ...) {
 plot_activation_proportion <- function(x, alpha = NULL, colors = 'viridis',
                                                   title = NULL, fname = NULL,
                                                   width = 1200, height = 800,
-                                                  shadows = 0.3,  # Reduce shadows
-                                                  material = NULL,
+                                                  shadows = 1,
+                                                  material = list(lit = TRUE, smooth = FALSE),
                                                   ...) {
 
   # Use alpha from object if not provided
@@ -215,6 +217,7 @@ plot_activation_proportion <- function(x, alpha = NULL, colors = 'viridis',
     shadows = shadows,      # Control shadows like in the example
     material = material,    # Control material properties
     bg = "white",           # Background color
+    NA_color="#505560",  
     ...
   )
   return(invisible(result_xifti))
