@@ -45,12 +45,26 @@ fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_
 
 plot(fit_workingHRF_result)
 
+
 plot(fit_workingHRF_result,
      type = "proportion",
      fname = here("dev", "test_plots", "proportion_0.01"))
-
 plot(fit_workingHRF_result,
      type = "proportion",
      alpha = 0.001,
      fname = here("dev", "test_plots", "proportion_0.001"))
 
+
+
+plot(fit_workingHRF_result,
+     type = "binary",
+     fname = here("dev", "test_plots", "binary_0.01_10pct"))
+plot(fit_workingHRF_result,
+     type = "binary", threshold = 0.5,
+     fname = here("dev", "test_plots", "binary_0.01_50pct"))
+plot(fit_workingHRF_result,
+     type = "binary", alpha = 0.001,
+     fname = here("dev", "test_plots", "binary_0.001_10pct"))
+plot(fit_workingHRF_result,
+     type = "binary", alpha = 0.001, threshold = 0.5,
+     fname = here("dev", "test_plots", "binary_0.001_50pct"))

@@ -32,7 +32,7 @@ plot.workingHRF <- function(x, type = c("design", "proportion", "binary"), subje
   switch(type,
     design = plot_design_fit(x, subject = subject, ...),
     proportion = plot_activation_proportion(x, ...),
-    binary = plot_binary_mask(x, ...)
+    binary = plot_binary_map(x, ...)
   )
 }
 
@@ -223,10 +223,89 @@ plot_activation_proportion <- function(x, alpha = NULL, colors = 'viridis',
   return(invisible(result_xifti))
 }
 
+#' Plot binary activation mask across subjects
+#'
+#' Displays a surface plot of the binary activation mask based on a user-specified
+#' proportion threshold and significance level. Each brain location is marked as active (1)
+#' if the proportion of subjects with F-test p-values below `alpha` exceeds `threshold`.
+#'
+#' The surface is rendered using the geometry from the first successful subject.
+#'
+#' @param x A \code{workingHRF} object.
+#' @param threshold Numeric. Proportion threshold for declaring activation (default: \code{0.1}).
+#' @param alpha Optional numeric. Significance threshold for F-test p-values (e.g., \code{0.001}). 
+#'   If not provided, uses the \code{alpha} stored in \code{x$activation_masks}.
+#' @param colors Color map for the surface (default: \code{"viridis"}).
+#' @param title Optional plot title. Auto-generated if not provided.
+#' @param fname Optional filename to save the plot (e.g., \code{"plot.png"}).
+#' @param width,height Pixel dimensions for saved plot (default: \code{1200x800}).
+#' @param shadows Shadow depth for surface rendering (default: \code{1}).
+#' @param material List of lighting/material properties for rendering
+#'   (e.g., \code{list(lit = TRUE, smooth = FALSE)}).
+#' @param ... Additional arguments passed to \code{\link[ciftiTools]{view_xifti_surface}}.
+#'
+#' @importFrom ciftiTools view_xifti_surface
+#'
+#' @return Invisibly returns a \code{xifti} object containing the binary activation mask.
+#'         The surface plot is rendered or saved as specified.
+#'
 #' @keywords internal
-plot_binary_mask <- function(x, ...) {
-  stop("plot_binary_mask() is not implemented yet.")
+plot_binary_map <-  function(x, threshold = 0.1, alpha = NULL,
+                                                 colors = 'viridis', title = NULL,
+                                                 fname = NULL,
+                                                 width = 1200, height = 800,
+                                                 shadows = 1,
+                                                 material = list(lit = TRUE, smooth = FALSE),
+                                                 ...) {
+
+  # Use alpha from object if not provided
+  if(is.null(alpha)) {
+    alpha <- x$activation_masks$alpha
+    proportions <- x$activation_masks$prop
+  } else {
+    # Recalculate proportions with new alpha
+    proportions <- recalculate_proportions(x, alpha)
+  }
+
+  # Get template from first successful subject
+  successful_subjects <- which(sapply(x$subject_results, function(s) s$status == "success"))
+  if(length(successful_subjects) == 0) {
+    stop("No successful subjects found")
+  }
+
+  xii_template <- x$subject_results[[successful_subjects[1]]]$glm_results$pvalF_xii
+
+  # Create binary threshold map
+  binary_map <- as.numeric(proportions > threshold)
+
+  # Create title if not provided
+  if(is.null(title)) {
+    threshold_pct <- threshold * 100
+    title <- paste0('>', threshold_pct, '% Subjects Active (F-test p < ', alpha, ')')
+  }
+
+  # Create the xifti object with binary data
+  result_xifti <- ciftiTools::newdata_xifti(xii_template, binary_map)
+
+  # Use view_xifti_surface with built-in saving (same as activation_proportion)
+  plot_result <- view_xifti_surface(
+    xifti = result_xifti,
+    zlim = c(0, 1),
+    colors = colors,
+    title = title,
+    fname = fname,
+    width = width,
+    height = height,
+    shadows = shadows,      # Control shadows
+    material = material,    # Control material properties
+    bg = "white",           # Background color
+    NA_color="#505560",  
+    ...
+  )
+
+  return(invisible(result_xifti))
 }
+
 
 #' Recompute activation proportions across subjects
 #'
