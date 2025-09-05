@@ -62,4 +62,16 @@ for (t in 1) {  # 1 = motor, 2 = wm, 3 = gambling
 
 
 
+library(tictoc)
 
+tic("Big Loop")
+for (i in 1:114) {
+  make_design(
+    EVs = EVs, nTime = nTime, TR = 0.72, dHRF = 2,
+    onset = if (t == 3) FALSE else TRUE,
+    offset = if (t == 3) FALSE else TRUE,
+    # onset = onsets, offset = offsets,
+    # optimize = TRUE
+  )
+}
+toc()

@@ -37,3 +37,7 @@ saveRDS(
 
 statuses <- sapply(fit_workingHRF_result$subject_results, function(x) x$status)
 table(statuses)
+
+
+plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
+                 TR = 0.72, nT = 284, hrf_idx = 80)

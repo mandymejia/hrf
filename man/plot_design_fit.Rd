@@ -28,12 +28,4 @@ design matrix, as estimated by \code{\link{fit_workingHRF}}. It distinguishes be
 }
 Each type is plotted separately using \pkg{ggplot2}, with lines grouped by task.
 }
-\examples{
-\dontrun{
-result <- fit_workingHRF(...)
-plots <- plot_design(result, subject = 2)
-plots$main   # Access the main HRF plot
-}
-
-}
 \keyword{internal}
