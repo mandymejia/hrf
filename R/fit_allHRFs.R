@@ -115,18 +115,20 @@ fit_allHRFs <- function(
     )
   }
 
-  # Only for parallel mode
-  if(n_cores > 1) {
-    # Get file paths from the results
-    result_paths <- sapply(subject_results, function(x) if(!is.null(x$file_path)) x$file_path else NA)
-    # Load the saved .qs files into a list (ignore errors)
-    loaded_subject_results <- lapply(result_paths, function(fp)
-      if(!is.na(fp) && file.exists(fp)) load_object(file_path = fp, delete_after_load = FALSE) else NULL
-    )
-  } else {
-    # In sequential mode, subject_results is already a list of objects
-    loaded_subject_results <- subject_results
-  }
+ 
+  # Get file paths from the results (same for both parallel and sequential)
+  result_paths <- sapply(subject_results, function(x) if(!is.null(x$file_path)) x$file_path else NA)
+  # Load the saved .qs files into a list and strip out design_3D to save memory
+  loaded_subject_results <- lapply(result_paths, function(fp) {
+    if(!is.na(fp) && file.exists(fp)) {
+      obj <- load_object(file_path = fp, delete_after_load = FALSE)
+      obj$design_3D <- NULL  # Remove the large 3D array from memory
+      return(obj)
+    } else {
+      return(NULL)
+    }
+  })
+
   # Needs to be modified for new save/load
   #   cat("Going into report_design_fit_errors")
   #   report_design_fit_errors(subject_results, verbose)
@@ -136,7 +138,6 @@ fit_allHRFs <- function(
   tictoc::tic()
   best_params_results <- extract_best_params_all_subjects(loaded_subject_results, hrf_grid, verbose)
   tictoc::toc()
-
 
 
   result <- list(
@@ -161,6 +162,8 @@ fit_allHRFs <- function(
       offsets = offsets
     )
   )
+
+  attr(result, "result_paths") <- result_paths
 
   class(result) <- "allHRFs"
   return(result)
@@ -283,15 +286,23 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
                                             hpf, hrf_grid, onsets, offsets, scrub, verbose) {
 
   lapply(1:length(BOLD), function(i) {
-    process_entire_subject(
-      subject_idx = i,
-      BOLD_file = BOLD[i],
-      EVs = EVs[[i]],
-      nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
-      scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
-      TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-      hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
-    )
+    tryCatch({
+        result <- process_entire_subject(
+        subject_idx = i,
+        BOLD_file = BOLD[i],
+        EVs = EVs[[i]],
+        nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
+        scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
+        TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
+      )
+
+      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE)
+
+      list(subject_idx = i, status = "saved", file_path = file_path)
+    }, error = function(e) {
+      list(subject_idx = i, status = "error", error = e$message)
+    })
   })
 }
 
@@ -400,6 +411,7 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     return(list(
       subject_idx = subject_idx,
       nT = nT,
+      design_3D = design_3D,  
       glm_result = glm_result,  # Contains bestmodel_xii
       processing_time = processing_time,
       status = "success"

@@ -18,7 +18,7 @@ save_object <- function(object, label = NULL, prefix = "qs_obj_", preset = "fast
   # Decide save location
   save_dir <- if (tmp) tempdir() else file.path(getwd(), "work")
   if (!tmp && !dir.exists(save_dir)) dir.create(save_dir, recursive = TRUE)
-
+  if (!tmp) message("Work folder is located at: ", save_dir)
   # Generate path from label or tempfile
   file_path <- if (is.null(label)) {
     tempfile(pattern = prefix, tmpdir = save_dir, fileext = ".qs")

@@ -1,4 +1,5 @@
 library(here)
+library(qs)
 
 ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
 
@@ -35,9 +36,18 @@ saveRDS(
   file = here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds")
 )
 
-statuses <- sapply(fit_workingHRF_result$subject_results, function(x) x$status)
+statuses <- sapply(fit_allHRFs_result$subject_results, function(x) x$status)
 table(statuses)
+
+fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_500s.rds"))
+fit_allHRFs_result_small <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
 
 
 plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
                  TR = 0.72, nT = 284, hrf_idx = 80)
+
+plot(fit_allHRFs_result, subject = 2, hrf_idx = 80)
+
+# Testing ground
+work <- qs::qread(here("dev", "fixtures", "work", "allhrf_subject_001.qs"))
+file_paths <- attr(fit_allHRFs_result, "result_paths")

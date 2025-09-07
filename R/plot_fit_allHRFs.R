@@ -1,3 +1,22 @@
+#' @export
+plot.allHRFs <- function(x, type = c("design"), subject = 1, hrf_idx = 1,
+ ...) {
+  type <- match.arg(type)
+  cat("Plotting type:", type, "\n")
+
+  switch(type,
+    design = plot_design_fit_all(x, hrf_idx = hrf_idx, subject = subject, ...),
+  )
+}
+
+#' @export
+plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1, ...) {
+  design_dHRFs <- x[["subject_results"]][[subject]][["design_matrices_allHRFs"]][[hrf_idx]]
+  plot_design_fit_core(design_dHRFs, ...)
+}
+
+
+
 
 #' Preview HRF Design Matrix from Parameter Grid
 #'

@@ -43,7 +43,7 @@ table(statuses)
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_500s.rds"))
 
-plot(fit_workingHRF_result)
+plot(fit_workingHRF_result, subject = 2)
 
 
 plot(fit_workingHRF_result,
