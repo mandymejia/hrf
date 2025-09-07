@@ -7,16 +7,17 @@
 #' @param prefix Optional filename prefix (default: "qs_obj_").
 #' @param preset Compression level: "fast", "balanced", "high", etc.
 #' @param tmp Logical; TRUE = save to `tempdir()`, FALSE = save to `./work/`
+#' @inheritParams work_dir_Param
 #'
 #' @return Full file path to the saved object.
 #' @export
-save_object <- function(object, label = NULL, prefix = "qs_obj_", preset = "fast", tmp = TRUE) {
+save_object <- function(object, label = NULL, prefix = "qs_obj_", preset = "fast", tmp = TRUE, work_dir = "work") {
   if (!requireNamespace("qs", quietly = TRUE)) {
     stop("The 'qs' package is required. Please install it using install.packages('qs').")
   }
 
   # Decide save location
-  save_dir <- if (tmp) tempdir() else file.path(getwd(), "work")
+  save_dir <- if (tmp) tempdir() else normalizePath(work_dir, mustWork = FALSE)
   if (!tmp && !dir.exists(save_dir)) dir.create(save_dir, recursive = TRUE)
   if (!tmp) message("Work folder is located at: ", save_dir)
   # Generate path from label or tempfile

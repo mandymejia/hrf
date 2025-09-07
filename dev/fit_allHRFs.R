@@ -28,7 +28,8 @@ fit_allHRFs_result <- fit_allHRFs(
   scrub = NULL,
   verbose = 2,
   n_cores = 1,
-  log_dir = "dev/logs"
+  log_dir = "dev/logs",
+  work_dir = "dev/work/"
 )
 
 saveRDS(
@@ -39,15 +40,15 @@ saveRDS(
 statuses <- sapply(fit_allHRFs_result$subject_results, function(x) x$status)
 table(statuses)
 
-fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_500s.rds"))
-fit_allHRFs_result_small <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
+# fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_500s.rds"))
+fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
 
 
 plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
                  TR = 0.72, nT = 284, hrf_idx = 80)
 
-plot(fit_allHRFs_result, subject = 2, hrf_idx = 80)
+plot(fit_allHRFs_result, subject = 2, hrf_idx = 72)
 
 # Testing ground
-work <- qs::qread(here("dev", "fixtures", "work", "allhrf_subject_001.qs"))
 file_paths <- attr(fit_allHRFs_result, "result_paths")
+work1 <- qs::qread(file_paths[[1]])

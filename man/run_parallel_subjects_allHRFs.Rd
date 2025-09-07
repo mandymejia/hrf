@@ -18,7 +18,8 @@ run_parallel_subjects_allHRFs(
   scrub,
   verbose,
   n_cores,
-  log_dir
+  log_dir,
+  work_dir
 )
 }
 \arguments{
@@ -83,6 +84,12 @@ workers to mask I/O latency.}
 \item{log_dir}{Character or NULL. Directory path for saving log files
 and temporary outputs during processing. If NULL, uses current working
 directory or system temp directory.}
+
+\item{work_dir}{Character. Directory path where temporary result files will be
+saved during processing. If relative, interpreted relative to current working
+directory. If the directory doesn't exist, it will be created. Default: "work".
+Large intermediate results are saved here to manage memory usage, especially
+in parallel processing mode.}
 }
 \value{
 List of processing summaries, each containing subject_idx, status

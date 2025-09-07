@@ -9,7 +9,8 @@ save_object(
   label = NULL,
   prefix = "qs_obj_",
   preset = "fast",
-  tmp = TRUE
+  tmp = TRUE,
+  work_dir = "work"
 )
 }
 \arguments{
@@ -22,6 +23,12 @@ save_object(
 \item{preset}{Compression level: "fast", "balanced", "high", etc.}
 
 \item{tmp}{Logical; TRUE = save to \code{tempdir()}, FALSE = save to \verb{./work/}}
+
+\item{work_dir}{Character. Directory path where temporary result files will be
+saved during processing. If relative, interpreted relative to current working
+directory. If the directory doesn't exist, it will be created. Default: "work".
+Large intermediate results are saved here to manage memory usage, especially
+in parallel processing mode.}
 }
 \value{
 Full file path to the saved object.

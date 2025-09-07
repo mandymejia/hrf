@@ -19,6 +19,7 @@ fit_allHRFs(
   verbose = 1,
   n_cores = 1,
   log_dir = "logs",
+  work_dir = NULL,
   ...
 )
 }
@@ -84,6 +85,12 @@ workers to mask I/O latency.}
 \item{log_dir}{Character or NULL. Directory path for saving log files
 and temporary outputs during processing. If NULL, uses current working
 directory or system temp directory.}
+
+\item{work_dir}{Character. Directory path where temporary result files will be
+saved during processing. If relative, interpreted relative to current working
+directory. If the directory doesn't exist, it will be created. Default: "work".
+Large intermediate results are saved here to manage memory usage, especially
+in parallel processing mode.}
 
 \item{...}{Additional arguments passed to \code{hrf_grid} if it's a function.}
 }

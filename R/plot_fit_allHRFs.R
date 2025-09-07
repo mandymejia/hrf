@@ -1,3 +1,28 @@
+#' Plot method for allHRFs objects
+#'
+#' Creates diagnostic plots for grid-based HRF fitting results. Currently supports
+#' design matrix visualization, with additional plot types planned for future versions.
+#'
+#' @param x An object of class \code{"allHRFs"} from \code{\link{fit_allHRFs}}.
+#' @param type Character. Type of plot to generate. Currently only \code{"design"}
+#'   is supported for design matrix visualization.
+#' @param subject Integer. Which subject to plot (index into the subject list).
+#'   Default: 1.
+#' @param hrf_idx Integer. Which HRF parameter combination to plot (index into
+#'   the HRF grid). Default: 1.
+#' @param ... Additional arguments passed to the specific plotting function.
+#'
+#' @return Invisibly returns the result of the specific plotting function.
+#'   Plots are rendered to the current graphics device.
+#'
+#' @seealso \code{\link{fit_allHRFs}} for creating allHRFs objects
+#'
+#' @examples
+#' \dontrun{
+#' # Plot design matrix for subject 2, HRF parameter combination 50
+#' plot(result, type = "design", subject = 2, hrf_idx = 50)
+#' }
+#'
 #' @export
 plot.allHRFs <- function(x, type = c("design"), subject = 1, hrf_idx = 1,
  ...) {
@@ -9,9 +34,30 @@ plot.allHRFs <- function(x, type = c("design"), subject = 1, hrf_idx = 1,
   )
 }
 
-#' @export
+#' Plot design matrix for specific HRF parameter combination
+#'
+#' Internal function to visualize the design matrix for a specific subject and
+#' HRF parameter combination from allHRFs results. Loads the saved design data
+#' and renders it using the core plotting infrastructure.
+#'
+#' @param x An object of class \code{"allHRFs"} from \code{\link{fit_allHRFs}}.
+#' @param hrf_idx Integer. Index of the HRF parameter combination to plot.
+#' @param subject Integer. Index of the subject to plot.
+#' @param ... Additional arguments passed to \code{\link{plot_design_fit_core}}.
+#'
+#' @return Result from \code{\link{plot_design_fit_core}}.
+#'
+#' @keywords internal
 plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1, ...) {
-  design_dHRFs <- x[["subject_results"]][[subject]][["design_matrices_allHRFs"]][[hrf_idx]]
+  # Get file paths from the allHRFs result
+  file_paths <- attr(x, "result_paths")
+  
+  # Load the full subject data (including design_3D)
+  full_subject_data <- qs::qread(file_paths[[subject]])
+  
+  # Extract the specific design matrix for the requested HRF index
+  design_dHRFs <- full_subject_data[["design_3D"]][["list"]][[hrf_idx]]
+  
   plot_design_fit_core(design_dHRFs, ...)
 }
 
@@ -40,7 +86,7 @@ plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1, ...) {
 #'
 #' @import ggplot2
 #' @export
-plot_hrf_preview <- function(hrf_grid, EVs, nT, TR, hrf_idx = 1, onsets = FALSE, offsets = FALSE, ...) {
+plot_hrf_preview <- function(hrf_grid, EVs, nT, TR, hrf_idx = 1, onsets = TRUE, offsets = TRUE, ...) {
   design_dHRFs <- make_design(
     EVs = EVs, nTime = nT, TR = TR,
     onset = onsets, offset = offsets,

@@ -51,8 +51,11 @@ Only compatible with block designs (events with duration > 1s).}
 processed (used internally for progress reporting and error tracking).}
 }
 \value{
-3D array with dimensions (nT × nK × nModels), where nK is the
-number of regressors and nModels is the number of HRF parameter combinations.
+Named list with elements:
+\item{array}{3D array with dimensions (nT × nK × nModels), where nK is the
+number of regressors and nModels is the number of HRF parameter combinations}
+\item{list}{List of length nModels, where each element is a 2D design matrix
+(nT × nK) for one specific HRF parameter combination}
 }
 \description{
 Generates design matrices for every HRF parameter combination in the grid.

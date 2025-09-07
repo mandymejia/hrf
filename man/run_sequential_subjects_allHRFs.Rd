@@ -16,7 +16,8 @@ run_sequential_subjects_allHRFs(
   onsets,
   offsets,
   scrub,
-  verbose
+  verbose,
+  work_dir
 )
 }
 \arguments{
@@ -72,6 +73,12 @@ high-motion or artifact-contaminated timepoints.}
 \item 1 = high-level progress messages
 \item 2 = detailed per-subject information
 }}
+
+\item{work_dir}{Character. Directory path where temporary result files will be
+saved during processing. If relative, interpreted relative to current working
+directory. If the directory doesn't exist, it will be created. Default: "work".
+Large intermediate results are saved here to manage memory usage, especially
+in parallel processing mode.}
 }
 \value{
 List of full subject results from \code{process_entire_subject}.

@@ -33,6 +33,7 @@
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
 #' @inheritParams log_dir_Param
+#' @inheritParams work_dir_Param
 #' @param ... Additional arguments passed to \code{hrf_grid} if it's a function.
 #'
 #' @return Object of class \code{"allHRFs"}; a named list with elements:
@@ -91,7 +92,7 @@ fit_allHRFs <- function(
     scrub = NULL,
     verbose = 1,
     n_cores = 1,
-    log_dir = "logs", ...
+    log_dir = "logs", work_dir = NULL, ...
 ) {
   cat("***********Version 1.2222************\n")
 
@@ -99,19 +100,22 @@ fit_allHRFs <- function(
 
   hrf_grid <- set_hrf_grid(hrf_grid, ...)
 
+  if (is.null(work_dir)) { work_dir <- "work" }
+  work_dir <- file.path(work_dir, paste0("work_", format(Sys.time(), "%Y%m%d_%H%M%S"), "_", sample(1000:9999, 1)))
+
   if (verbose > 0) cat("fit_allHRFs called with", length(BOLD), "subjects and", nrow(hrf_grid), "HRF models using", n_cores, "cores\n")
 
   # Parallel processing setup for subjects (2b + 2c per subject)
   if(n_cores > 1) {
     subject_results <- run_parallel_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir
+      hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir, work_dir
     )
   } else {
     if(verbose > 0) cat("Using sequential processing\n")
     subject_results <- run_sequential_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, verbose
+      hrf_grid, onsets, offsets, scrub, verbose, work_dir
     )
   }
 
@@ -189,13 +193,14 @@ fit_allHRFs <- function(
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
 #' @inheritParams log_dir_Param
+#' @inheritParams work_dir_Param
 #'
 #' @return List of processing summaries, each containing subject_idx, status 
 #'   ("saved" or "error"), and file_path (for successful subjects).
 #'
 #' @keywords internal
 run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                          hpf, hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir) {
+                                          hpf, hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir, work_dir) {
 
   if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n")
 
@@ -234,7 +239,7 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
       )
 
 
-      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE)
+      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
 
       cat(sprintf("###Worker finished subject %d successfully\n", i))
       # result
@@ -278,12 +283,13 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
 #' @inheritParams offsets_Param
 #' @inheritParams scrub_Param
 #' @inheritParams verbose_Param
+#' @inheritParams work_dir_Param
 #'
 #' @return List of full subject results from \code{process_entire_subject}.
 #'
 #' @keywords internal
 run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                            hpf, hrf_grid, onsets, offsets, scrub, verbose) {
+                                            hpf, hrf_grid, onsets, offsets, scrub, verbose, work_dir) {
 
   lapply(1:length(BOLD), function(i) {
     tryCatch({
@@ -297,7 +303,7 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
         hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
       )
 
-      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE)
+      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
 
       list(subject_idx = i, status = "saved", file_path = file_path)
     }, error = function(e) {
@@ -381,7 +387,7 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     rss_report("***Before GLM fit", subject_idx)
     tictoc::tic()
     glm_result <- fit_multiGLM_all_designs(
-      bold_data$BOLD_xii, design_3D, nuisance_file, TR, brainstructures,
+      bold_data$BOLD_xii, design_3D$array, nuisance_file, TR, brainstructures,
       hpf, scrub, resamp_res, verbose, subject_idx
     )
     cat("*****#%#time elapsed for multiGLM: ")
@@ -447,8 +453,11 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
 #' @inheritParams verbose_Param
 #' @inheritParams subject_idx_Param
 #'
-#' @return 3D array with dimensions (nT × nK × nModels), where nK is the
-#'   number of regressors and nModels is the number of HRF parameter combinations.
+#' @return Named list with elements:
+#'   \item{array}{3D array with dimensions (nT × nK × nModels), where nK is the
+#'     number of regressors and nModels is the number of HRF parameter combinations}
+#'   \item{list}{List of length nModels, where each element is a 2D design matrix
+#'     (nT × nK) for one specific HRF parameter combination}
 #'
 #' @keywords internal
 create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, verbose, subject_idx) {
@@ -467,6 +476,8 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
 
   # Initialize 3D array: nT x nK x nModels
   design_3D <- array(NA, dim = c(nT, nK, nrow(hrf_grid)))
+  design_list <- list()
+  design_list[[1]] <- design_1$design 
   # design_3D <- array(NA, dim = c(nT, nK, 3))
 
   # Store first design
@@ -484,6 +495,7 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
       a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
       a2 = hrf_params$a2, b2 = hrf_params$b2
     )
+    design_list[[pp]] <- design_pp$design
 
     design_3D[,,pp] <- design_pp$design
     cat("time elapsed for make_design idx=", pp, ": ")
@@ -491,7 +503,10 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
   }
 
   if(verbose > 1) cat("Subject", subject_idx, ": Design array dims =", paste(dim(design_3D), collapse="x"), "\n")
-  return(design_3D)
+  return(list(
+    array = design_3D,      # The BIG 3D array
+    list = design_list      # List of individual 2D matrices
+  ))
 }
 
 #' Fit multiGLM with all HRF designs

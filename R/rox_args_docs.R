@@ -423,3 +423,14 @@ NULL
 #'
 #' @name hrf_grid_Param
 NULL
+
+#' work_dir
+#'
+#' @param work_dir Character. Directory path where temporary result files will be
+#'  saved during processing. If relative, interpreted relative to current working
+#'  directory. If the directory doesn't exist, it will be created. Default: "work".
+#'  Large intermediate results are saved here to manage memory usage, especially
+#'  in parallel processing mode.
+#'
+#' @name work_dir_Param
+NULL

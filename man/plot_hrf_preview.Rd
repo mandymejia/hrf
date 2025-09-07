@@ -10,8 +10,8 @@ plot_hrf_preview(
   nT,
   TR,
   hrf_idx = 1,
-  onsets = FALSE,
-  offsets = FALSE,
+  onsets = TRUE,
+  offsets = TRUE,
   ...
 )
 }
