@@ -52,7 +52,7 @@
 #'   HRF parameter combinations.
 #'
 #' @export
-generate_default_hrf_grid <- function(
+generate_hrf_grid <- function(
     TR               = 2,
     a1_range         = c(a1_spm/2, a1_spm*2),
     a1_step          = 1,

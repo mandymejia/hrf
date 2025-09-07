@@ -18,7 +18,7 @@ fit_allHRFs_result <- fit_allHRFs(
   BOLD = session_data$BOLD_files,
   EVs = session_data$EVs_list,
   TR = 0.72,
-  hrf_grid = generate_default_hrf_grid,
+  hrf_grid = default_hrf_grid,
   brainstructures = c('left', 'right'),
   resamp_res = 10000,
   hpf = 0.01,
@@ -47,7 +47,7 @@ fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorl
 plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
                  TR = 0.72, nT = 284, hrf_idx = 80)
 
-plot(fit_allHRFs_result, subject = 2, hrf_idx = 72)
+plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
 
 # Testing ground
 file_paths <- attr(fit_allHRFs_result, "result_paths")

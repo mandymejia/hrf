@@ -8,7 +8,7 @@ fit_allHRFs(
   BOLD,
   EVs,
   TR,
-  hrf_grid = generate_default_hrf_grid,
+  hrf_grid = generate_hrf_grid,
   brainstructures = c("left", "right"),
   resamp_res = NULL,
   hpf = 0.01,
@@ -157,6 +157,6 @@ result <- fit_allHRFs(
 }
 \seealso{
 \code{\link{fit_workingHRF}} for single canonical HRF modeling,
-\code{\link{generate_default_hrf_grid}} for creating HRF parameter grids,
+\code{\link{generate_hrf_grid}} for creating HRF parameter grids,
 \code{\link{multiGLM}} for the underlying GLM comparison
 }
