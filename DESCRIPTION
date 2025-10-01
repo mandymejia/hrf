@@ -28,10 +28,13 @@ Authors@R: c(
     person(given = "Sarah",
            family = "Ryan",
            email = "sarahryan320@gmail.com",
+<<<<<<< HEAD
            role = c("ctb")),
     person(given = "Zeshawn",
            family = "Zahid",
            email = "zeshawn.zahid@gmail.com",
+=======
+>>>>>>> upstream/hrf-z
            role = c("ctb"))
            )
 Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
@@ -52,6 +55,7 @@ Imports:
     fMRItools,
     Matrix,
     matrixStats,
+<<<<<<< HEAD
     stats,
     qs,
     Rcpp,
@@ -61,20 +65,33 @@ Imports:
     ggplot2
 Suggests:
     covr,
+=======
+    stats
+Suggests:
+    covr,
+    ggplot2,
+>>>>>>> upstream/hrf-z
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
     tidyr,
+<<<<<<< HEAD
     spelling,
     tictoc,
     pryr,
     ps 
+=======
+    spelling
+>>>>>>> upstream/hrf-z
 VignetteBuilder:
     knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Language: en-US
+<<<<<<< HEAD
 LazyData: true
 LinkingTo: 
     Rcpp
+=======
+>>>>>>> upstream/hrf-z

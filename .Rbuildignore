@@ -10,5 +10,8 @@
 ^CRAN-SUBMISSION$
 ^doc$
 ^Meta$
+<<<<<<< HEAD
 ^dev$
 ^debug$
+=======
+>>>>>>> upstream/hrf-z

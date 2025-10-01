@@ -4,6 +4,7 @@
 \alias{verbose_Param}
 \title{verbose}
 \arguments{
+<<<<<<< HEAD
 \item{verbose}{Integer controlling output verbosity:
 \itemize{
 \item 0 = silent
@@ -15,4 +16,12 @@
 verbose
 
 Verbosity Level
+=======
+\item{verbose}{\code{1} (default) to print occasional updates during model
+computation; \code{2} for occasional updates as well as running INLA in
+verbose mode (if \code{Bayes}), or \code{0} for no printed updates.}
+}
+\description{
+verbose
+>>>>>>> upstream/hrf-z
 }

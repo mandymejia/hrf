@@ -12,7 +12,10 @@ multiGLM(
   resamp_res = 10000,
   hpf = NULL,
   nuisance = NULL,
+<<<<<<< HEAD
   scrub = NULL,
+=======
+>>>>>>> upstream/hrf-z
   design_canonical = NULL,
   verbose = 1,
   meanTol = 1e-06,
@@ -73,6 +76,7 @@ Do not add spike regressors for scrubbing to the \code{nuisance} matrix.
 Rather, provide these in \code{scrub} so that their corresponding timepoints
 are also removed from the BOLD data after nuisance regression.}
 
+<<<<<<< HEAD
 \item{scrub}{List (one logical vector per subject) or \code{NULL}.
 Frames set to \code{TRUE} are excluded from the GLM. Used to remove
 high-motion or artifact-contaminated timepoints.}
@@ -85,6 +89,13 @@ high-motion or artifact-contaminated timepoints.}
 \item 1 = high-level progress messages
 \item 2 = detailed per-subject information
 }}
+=======
+\item{design_canonical}{TO DO}
+
+\item{verbose}{\code{1} (default) to print occasional updates during model
+computation; \code{2} for occasional updates as well as running INLA in
+verbose mode (if \code{Bayes}), or \code{0} for no printed updates.}
+>>>>>>> upstream/hrf-z
 
 \item{meanTol, varTol}{Tolerance for mean and variance of each data location.
 Locations which do not meet these thresholds are masked out of the analysis.

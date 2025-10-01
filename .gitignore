@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 # RStudio project metadata
+=======
+>>>>>>> upstream/hrf-z
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 
+<<<<<<< HEAD
 # macOS system files
 .DS_Store
 
@@ -26,3 +30,8 @@ debug/
 
 # Git LFS metadata (must NOT be ignored)
 !.gitattributes
+=======
+*DS_Store
+/doc/
+/Meta/
+>>>>>>> upstream/hrf-z

@@ -6,6 +6,16 @@ ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub
 devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with latest hrf package changes.
 # devtools::load_all("~/Documents/Github/hrf-HRFcalc-mods") # Temporary while cleaning up hrf-z branch
 
+# ------------------------------------------------------------------------------
+#                              HRF GRID GENERATION
+# ------------------------------------------------------------------------------
+
+my_hrf_grid <- generate_hrf_grid(peak2_time_max = 10)
+
+
+# ------------------------------------------------------------------------------
+#                                 RUN fit_allHRFs
+# ------------------------------------------------------------------------------
 
 session_data <- readRDS(here("dev", "fixtures", "session_data_4s", "session_data_motor_lr_4s.rds"))
 
@@ -18,7 +28,8 @@ fit_allHRFs_result <- fit_allHRFs(
   BOLD = session_data$BOLD_files,
   EVs = session_data$EVs_list,
   TR = 0.72,
-  hrf_grid = default_hrf_grid,
+  hrf_grid = my_hrf_grid,
+  # hrf_grid = default_hrf_grid,
   brainstructures = c('left', 'right'),
   resamp_res = 10000,
   hpf = 0.01,
@@ -49,6 +60,9 @@ plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
 
 plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
 
-# Testing ground
+# ------------------------------------------------------------------------------
+#                                   DEBUG AREA
+# ------------------------------------------------------------------------------
 file_paths <- attr(fit_allHRFs_result, "result_paths")
 work1 <- qs::qread(file_paths[[1]])
+
