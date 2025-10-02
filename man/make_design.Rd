@@ -13,11 +13,8 @@ make_design(
   onset = NULL,
   offset = NULL,
   scale_design = TRUE,
-<<<<<<< HEAD
   onset_skip = 5,
   offset_skip = 5,
-=======
->>>>>>> upstream/hrf-z
   onsets_sep = FALSE,
   offsets_sep = FALSE,
   verbose = TRUE,
@@ -60,7 +57,6 @@ columns from the design matrix to the \code{nuisance} argument for
 \item{upsample}{Upsample factor for convolving stimulus boxcar or stick
 function with canonical HRF. Default: \code{100}.}
 
-<<<<<<< HEAD
 \item{onset}{Add task regressors indicating the onset of each event block?
 Provide the names of the tasks as a character vector. All onsets across the
 specified tasks will be represented by one additional column in the design matrix.
@@ -76,13 +72,6 @@ Provide the names of the tasks as a character vector. All offsets across the
 specified tasks will be represented by one additional column in the design matrix.
 The task names must match the names of \code{EVs}. Can also be \code{TRUE} or
 \code{"all"} to use all tasks.
-=======
-\item{onset, offset}{Add task regressors indicating the onset and/or offset of
-each event block? Provide the names of the tasks as a character vector. All
-onsets (or offsets) across the specified tasks will be represented by one
-additional column in the design matrix. The task names must match the names
-of \code{EVs}. Can also be \code{"all"} to use all tasks.
->>>>>>> upstream/hrf-z
 
 Onsets/offset modeling is only compatible with a block design experiment.
 An error will be raised if the events in \code{EVs} do not have duration
@@ -91,7 +80,6 @@ greater than one second.}
 \item{scale_design}{Scale the columns of the design matrix? Default:
 \code{TRUE}.}
 
-<<<<<<< HEAD
 \item{onset_skip}{Minimum event duration (in seconds) for tasks to be
 included in onset/offset regressors. Tasks where ANY event has duration less than
 the threshold will be excluded from the respective onset/offset regressors. This is
@@ -109,12 +97,6 @@ model all onsets together as a single field in the design.}
 
 \item{offsets_sep}{Model the offsets separately for each task? Default: \code{FALSE}, to
 model all offsets together as a single field in the design.}
-=======
-\item{onsets_sep, offsets_sep}{Model the onsets (\code{onsets_sep}) or offsets
-(\code{offsets_sep}) separately for each task? Default: \code{FALSE}, to
-model all onsets together, or all offsets together, as a single field in the
-design.}
->>>>>>> upstream/hrf-z
 
 \item{verbose}{Print diagnostic messages? Default: \code{TRUE}.}
 
