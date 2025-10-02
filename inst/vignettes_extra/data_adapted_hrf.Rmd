@@ -1,0 +1,309 @@
+---
+title: "Data-Adapted Hemodynamic Response Function Modeling"
+author: "Amanda Mejia, Tom Nichols, Damon Pham, Zeshawn Zahid"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_document
+---
+
+```{r include=FALSE}
+library(knitr)
+library(hrf)
+knitr::opts_chunk$set(autodep = TRUE, cache = FALSE)
+```
+
+# Introduction
+
+In many fMRI analyses, the *canonical* hemodynamic response function (HRF) is assumed.  
+However, true HRFs vary across subjects and brain regions.  
+
+This vignette demonstrates the **data-driven HRF adaptation workflow**:  
+
+1. `fit_workingHRF()` Fit all HRF models on a predefined parameter grid  
+2. `fit_allHRFs()` Select the best HRF fit based on model fit criteria  
+3. `regularize_allHRFs()` Regularize HRF parameters across subjects  
+4. `best_HRF_GLMS()` Build adapted GLMs for final activation analysis  
+```text
+fit_workingHRF() ↘  
+                    → regularize_allHRFs() → best_HRF_GLMS()
+fit_allHRFs()    ↗  
+```  
+- This diagram illustrates how `fit_workingHRF()` and `fit_allHRFs()` can be run independently or in parallel to generate candidate HRF fits, which are then combined and passed to regularize_allHRFs() and ultimately to best_HRF_GLMS() for final activation modeling.
+
+---
+
+# Example Data
+
+For this vignette, we use a **precomputed dataset with 500 subjects**, each containing:  
+
+- **BOLD_files** – CIFTI time series paths  
+- **EVs_list** – event timing files (`win`, `loss`, `neut` conditions)  
+- **nuisance_files** – movement regressors  
+
+We load the full session metadata (500 subjects) from an `.rds` file:
+
+```{r}
+session_data <- readRDS(system.file("extdata", "500-subj_session_motor.rds", package = "hrf"))
+str(session_data, max.level = 1) # Show top level structure
+```
+
+You’ll see it has **3 entries**:  
+
+- `BOLD_files` (500 paths)
+- `EVs_list` (500 lists, one per subject)
+- `nuisance_files` (500 paths)
+
+Let’s confirm:
+
+```{r}
+sapply(session_data[c("BOLD_files", "EVs_list", "nuisance_files")], length)
+```
+
+---
+
+## Example for 1 Subject
+
+Here’s the **BOLD file path** for subject 1:
+
+```{r}
+session_data$BOLD_files[[1]]
+```
+
+Here’s the **nuisance regressors** file for subject 1:
+
+```{r}
+session_data$nuisance_files[[1]]
+```
+
+And here are the **EVs (event timings)** for subject 1:  
+
+```{r}
+session_data$EVs_list[[1]]
+```
+
+This shows 6 conditions (`cue`, `left_hand`, `right_hand`, `left_foot`, `right_foot`, `tongue`) with onset times (V1), durations (V2), and amplitudes (V3).
+
+With these three components, you can pass **500 subjects at once** to `fit_workingHRF()`.
+
+
+# Step 1: Fit a single HRF model (500 subjects)
+
+Normally, you would call `fit_workingHRF()` directly with all 500 subjects.  
+For example:
+
+
+```{r eval=FALSE}
+fit_workingHRF_result <- fit_workingHRF(
+  BOLD = session_data$BOLD_files,
+  EVs = session_data$EVs_list,
+  TR = 0.72,
+  brainstructures = c('left', 'right'),
+  resamp_res = 10000,
+  hpf = 0.01,
+  nuisance = session_data$nuisance_files,
+  hrf_params = list(a1 = 6, b1 = 1, c = 1/6, a2 = 16, b2 = 1),
+  derivatives = FALSE,
+  onsets = FALSE,
+  offsets = FALSE,
+  onset_skip = 5, 
+  scrub = NULL,
+  alpha = 0.01,
+  verbose = 2,
+  n_cores = 32
+)
+```
+
+> **We do NOT actually run this here.**  
+> Instead, we load a precomputed `result.rds` file that contains the output.  
+> For computational resources and timing, see the [Hardware & Runtime](#runtime) section.
+
+### Load Precomputed Results (fit_workingHRF)
+
+We load the precomputed output so you can explore without waiting:
+
+```{r}
+# Temporary until verified and uploaded to Github releases
+fit_workingHRF_result <- readRDS("~/Downloads/workingHRF_MOTOR_500s.rds")
+
+# fit_workingHRF_result <- readRDS(
+#   piggyback::pb_download(
+#     file = "workingHRF_MOTOR_500s.rds",
+#     repo = "mandymejia/hrf"
+#   )
+# )
+```
+ 
+We can inspect the structure of the result:
+
+```{r}
+str(fit_workingHRF_result, max.level = 1)
+```
+
+Example: look at the first subject:
+
+```{r}
+str(fit_workingHRF_result[["subject_results"]][[1]], max.level = 1)
+```
+
+The `fit_workingHRF` result is a comprehensive object of class "workingHRF" containing five main components that summarize the analysis across all 500 subjects. The `activation_masks` component contains group-level activation maps and proportion statistics showing which brain regions were significantly active across subjects using the working HRF model. The `subject_results` list holds individual GLM outputs for each of the 500 subjects, while `call_info`, `hrf_params`, and `session_info` preserve metadata about the analysis parameters, HRF specifications (a1=6, b1=1, c=1/6), and processing settings respectively.
+
+Looking at an individual subject's results reveals the detailed structure of each analysis. For subject 1, we see successful processing (`status = "success"`) of 18,792 brain locations across 284 time points, with a design matrix containing 8 regressors corresponding to the motor task conditions ("cue", "left_hand", "right_hand", "left_foot", "right_foot", "tongue", plus likely onset/offset regressors). The `glm_results` component contains the actual statistical maps from the multiGLM analysis, including F-statistics, p-values, and model comparison results that will be used to create activation masks and guide subsequent HRF parameter optimization in later pipeline steps.
+
+⸻
+
+
+---
+
+# Step 2: Fit a **grid** of HRF models
+
+`fit_allHRFs()` fits a *parameter grid* of possible HRFs, allowing flexible model selection.  
+
+```{r eval=FALSE}
+fit_allHRFS_result <- fit_allHRFs(
+  BOLD = session_data$BOLD_files,
+  EVs = session_data$EVs_list,
+  TR = 0.72,
+  hrf_grid = generate_default_hrf_grid,
+  brainstructures = c('left', 'right'),
+  resamp_res = 10000,
+  hpf = 0.01,
+  nuisance = session_data$nuisance_files,
+  onsets = onset_param,
+  offsets = offset_param,
+  scrub = NULL,
+  verbose = 2,
+  n_cores = 32
+)
+```
+
+> **We do NOT actually run this here.**  
+> Instead, we load a precomputed `result.rds` file that contains the output.  
+> For computational resources and timing, see the [Hardware & Runtime](#runtime) section.
+
+### Load Precomputed Results (fit_allHRFs)
+
+We load the precomputed output so you can explore without waiting:
+
+```{r}
+# Temporary until verified and uploaded to Github releases
+fit_allHRFs_result <- readRDS("~/Downloads/allHRFs_MOTOR_500s.rds")
+
+# fit_allHRFs_result <- readRDS(
+#   piggyback::pb_download(
+#     file = "allHRFs_MOTOR_500s.rds",
+#     repo = "mandymejia/hrf"
+#   )
+# )
+```
+
+We can inspect the structure of the result:
+
+```{r}
+str(fit_allHRFs_result, max.level = 1)
+```
+
+Example: look at the first subject:
+
+```{r}
+str(fit_allHRFs_result[["subject_results"]][[1]], max.level = 1)
+```
+
+The `fit_allHRFs` result represents a systematic exploration of 114 different HRF parameterizations across all 500 subjects, as shown in the `hrf_grid` component. Unlike `fit_workingHRF` which uses a single canonical HRF, this analysis identifies the best-fitting HRF parameters at each brain location for each subject. The `best_params_results` contains nearly 9.4 million observations (500 subjects × ~18,792 locations) showing the optimal HRF parameters selected through model comparison.
+
+The key output is the `bestmodel_xii` for each subject, which contains integer indices (1-114) indicating which of the 114 HRF models provided the best fit at each brain location. This enables identification of spatial patterns in HRF characteristics - for example, whether motor regions consistently prefer faster responses (lower a1 values) or different undershoot patterns (c parameter). The analysis takes longer per subject (~307 seconds vs ~283 seconds) due to fitting and comparing 114 models rather than just one.
+
+---
+
+# Step 3: Regularize HRF parameters
+
+The `regularize_allHRFs()` function takes the outputs from both previous steps to smooth HRF parameters across subjects and brain regions, reducing noise in the parameter estimates. By combining the activation masks from `fit_workingHRF_result` with the optimal parameter estimates from `fit_allHRFs_result`, this step applies spatial and cross-subject regularization to produce more stable HRF parameter maps.
+
+```{r eval=FALSE}
+regularize_result <- regularize_allHRFs(fit_workingHRF_result, fit_allHRFs_result)
+```
+
+> **We do NOT actually run this here.**  
+> Instead, we load a precomputed `result.rds` file that contains the output.  
+> For computational resources and timing, see the [Hardware & Runtime](#runtime) section.
+
+### Load Precomputed Results (regularize_allHRFs)
+
+We load the precomputed output so you can explore without waiting:
+
+```{r}
+# Temporary until verified and uploaded to Github releases
+regularize_result <- readRDS("~/Downloads/regularized_MOTOR_500s.rds")
+# regularize_result <- readRDS(
+#   piggyback::pb_download(
+#     file = "regularized_MOTOR_500s.rds",
+#     repo = "mandymejia/hrf"
+#   )
+# )
+```
+
+We can inspect the structure of the result:
+
+```{r}
+str(regularize_result, max.level = 1)
+```
+
+Example: look at the data structure:
+
+```{r}
+str(regularize_result[["best_params_df"]])
+str(regularize_result[["regularized_params"]], max.level = 2)
+```
+
+The `regularize_allHRFs` result represents the culmination of the HRF parameter regularization process, containing three main components that transform the noisy individual parameter estimates into stable, group-informed maps. The `best_params_df` merges the original 9.4 million parameter estimates from `fit_allHRFs` with activation masks from `fit_workingHRF`, providing the raw material for regularization. The `regularized_params` component contains the core regularization results organized by parameter (a1, b1, c), with each parameter storing both ordinary least squares (OLS) and weighted least squares (WLS) estimates of population averages, subject-level deviations, and uncertainty quantification through residual variance maps.
+
+The detailed structure reveals the hierarchical modeling approach where population-averaged parameter maps (`pop_mean_xii`) represent group-level HRF characteristics, while subject-level estimates (`best_params_df_est_OLS` and `best_params_df_est_WLS`) capture individual deviations as slopes and intercepts relative to these population maps. The inclusion of both OLS and WLS methods allows comparison between unweighted and precision-weighted approaches, with WLS typically providing more stable estimates by down-weighting high-variance regions. The `rounded_params` component provides practical parameter values snapped to the original grid for subsequent GLM construction, completing the transition from overfitted individual estimates to regularized, biologically plausible HRF parameters ready for final activation modeling.
+
+---
+
+# Step 4: Build the adapted GLM
+
+Finally, `best_HRF_GLMS()` (or directly `make_design()`) builds the GLM design matrix using the best-fit HRF.  
+
+```{r eval=FALSE}
+
+```
+
+---
+
+# Hardware & Runtime {#runtime}
+
+All computations were executed on the **Quartz HPC cluster at Indiana University**, which has:
+
+- **2× AMD EPYC 7742 CPUs** (64 cores @ 2.25 GHz per node)  
+- **512 GB RAM per node**  
+- **Red Hat Enterprise Linux 8.x**  
+
+For this vignette, we summarize runtimes across key stages of the workflow (using **500 subjects** from HCP):
+
+- **fit_workingHRF()**  
+  - 500 subjects (tfMRI_MOTOR_LR run)  
+  - **32 cores**, **32 GiB RAM**  
+  - Runtime: **~4,179 sec (~70 min)**  
+
+- **fit_allHRFs()**  
+  - 500 subjects (tfMRI_GAMBLING_LR run)  
+  - **32 cores**, **32 GiB RAM**  
+  - Runtime: **~4,886 sec (~81 min)**  
+
+- **regularize_allHRFs()**  
+  - 500 subjects  
+  - Runtime: **~40 seconds**  
+
+---
+
+# Discussion
+
+This workflow allows for **data-driven adaptation** of the HRF per subject/region, avoiding bias from assuming the canonical HRF.  
+
+- Step 1: Fit all HRF models on a predefined grid  
+- Step 2: Select the best fit based on RSS/AIC  
+- Step 3: Regularize parameter estimates across subjects  
+- Step 4: Build adapted GLMs for final activation analysis  
+
+For a full description, see *Mejia & Nichols (202x)*.
+
+---

@@ -1,8 +1,28 @@
+# RStudio project metadata
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 
-*DS_Store
+# macOS system files
+.DS_Store
+
+# Documentation & metadata
 /doc/
 /Meta/
+
+# Debug folders
+debug/
+/debug/
+
+# Compiled objects from /src
+/src/*.o
+/src/*.so
+/src/*.dll
+/src/*.dylib
+
+# High-resolution fMRI files (handled via Git LFS)
+*.dtseries.nii
+
+# Git LFS metadata (must NOT be ignored)
+!.gitattributes

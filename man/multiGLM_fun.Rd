@@ -8,6 +8,7 @@ multiGLM_fun(
   BOLD,
   design,
   nuisance = NULL,
+  scrub = NULL,
   design_canonical = NULL,
   verbose = 1,
   meanTol = 1e-06,
@@ -18,11 +19,18 @@ multiGLM_fun(
 \item{BOLD, design, nuisance}{Session-length list of numeric matrices/arrays,
 each with volumes along the first dimension.}
 
+\item{scrub}{List (one logical vector per subject) or \code{NULL}.
+Frames set to \code{TRUE} are excluded from the GLM. Used to remove
+high-motion or artifact-contaminated timepoints.}
+
 \item{design_canonical}{TO DO}
 
-\item{verbose}{\code{1} (default) to print occasional updates during model
-computation; \code{2} for occasional updates as well as running INLA in
-verbose mode (if \code{Bayes}), or \code{0} for no printed updates.}
+\item{verbose}{Integer controlling output verbosity:
+\itemize{
+\item 0 = silent
+\item 1 = high-level progress messages
+\item 2 = detailed per-subject information
+}}
 
 \item{meanTol, varTol}{Tolerance for mean, variance and SNR of each data location.
 Locations which do not meet these thresholds are masked out of the analysis.

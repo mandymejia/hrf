@@ -28,6 +28,10 @@ Authors@R: c(
     person(given = "Sarah",
            family = "Ryan",
            email = "sarahryan320@gmail.com",
+           role = c("ctb")),
+    person(given = "Zeshawn",
+           family = "Zahid",
+           email = "zeshawn.zahid@gmail.com",
            role = c("ctb"))
            )
 Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
@@ -48,18 +52,29 @@ Imports:
     fMRItools,
     Matrix,
     matrixStats,
-    stats
+    stats,
+    qs,
+    Rcpp,
+    reshape2,
+    dplyr,
+    magrittr,
+    ggplot2
 Suggests:
     covr,
-    ggplot2,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
     tidyr,
-    spelling
+    spelling,
+    tictoc,
+    pryr,
+    ps 
 VignetteBuilder:
     knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Language: en-US
+LazyData: true
+LinkingTo: 
+    Rcpp

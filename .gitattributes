@@ -1,0 +1,2 @@
+*.dtseries.nii filter=lfs diff=lfs merge=lfs -text
+dev/fixtures/fit_workingHRF_result_motorlr_500s.rds filter=lfs diff=lfs merge=lfs -text

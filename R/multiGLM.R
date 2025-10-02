@@ -12,6 +12,7 @@
 #' @inheritParams brainstructures_Param_BayesGLM
 #' @inheritParams resamp_res_Param_BayesGLM
 #' @inheritParams nuisance_Param_BayesGLM
+#' @inheritParams scrub_Param
 #' @inheritParams hpf_Param_BayesGLM
 #' @param design_canonical TO DO
 #' @inheritParams verbose_Param
@@ -39,6 +40,7 @@ multiGLM <- function(
   hpf=NULL,
   # Below arguments shared with `multiGLM`.
   nuisance=NULL,
+  scrub = NULL,
   design_canonical=NULL,
   verbose = 1,
   meanTol = 1e-6,
@@ -285,6 +287,7 @@ multiGLM <- function(
       BOLD = BOLD[[dname_bb]],
       design = design,
       nuisance = nuisance,
+      scrub = scrub,
       design_canonical = design_canonical,
       verbose = verbose,
       meanTol = meanTol,

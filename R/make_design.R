@@ -32,21 +32,14 @@
 #'  \code{BayesGLM}.
 #' @param upsample Upsample factor for convolving stimulus boxcar or stick
 #'  function with canonical HRF. Default: \code{100}.
-#' @param onset,offset Add task regressors indicating the onset and/or offset of
-#'  each event block? Provide the names of the tasks as a character vector. All
-#'  onsets (or offsets) across the specified tasks will be represented by one
-#'  additional column in the design matrix. The task names must match the names
-#'  of \code{EVs}. Can also be \code{"all"} to use all tasks.
-#'
-#'  Onsets/offset modeling is only compatible with a block design experiment.
-#'  An error will be raised if the events in \code{EVs} do not have duration
-#'  greater than one second.
+#' @inheritParams onset_Param
+#' @inheritParams offset_Param
+#' @inheritParams onset_skip_Param
+#' @inheritParams offset_skip_Param
 #' @param scale_design Scale the columns of the design matrix? Default:
 #'  \code{TRUE}.
-#' @param onsets_sep,offsets_sep Model the onsets (\code{onsets_sep}) or offsets
-#'  (\code{offsets_sep}) separately for each task? Default: \code{FALSE}, to
-#'  model all onsets together, or all offsets together, as a single field in the
-#'  design.
+#' @inheritParams onsets_sep_Param
+#' @inheritParams offsets_sep_Param
 #' @param verbose Print diagnostic messages? Default: \code{TRUE}.
 #' @param ... Additional arguments to \code{\link{HRF_calc}}.
 #'
@@ -73,6 +66,7 @@ make_design <- function(
   EVs, nTime, TR, dHRF=0, upsample=100,
   onset=NULL, offset=NULL,
   scale_design=TRUE,
+  onset_skip=5, offset_skip=5,
   onsets_sep=FALSE, offsets_sep=FALSE,
   verbose=TRUE, ...
 ){
@@ -114,70 +108,23 @@ make_design <- function(
 
   # Add `onset` and `offset` to `EVs`. --------------------------------------
   task_names <- names(EVs) # will be updated
-  nJ0 <- length(task_names) # not including `onset` or `offset`
+  # Process onset and offset
+  onset_offset_result <- process_onset_offset(
+    EVs = EVs,
+    onset_skip = onset_skip, offset_skip = offset_skip,
+    onset = onset, offset = offset,
+    onsets_sep = onsets_sep, offsets_sep = offsets_sep,
+    task_names = task_names
+  )
 
-  if (!is.null(onset) || !is.null(offset)) {
-    min_dur <- min(do.call(c, lapply(EVs, '[[', "duration")))
-    if (min_dur == 0) { warning(
-      "`onset` and `offset` are only compatible with block-design experiments, ",
-      "but at least one event has duration length zero. Proceeding anyway."
-    ) }
-  }
-
-  # [TO DO] check design is actually block design
-
-  if (!is.null(onset)) {
-    stopifnot(is.character(onset))
-    if (length(onset)==1 && onset=="all") { onset <- task_names }
-    stopifnot(all(onset %in% task_names))
-    onset <- EVs[onset]
-    # Same onset, but set new duration at zero
-    onset <- lapply(onset, function(q){q$duration <- 0; q})
-    if (!onsets_sep) {
-      nJ_on <- 1
-      onset <- do.call(rbind, onset)
-      onset$onset <- sort(onset$onset)
-      EVs <- c(EVs, list(onset=onset))
-    } else {
-      nJ_on <- length(onset)
-      names(onset) <- paste0("onset_", names(onset))
-      EVs <- c(EVs, onset)
-    }
-  } else {
-    nJ_on <- 0
-  }
-
-  if (!is.null(offset)) {
-    stopifnot(is.character(offset))
-    if (length(offset)==1 && offset=="all") { offset <- task_names }
-    stopifnot(all(offset %in% task_names))
-    offset <- EVs[offset]
-    # New onset is onset+duration; new duration is zero
-    offset <- lapply(offset, function(q){q$onset <- q$onset + q$duration; q$duration <- 0; q})
-    if (!offsets_sep) {
-      nJ_off <- 1
-      offset <- do.call(rbind, offset)
-      offset$onset <- sort(offset$onset)
-      EVs <- c(EVs, list(offset=offset))
-    } else {
-      nJ_off <- length(offset)
-      names(offset) <- paste0("offset_", names(offset))
-      EVs <- c(EVs, offset)
-    }
-  } else {
-    nJ_off <- 0
-  }
-
-  J_on_idx <- if (is.null(onset)) { NULL } else { seq(nJ0+1, nJ0+nJ_on) }
-  J_off_idx <- if (is.null(offset)) { NULL } else { seq(nJ0+nJ_on+1, nJ0+nJ_on+nJ_off) }
-  all_onset_onset <- do.call(c, lapply(EVs[J_on_idx], '[[', "onset")) # NULL if none
-  all_offset_onset <- do.call(c, lapply(EVs[J_off_idx], '[[', "onset")) # NULL if none
-
-  if ((!is.null(onset)) && (!is.null(offset))) {
-    if (any(all_onset_onset %in% all_offset_onset)) {
-      warning("At least one `onset` coincides with an `offset`.")
-    }
-  }
+  EVs <- onset_offset_result$EVs
+  nJ0 <- onset_offset_result$nJ0
+  nJ_on <- onset_offset_result$nJ_on
+  nJ_off <- onset_offset_result$nJ_off
+  J_on_idx <- onset_offset_result$J_on_idx
+  J_off_idx <- onset_offset_result$J_off_idx
+  all_onset_onset <- onset_offset_result$all_onset_onset
+  all_offset_onset <- onset_offset_result$all_offset_onset
 
   # Define dimension variables and names again (after `onset` & `offset`).
   task_names <- names(EVs)
@@ -279,11 +226,22 @@ make_design <- function(
       end_ii <- round(ots_jj[ii]*upsample + dur_jj[ii]*upsample)
       stim_jj[start_ii:end_ii] <- 1
     }
-    stimulus[[jj]] <- c(stim_jj,0)[inds]
 
     ##### Get `design` by convolving stimulus and HRFs. ------------------------
     # Convolve.
     HRF_jj <- if (is_onset_or_offset) { HRF[1] } else { HRF }
+
+    # FFT optimization: pad stimulus to reach optimal convolution length
+    current_conv_len <- length(stim_jj) + length(HRF_jj$c) - 1
+    target_conv_len <- nextn(current_conv_len, factors = c(2,3,5))
+    padding_needed <- target_conv_len - current_conv_len
+    
+    if (padding_needed > 0) {
+      stim_jj <- c(stim_jj, rep(0, padding_needed))
+      if (scale_design) stim_jj_one <- c(stim_jj_one, rep(0, padding_needed))
+    }
+
+    stimulus[[jj]] <- c(stim_jj,0)[inds]
 
     HRF_conv <- lapply(HRF_jj, function(q){
       convolve(stim_jj, rev(q), type="open")
@@ -442,4 +400,147 @@ format_EV <- function(EV){
   }
 
   as.data.frame(EV)
+}
+
+#' Process onset and offset regressors
+#'
+#' Internal function to process onset and offset regressors for block design experiments.
+#' This function handles the creation of onset/offset regressors from task EVs, including
+#' filtering by duration thresholds and combining or separating regressors as specified.
+#'
+#' @param EVs List of event matrices where each element is a data.frame with columns
+#'   "onset" and "duration" representing task events
+#' @param task_names Character vector of task names from the original EVs
+#' @inheritParams onset_Param
+#' @inheritParams offset_Param
+#' @inheritParams onset_skip_Param
+#' @inheritParams offset_skip_Param
+#' @inheritParams onsets_sep_Param
+#' @inheritParams offsets_sep_Param
+#'
+#' @return A list containing:
+#'   \describe{
+#'     \item{EVs}{Updated EVs list with onset/offset regressors appended}
+#'     \item{nJ0}{Number of original tasks (before adding onset/offset)}
+#'     \item{nJ_on}{Number of onset regressors created}
+#'     \item{nJ_off}{Number of offset regressors created}
+#'     \item{J_on_idx}{Indices of onset regressors in the updated EVs}
+#'     \item{J_off_idx}{Indices of offset regressors in the updated EVs}
+#'     \item{all_onset_onset}{Vector of all onset times from onset regressors}
+#'     \item{all_offset_onset}{Vector of all offset times from offset regressors}
+#'   }
+#' @keywords internal
+process_onset_offset <- function(EVs, onset, offset, onset_skip, offset_skip, onsets_sep, offsets_sep, task_names) {
+  onset_original <- onset
+  offset_original <- offset
+  
+  nJ0 <- length(task_names) # not including `onset` or `offset`
+
+  if (!is.null(onset) || !is.null(offset)) {
+    min_dur <- min(do.call(c, lapply(EVs, '[[', "duration")))
+    if (min_dur == 0) { warning(
+      "`onset` and `offset` are only compatible with block-design experiments, ",
+      "but at least one event has duration length zero. Proceeding anyway."
+    ) }
+  }
+
+  # [TO DO] check design is actually block design
+
+  if (!is.null(onset) && !identical(onset, FALSE)) {
+    if (is.logical(onset) && length(onset)==1 && onset==TRUE) {onset <- "all"}
+    stopifnot(is.character(onset))
+    if (length(onset)==1 && onset=="all") { onset <- task_names }
+    stopifnot(all(onset %in% task_names))
+    onset <- EVs[onset]
+
+    # Only filter if user passed TRUE (auto-select mode)
+    if (!is.null(onset_skip) && identical(onset_original, TRUE)) {
+      stopifnot(is.numeric(onset_skip) && length(onset_skip)==1 && onset_skip >= 0)
+      onset_keep <- sapply(onset, function(q) all(q$duration >= onset_skip))
+      onset <- onset[onset_keep]
+      if (length(onset) == 0) {
+        warning("No tasks have all events with duration >= ", onset_skip, ". No onset regressor created.")
+        onset <- NULL
+      }
+    }
+
+    # Create regressors if we still have tasks
+    if (!is.null(onset)) {
+      onset <- lapply(onset, function(q){q$duration <- 0; q})
+      if (!onsets_sep) {
+        nJ_on <- 1
+        onset <- do.call(rbind, onset)
+        onset$onset <- sort(onset$onset)
+        EVs <- c(EVs, list(onset=onset))
+      } else {
+        nJ_on <- length(onset)
+        names(onset) <- paste0("onset_", names(onset))
+        EVs <- c(EVs, onset)
+      }
+    } else {
+      nJ_on <- 0
+    }
+  } else {
+    nJ_on <- 0
+  }
+
+  if (!is.null(offset) && !identical(offset, FALSE)) {
+    if (is.logical(offset) && length(offset)==1 && offset==TRUE) {offset <- "all"}
+    stopifnot(is.character(offset))
+    if (length(offset)==1 && offset=="all") { offset <- task_names }
+    stopifnot(all(offset %in% task_names))
+    offset <- EVs[offset]
+
+    # Only filter if user passed TRUE (auto-select mode)
+    if (!is.null(offset_skip) && identical(offset_original, TRUE)) {
+      stopifnot(is.numeric(offset_skip) && length(offset_skip)==1 && offset_skip >= 0)
+      offset_keep <- sapply(offset, function(q) all(q$duration >= offset_skip))
+      offset <- offset[offset_keep]
+      if (length(offset) == 0) {
+        warning("No tasks have all events with duration >= ", offset_skip, ". No offset regressor created.")
+        offset <- NULL
+      }
+    }
+
+    # Create regressors if we still have tasks
+    if (!is.null(offset)) {
+      offset <- lapply(offset, function(q){q$onset <- q$onset + q$duration; q$duration <- 0; q})
+      if (!offsets_sep) {
+        nJ_off <- 1
+        offset <- do.call(rbind, offset)
+        offset$onset <- sort(offset$onset)
+        EVs <- c(EVs, list(offset=offset))
+      } else {
+        nJ_off <- length(offset)
+        names(offset) <- paste0("offset_", names(offset))
+        EVs <- c(EVs, offset)
+      }
+    } else {
+      nJ_off <- 0
+    }
+    } else {
+    nJ_off <- 0
+    }
+
+  J_on_idx <- if (is.null(onset)) { NULL } else { seq(nJ0+1, nJ0+nJ_on) }
+  J_off_idx <- if (is.null(offset)) { NULL } else { seq(nJ0+nJ_on+1, nJ0+nJ_on+nJ_off) }
+  all_onset_onset <- do.call(c, lapply(EVs[J_on_idx], '[[', "onset")) # NULL if none
+  all_offset_onset <- do.call(c, lapply(EVs[J_off_idx], '[[', "onset")) # NULL if none
+
+  if ((!is.null(onset)) && (!is.null(offset))) {
+    if (any(all_onset_onset %in% all_offset_onset)) {
+      warning("At least one `onset` coincides with an `offset`.")
+    }
+  }
+
+  return(list(
+    EVs = EVs,
+    nJ0 = nJ0,
+    nJ_on = nJ_on,
+    nJ_off = nJ_off,
+    J_on_idx = J_on_idx,
+    J_off_idx = J_off_idx,
+    all_onset_onset = all_onset_onset,
+    all_offset_onset = all_offset_onset
+  ))
 }

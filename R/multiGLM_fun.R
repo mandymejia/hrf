@@ -4,6 +4,7 @@
 #'
 #' @param BOLD,design,nuisance Session-length list of numeric matrices/arrays,
 #'  each with volumes along the first dimension.
+#' @inheritParams scrub_Param
 #' @param design_canonical TO DO
 #' @inheritParams verbose_Param
 #' @param meanTol,varTol Tolerance for mean, variance and SNR of each data location.
@@ -29,6 +30,7 @@ multiGLM_fun <- function(
   design,
   # Below arguments shared with `mutliGLM_cifti`.
   nuisance=NULL,
+  scrub=NULL,
   design_canonical=NULL,
   verbose = 1,
   meanTol = 1e-6,
@@ -95,6 +97,16 @@ multiGLM_fun <- function(
         "are `NA`. Partially missing data is not allowed. (Missing tasks ",
         "should have all `NA`.)")
     }
+  }
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Apply scrubbing and nuisance regression
+  if (!is.null(nuisance)) {
+    nuisance <- apply_scrubbing_single(
+      nuisance = nuisance,
+      scrub = scrub,
+      nT = nT,
+      verbose = verbose
+    )
   }
 
   ### Get `nV`. ----------------------------------------------------------------

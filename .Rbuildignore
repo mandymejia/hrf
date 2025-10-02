@@ -10,3 +10,5 @@
 ^CRAN-SUBMISSION$
 ^doc$
 ^Meta$
+^dev$
+^debug$
