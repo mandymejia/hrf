@@ -158,6 +158,8 @@ set_hrf_grid <- function(hrf_grid, ...) {
 
   stopifnot("`hrf_grid` must have at least 5 columns (a1,b1,c,a2,b2)" = ncol(g) >= 5)
 
+  call_params <- attr(g, "call_params")
+
   # extract first five columns, force names
   result <- as.data.frame(g)[ , seq_len(5), drop = FALSE]
   names(result) <- c("a1","b1","c","a2","b2")
@@ -165,5 +167,8 @@ set_hrf_grid <- function(hrf_grid, ...) {
   stopifnot("columns a1, b1, c, a2, b2 must all be numeric" = all(vapply(result, is.numeric, TRUE)))
   stopifnot("column c (undershoot) must be >= 0" = all(result$c >= 0, na.rm = TRUE))
 
-  result
+  attr(result, "call_params") <- call_params
+
+  class(result) <- c("hrf_grid", "data.frame")
+  return(result)
 }

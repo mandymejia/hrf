@@ -10,7 +10,7 @@ devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with 
 #                              HRF GRID GENERATION
 # ------------------------------------------------------------------------------
 
-my_hrf_grid <- generate_hrf_grid(peak2_time_max = 10)
+my_hrf_grid <- generate_hrf_grid()
 
 
 # ------------------------------------------------------------------------------
@@ -59,6 +59,9 @@ plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
                  TR = 0.72, nT = 284, hrf_idx = 80)
 
 plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
+plot(fit_allHRFs_result, type = "hrfs")
+plot(fit_allHRFs_result, type = "hrfs_tapered")
+plot(fit_allHRFs_result, type = "param_grid")
 
 # ------------------------------------------------------------------------------
 #                                   DEBUG AREA
