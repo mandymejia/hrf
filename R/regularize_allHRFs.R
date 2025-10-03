@@ -23,6 +23,11 @@
 #'       results for each parameter (a1, b1, c), including population averages,
 #'       subject-level estimates, residual variances, and brain visualization
 #'       objects for both OLS and WLS methods.}
+#'     \item{rounded_params}{Rounded regularized HRF parameters (if
+#'       \code{rounding = TRUE}), aligned to the nearest values in the HRF grid.}
+#'     \item{mask_prop_NA}{Logical vector mask indicating voxels with sufficient
+#'       activation consistency across subjects (values outside threshold are set
+#'       to \code{NA}). Useful for filtering voxels in downstream analyses.}
 #'   }
 #'
 #' @details
@@ -81,10 +86,12 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
   result <- list (
     best_params_df = best_params_df,
     regularized_params = regularized_params,
-    rounded_params = rounded
+    rounded_params = rounded,
+    mask_prop_NA = mask_prop_NA
   )
 
   class(result) <- "regularizeHRFs"
+  attr(result, "xii") <- xii
   return(result)
 
 }
@@ -400,10 +407,10 @@ estimate_ols_and_variance <- function(best_params_df, truncate, xii) {
   residual_variance <- best_params_df %>%
     filter(use) %>%
     group_by(voxel) %>%
-    summarize( 
+    summarize(
       n_obs = dplyr::n(),
       # Return 0 variance if only one subjects for voxel
-      variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0, 
+      variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
       variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
     )
     # summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?

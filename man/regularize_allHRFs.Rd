@@ -27,6 +27,11 @@ activation masks for all subjects and voxels.}
 results for each parameter (a1, b1, c), including population averages,
 subject-level estimates, residual variances, and brain visualization
 objects for both OLS and WLS methods.}
+\item{rounded_params}{Rounded regularized HRF parameters (if
+\code{rounding = TRUE}), aligned to the nearest values in the HRF grid.}
+\item{mask_prop_NA}{Logical vector mask indicating voxels with sufficient
+activation consistency across subjects (values outside threshold are set
+to \code{NA}). Useful for filtering voxels in downstream analyses.}
 }
 }
 \description{
