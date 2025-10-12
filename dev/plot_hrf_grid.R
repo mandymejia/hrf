@@ -28,3 +28,10 @@ c <- plot(all_hrfs_grid, type = "param_grid")
 ggsave("dev/test_plots/hrf_grid/param_grid_all.pdf", c, width = 10, height = 9)
 d <- plot(hrf_grid, type = "param_grid")
 ggsave("dev/test_plots/hrf_grid/param_grid.pdf", d, width = 10, height = 9)
+
+
+g <- plot(hrf_grid, type = "single_hrf", hrf_idx = 40)
+ggsave("dev/test_plots/hrf_grid/HRF_single_40.pdf", g, width = 6, height = 4)
+h <- plot(hrf_grid, type = "single_hrf", hrf_idx = 40, tapered = TRUE)
+ggsave("dev/test_plots/hrf_grid/HRF_single_40_tapered.pdf", h, width = 6, height = 4)
+

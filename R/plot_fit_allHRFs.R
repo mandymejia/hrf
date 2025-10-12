@@ -1,7 +1,7 @@
 #' Plot method for allHRFs objects
 #'
 #' Creates diagnostic plots for grid-based HRF fitting results. Supports
-#' design matrix visualization, and HRF grid plots (raw, tapered, parameter grid).
+#' design matrix visualization, and HRF grid plots (raw, tapered, parameter grid, single).
 #'
 #' @param x An object of class \code{"allHRFs"} from \code{\link{fit_allHRFs}}.
 #' @param type Character. Type of plot to generate. Options are:
@@ -10,25 +10,27 @@
 #'     \item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
 #'     \item \code{"hrfs_tapered"} – plot tapered HRFs.
 #'     \item \code{"param_grid"} – plot HRF parameter grid heatmaps.
+#'     \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 #'   }
 #' @param subject Integer. Subject index for design matrix plots.
-#' @param hrf_idx Integer. HRF index for design matrix plots.
+#' @param hrf_idx Integer. HRF index for design matrix or single HRF plots.
+#' @param tapered Logical. Whether to plot tapered version (for \code{type = "single_hrf"}).
 #' @param ... Additional arguments passed on.
 #'
 #' @return Invisibly returns the result of the specific plotting function.
 #' @export
-plot.allHRFs <- function(x, type = c("design", "hrfs", "hrfs_tapered", "param_grid"),
-                         subject = 1, hrf_idx = 1, ...) {
+plot.allHRFs <- function(x, type = c("design", "hrfs", "hrfs_tapered", "param_grid", "single_hrf"),
+                         subject = 1, hrf_idx = 1, tapered = FALSE, ...) {
   type <- match.arg(type)
 
   switch(type,
          design       = plot_design_fit_all(x, hrf_idx = hrf_idx, subject = subject, ...),
          hrfs         = plot.hrf_grid(x$hrf_grid, type = "hrfs", ...),
          hrfs_tapered = plot.hrf_grid(x$hrf_grid, type = "hrfs_tapered", ...),
-         param_grid   = plot.hrf_grid(x$hrf_grid, type = "param_grid", ...)
+         param_grid   = plot.hrf_grid(x$hrf_grid, type = "param_grid", ...),
+         single_hrf   = plot.hrf_grid(x$hrf_grid, type = "single_hrf", hrf_idx = hrf_idx, tapered = tapered, ...)
   )
 }
-
 #' Plot design matrix for specific HRF parameter combination
 #'
 #' Internal function to visualize the design matrix for a specific subject and

@@ -4,7 +4,13 @@
 \alias{plot.hrf_grid}
 \title{Plot method for hrf_grid objects}
 \usage{
-\method{plot}{hrf_grid}(x, type = c("hrfs", "hrfs_tapered", "param_grid"), ...)
+\method{plot}{hrf_grid}(
+  x,
+  type = c("hrfs", "hrfs_tapered", "param_grid", "single_hrf"),
+  hrf_idx = 1,
+  tapered = FALSE,
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"hrf_grid"} from \code{\link{generate_hrf_grid}}.}
@@ -14,7 +20,12 @@
 \item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
 \item \code{"hrfs_tapered"} – plot all tapered HRFs, when HRFs do not resolve by 30s.
 \item \code{"param_grid"} – plot parameter grid heatmaps of time-to-peak and FWHM.
+\item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 }}
+
+\item{hrf_idx}{Integer. Row index for plotting a single HRF (used with \code{type = "single"}).}
+
+\item{tapered}{Logical. Whether to plot tapered version (used with \code{type = "single"}).}
 
 \item{...}{Additional arguments passed to the specific plotting function.}
 }
@@ -24,15 +35,16 @@ Plots are rendered to the current graphics device.
 }
 \description{
 Creates diagnostic plots for HRF parameter grid results. Supports visualization
-of raw HRFs, tapered HRFs, and parameter grid heatmaps.
+of raw HRFs, tapered HRFs, parameter grid heatmaps, and individual HRFs.
 }
 \examples{
 \dontrun{
-# Plot raw HRFs
+# Plot all raw HRFs
 plot(my_hrf_grid, type = "hrfs")
 
-# Plot tapered HRFs
-plot(my_hrf_grid, type = "hrfs_tapered")
+# Plot a single HRF
+plot(my_hrf_grid, type = "single_hrf", hrf_idx = 5)
+plot(my_hrf_grid, type = "single_hrf", hrf_idx = 5, tapered = TRUE)
 
 # Plot parameter grid metrics
 plot(my_hrf_grid, type = "param_grid")

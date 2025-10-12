@@ -6,9 +6,10 @@
 \usage{
 \method{plot}{allHRFs}(
   x,
-  type = c("design", "hrfs", "hrfs_tapered", "param_grid"),
+  type = c("design", "hrfs", "hrfs_tapered", "param_grid", "single_hrf"),
   subject = 1,
   hrf_idx = 1,
+  tapered = FALSE,
   ...
 )
 }
@@ -21,11 +22,14 @@
 \item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
 \item \code{"hrfs_tapered"} – plot tapered HRFs.
 \item \code{"param_grid"} – plot HRF parameter grid heatmaps.
+\item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 }}
 
 \item{subject}{Integer. Subject index for design matrix plots.}
 
-\item{hrf_idx}{Integer. HRF index for design matrix plots.}
+\item{hrf_idx}{Integer. HRF index for design matrix or single HRF plots.}
+
+\item{tapered}{Logical. Whether to plot tapered version (for \code{type = "single_hrf"}).}
 
 \item{...}{Additional arguments passed on.}
 }
@@ -34,5 +38,5 @@ Invisibly returns the result of the specific plotting function.
 }
 \description{
 Creates diagnostic plots for grid-based HRF fitting results. Supports
-design matrix visualization, and HRF grid plots (raw, tapered, parameter grid).
+design matrix visualization, and HRF grid plots (raw, tapered, parameter grid, single).
 }

@@ -62,6 +62,7 @@ plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
 plot(fit_allHRFs_result, type = "hrfs")
 plot(fit_allHRFs_result, type = "hrfs_tapered")
 plot(fit_allHRFs_result, type = "param_grid")
+plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40)
 
 # ------------------------------------------------------------------------------
 #                                   DEBUG AREA

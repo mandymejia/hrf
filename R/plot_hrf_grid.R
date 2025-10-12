@@ -1,7 +1,7 @@
 #' Plot method for hrf_grid objects
 #'
 #' Creates diagnostic plots for HRF parameter grid results. Supports visualization
-#' of raw HRFs, tapered HRFs, and parameter grid heatmaps.
+#' of raw HRFs, tapered HRFs, parameter grid heatmaps, and individual HRFs.
 #'
 #' @param x An object of class \code{"hrf_grid"} from \code{\link{generate_hrf_grid}}.
 #' @param type Character. Type of plot to generate. Options are:
@@ -9,7 +9,10 @@
 #'     \item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
 #'     \item \code{"hrfs_tapered"} – plot all tapered HRFs, when HRFs do not resolve by 30s.
 #'     \item \code{"param_grid"} – plot parameter grid heatmaps of time-to-peak and FWHM.
+#'     \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 #'   }
+#' @param hrf_idx Integer. Row index for plotting a single HRF (used with \code{type = "single"}).
+#' @param tapered Logical. Whether to plot tapered version (used with \code{type = "single"}).
 #' @param ... Additional arguments passed to the specific plotting function.
 #'
 #' @return Invisibly returns the result of the specific plotting function.
@@ -19,25 +22,100 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Plot raw HRFs
+#' # Plot all raw HRFs
 #' plot(my_hrf_grid, type = "hrfs")
 #'
-#' # Plot tapered HRFs
-#' plot(my_hrf_grid, type = "hrfs_tapered")
+#' # Plot a single HRF
+#' plot(my_hrf_grid, type = "single_hrf", hrf_idx = 5)
+#' plot(my_hrf_grid, type = "single_hrf", hrf_idx = 5, tapered = TRUE)
 #'
 #' # Plot parameter grid metrics
 #' plot(my_hrf_grid, type = "param_grid")
 #' }
 #'
 #' @export
-plot.hrf_grid <- function(x, type = c("hrfs", "hrfs_tapered", "param_grid"), ...) {
+plot.hrf_grid <- function(x, type = c("hrfs", "hrfs_tapered", "param_grid", "single_hrf"), 
+                          hrf_idx = 1, tapered = FALSE, ...) {
   type <- match.arg(type)
   switch(type,
          hrfs         = plot_hrfs_all(x, ...),
          hrfs_tapered = plot_hrfs_all_tapered(x, ...),
-         param_grid   = plot_param_grid_metrics(x, ...)
+         param_grid   = plot_param_grid_metrics(x, ...),
+         single_hrf   = plot_hrf_single(x, hrf_idx = hrf_idx, tapered = tapered, ...)
   )
 }
+
+#' Plot a single HRF from parameter grid (internal)
+#'
+#' Internal helper for \code{plot.hrf_grid}. Plots a single HRF specified by index.
+#'
+#' @param hrf_grid Data frame with columns a1, b1, a2, b2, c and call_params attributes
+#' @param hrf_idx Integer. Row index of the HRF to plot
+#' @param tapered Logical. Whether to plot tapered version
+#'
+#' @return A ggplot object
+#'
+#' @keywords internal
+plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = FALSE) {
+  
+  # Grab the row
+  params <- hrf_grid[hrf_idx, ]
+  
+  # Grab TR from attributes
+  TR <- attr(hrf_grid, "call_params")$TR
+  
+  # Make time vector
+  inds <- seq(1/100, 30, 1/100) * TR
+  
+  # Call HRF_calc with those params
+  hrf_vals <- hrf::HRF_calc(
+    t = inds, 
+    deriv = 0,
+    a1 = params$a1,
+    b1 = params$b1,
+    a2 = params$a2,
+    b2 = params$b2,
+    c = params$c
+  )
+  
+  # If tapered, recalculate with taper params
+  if (tapered && params$c > 0) {
+    peak2_time <- inds[which.min(hrf_vals)]
+    taper_start <- min(peak2_time, 25)
+    
+    if (abs(hrf_vals[which.min(abs(inds - 30))]) > 1e-3) {
+      hrf_vals <- hrf::HRF_calc(
+        t = inds, 
+        deriv = 0,
+        a1 = params$a1,
+        b1 = params$b1,
+        a2 = params$a2,
+        b2 = params$b2,
+        c = params$c,
+        taper_start = taper_start,
+        taper_end = 30,
+        taper_power = 1
+      )
+    }
+  }
+  
+  # Plot it with ggplot
+  plot_df <- data.frame(sec = inds, HRF = hrf_vals)
+  
+  p <- ggplot(plot_df, aes(x = .data$sec, y = .data$HRF)) +
+    geom_line(color = '#2c7fb8', linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = 'dashed', alpha = 0.5) +
+    labs(title = sprintf("HRF #%d%s: a1=%.1f, b1=%.2f, c=%.3f", 
+                         hrf_idx, 
+                         ifelse(tapered && params$c > 0, " (tapered)", ""),
+                         params$a1, params$b1, params$c),
+         x = "Time (seconds)", 
+         y = "HRF Response") +
+    theme_minimal()
+
+    return(p)
+}
+
 
 #' Compute HRF metrics from parameter grid
 #'
