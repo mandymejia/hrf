@@ -8,7 +8,7 @@ plot_mask_prop(
   x,
   xii,
   fname = NULL,
-  title = "Subjects with Significant \\"Working HRF\\" Activation > 10\%",
+  title = NULL,
   legend_fname = NULL,
   shadows = 1,
   material = list(lit = TRUE, smooth = FALSE),

@@ -76,7 +76,8 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
   hrf_grid <- allHRF_results$hrf_grid
   rm(workingHRF_results, allHRF_results); gc()
   regularized_params <- HRF_regularize(best_params_df, mask_prop_NA, xii, mask = TRUE,
-                                       log = TRUE, truncate = TRUE, WLS = TRUE)
+                                       log = TRUE, truncate = TRUE, WLS = TRUE, 
+                                       use_subject_activation_mask = TRUE)
 
   if (rounding) {
     rounded <-round_regularized_params(regularized_params,
@@ -198,6 +199,11 @@ create_best_params_df <- function(workingHRF_results, allHRF_results ) {
 #' @param WLS Logical. If \code{TRUE} (default), performs weighted least
 #'   squares estimation using inverse variance weights after initial OLS
 #'   estimation. If \code{FALSE}, only performs OLS estimation.
+#' @param use_subject_activation_mask Logical. If \code{TRUE} (default), only
+#'   includes subjects with activation at each voxel when computing population
+#'   averages (i.e., filters by \code{best_params_df$mask == TRUE}). If
+#'   \code{FALSE}, includes all subjects regardless of individual activation
+#'   status.
 #'
 #' @return A nested list with one entry per parameter (a1, b1, c), where each
 #'   parameter's results contain:
@@ -238,11 +244,12 @@ create_best_params_df <- function(workingHRF_results, allHRF_results ) {
 #'
 #' @keywords internal
 HRF_regularize <- function(best_params_df, mask_prop_NA, xii, mask = TRUE,
-                           log = TRUE, truncate = TRUE, WLS = TRUE) {
+                           log = TRUE, truncate = TRUE, WLS = TRUE, 
+                           use_subject_activation_mask = TRUE  ) {
   param_names <-  extract_param_names(best_params_df)
   model_outputs <- list() # To store the results for each param
 
-  best_params_df$use <- if(!mask) TRUE else best_params_df$mask
+  best_params_df$use <- if(!use_subject_activation_mask) TRUE else best_params_df$mask
 
   for(pp in param_names) {
     print(paste("Running analysis for param", pp, "..."))
@@ -344,7 +351,7 @@ estimate_population_parameters <- function(best_params_df, mask_prop_NA, pp, xii
   best_params_df <- best_params_df %>% left_join(best_params_df_avg0, by = "voxel") # Bing population means back into full df
 
   best_params_df <- best_params_df %>%
-    filter(!is.na(param_mean0))
+    filter(!is.na(param_mean0)) # TODO: Do we need this?
 
   mean0_xii <- create_xifti_with_padding(best_params_df_avg0, "param_mean0", xii)
   # mean0_xii <- ciftiTools::newdata_xifti(xii, best_params_df_avg0$param_mean0)
@@ -407,15 +414,14 @@ estimate_ols_and_variance <- function(best_params_df, truncate, xii) {
   residual_variance <- best_params_df %>%
     filter(use) %>%
     group_by(voxel) %>%
-    summarize(
-      n_obs = dplyr::n(),
-      # Return 0 variance if only one subjects for voxel
-      variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
-      variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
-    )
-    # summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
-    #           variance_B = var(residual_B, na.rm = TRUE))
-
+    # summarize(
+    #   n_obs = dplyr::n(),
+    #   # Return 0 variance if only one subjects for voxel
+    #   variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
+    #   variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
+    # )
+    summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
+              variance_B = var(residual_B, na.rm = TRUE))
 
   # Create xifti objects for variance datasets for OLS
   variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", xii)
@@ -454,13 +460,13 @@ estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
 
   print("Running weighted Least squares method")
 
-  # best_params_df$weight_A <- 1 / sqrt(best_params_df$variance_A)
-  # best_params_df$weight_B <- 1 / sqrt(best_params_df$variance_B) # TODO: Do we need below fix?
+  best_params_df$weight_A <- 1 / sqrt(best_params_df$variance_A)
+  best_params_df$weight_B <- 1 / sqrt(best_params_df$variance_B) # TODO: Do we need below fix?
 
-  best_params_df$weight_A <- ifelse(best_params_df$variance_A > 1e-10,
-                                    1 / sqrt(best_params_df$variance_A), 0)
-  best_params_df$weight_B <- ifelse(best_params_df$variance_B > 1e-10,
-                                    1 / sqrt(best_params_df$variance_B), 0)
+  # best_params_df$weight_A <- ifelse(best_params_df$variance_A > 1e-10,
+  #                                   1 / sqrt(best_params_df$variance_A), 0)
+  # best_params_df$weight_B <- ifelse(best_params_df$variance_B > 1e-10,
+  #                                   1 / sqrt(best_params_df$variance_B), 0)
 
   # Now calculate weighted estimates with proper weights
   # best_params_df$weight_A[ !is.finite(best_params_df$weight_A) ] <- 0  # zero-out NA / Inf
@@ -499,13 +505,13 @@ estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
   residual_variance <- best_params_df %>%
     filter(use) %>%
     group_by(voxel) %>%
-    summarize(
-      n_obs = dplyr::n(),
-      variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
-      variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
-    )
-  # summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
-  #           variance_B = var(residual_B, na.rm = TRUE))
+    # summarize(
+    #   n_obs = dplyr::n(),
+    #   variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
+    #   variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
+    # )
+    summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
+              variance_B = var(residual_B, na.rm = TRUE))
 
   # Create xifti objects for variance datasets
   variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", mean0_xii)

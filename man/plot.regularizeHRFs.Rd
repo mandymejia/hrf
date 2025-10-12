@@ -4,7 +4,7 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(x, type = c("mask"), ...)
+\method{plot}{regularizeHRFs}(x, type = c("mask", "variance", "mean", "mean_filtered"), ...)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from
@@ -12,16 +12,24 @@
 
 \item{type}{Character. Type of plot to generate. Options:
 \itemize{
-\item \code{"mask"} – plot the group-level mask (mask_prop_NA).
+\item \code{"mask"}
+\item \code{"variance"}
+\item \code{"mean"} – population mean over all subjects
+\item \code{"mean_filtered"} – population mean over subjects with activation only
 }}
 
-\item{...}{Additional arguments passed to internal plotting functions.}
+\item{...}{Additional arguments passed to internal plotting functions
+(e.g., \code{param}, \code{model}, \code{method}, \code{fname}).}
 }
 \value{
 Invisibly returns the result of the plotting call.
 }
 \description{
 Creates diagnostic plots for HRF regularization results.
-Currently supports visualization of the population activation mask
-(\code{mask_prop_NA}).
+Supports visualization of:
+\itemize{
+\item \code{"mask"} – group-level population mask (\code{mask_prop_NA})
+\item \code{"variance"} – residual variance maps for model fits
+\item \code{"mean"} – population mean parameter maps (\code{param_mean0})
+}
 }
