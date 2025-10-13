@@ -55,7 +55,11 @@ plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1, ...) {
   # Extract the specific design matrix for the requested HRF index
   design_dHRFs <- full_subject_data[["design_3D"]][["list"]][[hrf_idx]]
 
-  plot_design_fit_core(design_dHRFs, ...)
+  hrf_params <- x$hrf_grid[hrf_idx, ]
+  title <- sprintf("HRF #%d (a1=%.2f, b1=%.2f, c=%.2f)", 
+                   hrf_idx, hrf_params$a1, hrf_params$b1, hrf_params$c)
+
+  plot_design_fit_core(design_dHRFs, title_prefix = title, ...)
 }
 
 

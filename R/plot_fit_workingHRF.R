@@ -262,6 +262,7 @@ recalculate_proportions <- function(x, alpha) {
 #' @param design_dHRFs A data frame or matrix containing the full design matrix, including
 #'   HRF regressors. Column names must follow the convention: task names, optionally
 #'   suffixed with \code{"_dHRF"} or \code{"_ddHRF"}.
+#' @param title_prefix Title for the plot (default: \code{"Main HRF"}).
 #' @param ... Additional arguments passed to internal \code{\link[ggplot2]{ggplot}} calls
 #'   such as \code{theme()} or \code{facet_grid()} for further plot customization.
 #'
@@ -271,7 +272,7 @@ recalculate_proportions <- function(x, alpha) {
 #'
 #' @import ggplot2
 #' @keywords internal
-plot_design_fit_core <- function(design_dHRFs, ...) {
+plot_design_fit_core <- function(design_dHRFs, title_prefix = "Main HRF", ...) {
   volume <- 1:nrow(design_dHRFs)
 
   # Define which HRF types to include and their suffixes
@@ -312,7 +313,7 @@ plot_design_fit_core <- function(design_dHRFs, ...) {
   plot_main <- ggplot(data = df_long[df_long$HRF == "main",]) +
     geom_line(aes(x = .data$Volume, y = .data$Value, color = .data$Task), linetype = "solid") +
     ylim(range(df_long$Value, na.rm = TRUE)) +
-    labs(title = "Main HRF", x = "Volume", y = "Value") +
+    labs(title = title_prefix, x = "Volume", y = "Value") +
     theme_minimal(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           panel.background = element_rect(fill = "white")) +
