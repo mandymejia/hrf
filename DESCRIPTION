@@ -58,7 +58,9 @@ Imports:
     reshape2,
     dplyr,
     magrittr,
-    ggplot2
+    ggplot2,
+    gridExtra,
+    ggthemes
 Suggests:
     covr,
     knitr,

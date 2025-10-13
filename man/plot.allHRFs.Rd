@@ -4,37 +4,39 @@
 \alias{plot.allHRFs}
 \title{Plot method for allHRFs objects}
 \usage{
-\method{plot}{allHRFs}(x, type = c("design"), subject = 1, hrf_idx = 1, ...)
+\method{plot}{allHRFs}(
+  x,
+  type = c("design", "hrfs", "hrfs_tapered", "param_grid", "single_hrf"),
+  subject = 1,
+  hrf_idx = 1,
+  tapered = FALSE,
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"allHRFs"} from \code{\link{fit_allHRFs}}.}
 
-\item{type}{Character. Type of plot to generate. Currently only \code{"design"}
-is supported for design matrix visualization.}
+\item{type}{Character. Type of plot to generate. Options are:
+\itemize{
+\item \code{"design"} – plot subject design matrix.
+\item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
+\item \code{"hrfs_tapered"} – plot tapered HRFs.
+\item \code{"param_grid"} – plot HRF parameter grid heatmaps.
+\item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
+}}
 
-\item{subject}{Integer. Which subject to plot (index into the subject list).
-Default: 1.}
+\item{subject}{Integer. Subject index for design matrix plots.}
 
-\item{hrf_idx}{Integer. Which HRF parameter combination to plot (index into
-the HRF grid). Default: 1.}
+\item{hrf_idx}{Integer. HRF index for design matrix or single HRF plots.}
 
-\item{...}{Additional arguments passed to the specific plotting function.}
+\item{tapered}{Logical. Whether to plot tapered version (for \code{type = "single_hrf"}).}
+
+\item{...}{Additional arguments passed on.}
 }
 \value{
 Invisibly returns the result of the specific plotting function.
-Plots are rendered to the current graphics device.
 }
 \description{
-Creates diagnostic plots for grid-based HRF fitting results. Currently supports
-design matrix visualization, with additional plot types planned for future versions.
-}
-\examples{
-\dontrun{
-# Plot design matrix for subject 2, HRF parameter combination 50
-plot(result, type = "design", subject = 2, hrf_idx = 50)
-}
-
-}
-\seealso{
-\code{\link{fit_allHRFs}} for creating allHRFs objects
+Creates diagnostic plots for grid-based HRF fitting results. Supports
+design matrix visualization, and HRF grid plots (raw, tapered, parameter grid, single).
 }

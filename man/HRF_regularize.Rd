@@ -11,7 +11,8 @@ HRF_regularize(
   mask = TRUE,
   log = TRUE,
   truncate = TRUE,
-  WLS = TRUE
+  WLS = TRUE,
+  use_subject_activation_mask = TRUE
 )
 }
 \arguments{
@@ -36,6 +37,12 @@ re-estimated accordingly.}
 \item{WLS}{Logical. If \code{TRUE} (default), performs weighted least
 squares estimation using inverse variance weights after initial OLS
 estimation. If \code{FALSE}, only performs OLS estimation.}
+
+\item{use_subject_activation_mask}{Logical. If \code{TRUE} (default), only
+includes subjects with activation at each voxel when computing population
+averages (i.e., filters by \code{best_params_df$mask == TRUE}). If
+\code{FALSE}, includes all subjects regardless of individual activation
+status.}
 }
 \value{
 A nested list with one entry per parameter (a1, b1, c), where each

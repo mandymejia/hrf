@@ -6,7 +6,7 @@
 #' @format A data frame with 101 rows and 5 columns:
 #' \describe{
 #'   \item{a1}{Delay of response (seconds). Range: 3–12}
-#'   \item{b1}{Response dispersion (seconds). Range: 0.5–2}  
+#'   \item{b1}{Response dispersion (seconds). Range: 0.5–2}
 #'   \item{c}{Undershoot scale. Values: 0 (no undershoot) or 1/6 (canonical)}
 #'   \item{a2}{Delay of undershoot (seconds). Calculated from a1 and b1}
 #'   \item{b2}{Dispersion of undershoot (seconds). Equal to b1}
@@ -17,7 +17,7 @@
 #' the SPM canonical HRF (a1=6, b1=1, c=1/6) and filtering for physiologically
 #' plausible responses. All calculations assume TR = 2 seconds.
 #'
-#' @source Generated from systematic parameter exploration based on 
+#' @source Generated from systematic parameter exploration based on
 #' double-gamma HRF model with physiological constraints
 #'
 #' @examples
@@ -116,7 +116,23 @@ generate_hrf_grid <- function(
 
   # 10) return only your five columns, reset rownames
   rownames(g) <- NULL
-  g[, c("a1","b1","c","a2","b2"), drop = FALSE]
+  result <- g[, c("a1","b1","c","a2","b2"), drop = FALSE]
+
+  # attach call params so downstream functions can use them
+  attr(result, "call_params") <- list(
+    TR = TR,
+    a1_range = a1_range,
+    a1_step = a1_step,
+    b1_range = b1_range,
+    b1_step = b1_step,
+    c_vals = c_vals,
+    sr_factor = sr_factor,
+    time_to_peak_min = time_to_peak_min,
+    peak2_time_max = peak2_time_max
+  )
+
+  class(result) <- c("hrf_grid", "data.frame")
+  return(result)
 }
 
 #' Resolve HRF grid specification to actual grid
@@ -142,6 +158,8 @@ set_hrf_grid <- function(hrf_grid, ...) {
 
   stopifnot("`hrf_grid` must have at least 5 columns (a1,b1,c,a2,b2)" = ncol(g) >= 5)
 
+  call_params <- attr(g, "call_params")
+
   # extract first five columns, force names
   result <- as.data.frame(g)[ , seq_len(5), drop = FALSE]
   names(result) <- c("a1","b1","c","a2","b2")
@@ -149,5 +167,8 @@ set_hrf_grid <- function(hrf_grid, ...) {
   stopifnot("columns a1, b1, c, a2, b2 must all be numeric" = all(vapply(result, is.numeric, TRUE)))
   stopifnot("column c (undershoot) must be >= 0" = all(result$c >= 0, na.rm = TRUE))
 
-  result
+  attr(result, "call_params") <- call_params
+
+  class(result) <- c("hrf_grid", "data.frame")
+  return(result)
 }

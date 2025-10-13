@@ -4,12 +4,14 @@
 \alias{plot_design_fit_core}
 \title{Core Plotting Function for HRF Design Matrix}
 \usage{
-plot_design_fit_core(design_dHRFs, ...)
+plot_design_fit_core(design_dHRFs, title_prefix = "Main HRF", ...)
 }
 \arguments{
 \item{design_dHRFs}{A data frame or matrix containing the full design matrix, including
 HRF regressors. Column names must follow the convention: task names, optionally
 suffixed with \code{"_dHRF"} or \code{"_ddHRF"}.}
+
+\item{title_prefix}{Title for the plot (default: \code{"Main HRF"}).}
 
 \item{...}{Additional arguments passed to internal \code{\link[ggplot2]{ggplot}} calls
 such as \code{theme()} or \code{facet_grid()} for further plot customization.}
