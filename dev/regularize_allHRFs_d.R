@@ -5,14 +5,14 @@ ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub
 devtools::load_all("~/Documents/Github/hrf-z") # hrf-z is Zeshawn's branch with latest hrf package changes.
 # devtools::load_all("~/Documents/Github/hrf-HRFcalc-mods") # Temporary while cleaning up hrf-z branch
 
-# workingHRF_results <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
-# allHRF_results <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
+workingHRF_results <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
+allHRF_results <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
 
 # workingHRF_results <- readRDS("/Users/zeshawnzahid/Downloads/19s_fit_workingHRF_result.rds")
 # allHRF_results <- readRDS("/Users/zeshawnzahid/Downloads/19s_fit_allHRFs_result.rds")
 
-# workingHRF_results <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_500s.rds"))
-# allHRF_results <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_500s.rds"))
+workingHRF_results <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_500s.rds"))
+allHRF_results <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_500s.rds"))
 
 allHRF_results <- readRDS("~/Downloads/fit_allHRFs_result_tfMRI_MOTOR_LR_1000s.rds")
 workingHRF_results <- readRDS("~/Downloads/fit_workingHRF_result_tfMRI_MOTOR_LR_1000s.rds")

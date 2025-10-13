@@ -141,7 +141,10 @@ create_best_params_df <- function(workingHRF_results, allHRF_results ) {
   masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
 
   masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
-  mask_prop <- (masks_df_prop$prop > 0.1)
+  
+  subj_prop <- get_subj_prop(workingHRF_results)
+  mask_prop <- (masks_df_prop$prop > subj_prop)   # mask_prop <- (masks_df_prop$prop > 0.1)
+  
   mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
 
 
@@ -173,6 +176,27 @@ create_best_params_df <- function(workingHRF_results, allHRF_results ) {
     mask_prop_NA = mask_prop_NA
   ))
 
+}
+
+#' Calculate the Proportion of Active Subjects
+#'
+#' Computes the proportion of subjects considered "active" based on the
+#' `min_active_subjects` parameter in the `workingHRF_results` object.
+#' If missing, defaults to the greater of 2 or 10% of total subjects.
+#'
+#' @param workingHRF_results HRF analysis results list.
+#' @return Numeric proportion of active subjects (rounded to two decimals).
+#' @keywords internal
+get_subj_prop <- function(workingHRF_results) {
+  min_active_subjects <- workingHRF_results[["call_info"]][["min_active_subjects"]]
+  if (is.null(min_active_subjects)) {
+    total_subjects <- sum(vapply(workingHRF_results[["subject_results"]], \(x) identical(x[["status"]], "success"), logical(1)))
+    min_active_subjects <- max(2, ceiling(total_subjects * 0.10))
+    message("min_active_subjects not found in workingHRF_results (old version), defaulting to max(10% of total, 2): ", min_active_subjects, " subjects")
+  } 
+  subj_prop <- round(min_active_subjects / length(workingHRF_results[["subject_results"]]), 2)
+  message("Using group mask threshold: ", subj_prop, " (", min_active_subjects, " out of ", length(workingHRF_results[["subject_results"]]), " subjects)")
+  return(subj_prop)
 }
 
 #' Regularize HRF Parameters Using Hierarchical Modeling
@@ -351,7 +375,7 @@ estimate_population_parameters <- function(best_params_df, mask_prop_NA, pp, xii
   best_params_df <- best_params_df %>% left_join(best_params_df_avg0, by = "voxel") # Bing population means back into full df
 
   best_params_df <- best_params_df %>%
-    filter(!is.na(param_mean0)) # TODO: Do we need this?
+    filter(!is.na(param_mean0)) # Because mask_prop_NA is applied, so the left join can create NAs
 
   mean0_xii <- create_xifti_with_padding(best_params_df_avg0, "param_mean0", xii)
   # mean0_xii <- ciftiTools::newdata_xifti(xii, best_params_df_avg0$param_mean0)
@@ -698,6 +722,8 @@ extract_param_names <- function(params_df) {
 #' @return A \code{xii} template object (converted to dscalar format).
 #' @keywords internal
 validate_previous_results <- function(workingHRF_results, allHRF_results) {
+
+  stopifnot(length(workingHRF_results[["subject_results"]]) == length(allHRF_results[["subject_results"]]))
 
   # Extract xii objects from both results
   working_xii <- workingHRF_results[["subject_results"]][[1]][["glm_results"]][["bestmodel_xii"]]

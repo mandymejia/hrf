@@ -18,6 +18,7 @@ fit_workingHRF(
   offsets = TRUE,
   scrub = NULL,
   alpha = 0.01,
+  min_active_subjects = NULL,
   verbose = 1,
   n_cores = 1,
   log_dir = "logs",
@@ -85,6 +86,12 @@ high-motion or artifact-contaminated timepoints.}
 
 \item{alpha}{Numeric. P-value threshold used when generating activation
 masks across subjects. Typical values: 0.05, 0.01, or 0.001.}
+
+\item{min_active_subjects}{Integer or NULL. Minimum number of subjects that
+must show significant activation (p < alpha) at a voxel for it to be
+included in the group mask used for regularization. If NULL (default),
+uses max(2, ceiling(0.10 * n_subjects)) - either 10\% of total subjects
+or 2 subjects, whichever is larger.}
 
 \item{verbose}{Integer controlling output verbosity:
 \itemize{

@@ -58,7 +58,7 @@ plot(fit_workingHRF_result,
 
 plot(fit_workingHRF_result,
      type = "binary",
-     fname = here("dev", "test_plots", "fit_workingHRF", "binary_0.01_10pct"))
+     fname = here("dev", "test_plots", "fit_workingHRF", "binary_0.01_10pct_test"))
 plot(fit_workingHRF_result,
      type = "binary", threshold = 0.5,
      fname = here("dev", "test_plots", "fit_workingHRF", "binary_0.01_50pct"))
