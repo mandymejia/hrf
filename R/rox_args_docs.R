@@ -434,3 +434,14 @@ NULL
 #'
 #' @name work_dir_Param
 NULL
+
+#' Minimum Active Subjects Threshold
+#'
+#' @param min_active_subjects Integer or NULL. Minimum number of subjects that
+#'   must show significant activation (p < alpha) at a voxel for it to be
+#'   included in the group mask used for regularization. If NULL (default),
+#'   uses max(2, ceiling(0.10 * n_subjects)) - either 10% of total subjects
+#'   or 2 subjects, whichever is larger.
+#'
+#' @name min_active_subjects_Param
+NULL

@@ -6,7 +6,7 @@
 \usage{
 plot_binary_map(
   x,
-  threshold = 0.1,
+  threshold = NULL,
   alpha = NULL,
   colors = "viridis",
   title = NULL,

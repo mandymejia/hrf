@@ -162,7 +162,7 @@ plot_activation_proportion <- function(x, alpha = NULL, colors = 'viridis',
 #'         The surface plot is rendered or saved as specified.
 #'
 #' @keywords internal
-plot_binary_map <-  function(x, threshold = 0.1, alpha = NULL,
+plot_binary_map <-  function(x, threshold = NULL, alpha = NULL,
                                                  colors = 'viridis', title = NULL,
                                                  fname = NULL,
                                                  width = 1200, height = 800,
@@ -170,6 +170,19 @@ plot_binary_map <-  function(x, threshold = 0.1, alpha = NULL,
                                                  material = list(lit = TRUE, smooth = FALSE),
                                                  ...) {
 
+  if(is.null(threshold)) {
+    min_active <- x$call_info$min_active_subjects
+    if(!is.null(min_active)) {
+      total_subjects <- sum(vapply(x[["subject_results"]], \(s) identical(s[["status"]], "success"), logical(1)))
+      threshold <- round(min_active / total_subjects, 2)
+    } else {
+      # Default for old results - use 10% or minimum 2 subjects, whichever is larger
+      total_subjects <- sum(vapply(x[["subject_results"]], \(s) identical(s[["status"]], "success"), logical(1)))
+      min_active <- max(2, ceiling(total_subjects * 0.1))
+      threshold <- round(min_active / total_subjects, 2)
+      cat("Using threshold:", threshold, "\n")
+    }
+  }
   # Use alpha from object if not provided
   if(is.null(alpha)) {
     alpha <- x$activation_masks$alpha

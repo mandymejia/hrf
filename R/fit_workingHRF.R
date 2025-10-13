@@ -45,6 +45,7 @@
 #' @inheritParams offsets_Param
 #' @inheritParams scrub_Param
 #' @inheritParams alpha_Param
+#' @inheritParams min_active_subjects_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
 #' @inheritParams log_dir_Param
@@ -136,12 +137,14 @@ fit_workingHRF <- function(
     offsets = TRUE,
     scrub = NULL,
     alpha = 0.01,
+    min_active_subjects = NULL,
     verbose = 1,
     n_cores = 1, 
     log_dir = "logs", ...
 ) {
   call_match <- match.call()
   cat("========Version 3.4444=========\n")
+  if (is.null(min_active_subjects)) min_active_subjects <- max(2, ceiling(length(BOLD) * 0.1))
   # Input validation
   validate_inputs(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, offsets, verbose)
 
@@ -182,6 +185,7 @@ fit_workingHRF <- function(
       n_subjects = length(BOLD),
       TR = TR,
       alpha = alpha,
+      min_active_subjects = min_active_subjects,
       n_cores = n_cores,
       parallel_method = if(n_cores > 1) "parLapply" else "sequential",
       completion_time = Sys.time()
