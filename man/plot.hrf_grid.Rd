@@ -6,9 +6,9 @@
 \usage{
 \method{plot}{hrf_grid}(
   x,
-  type = c("hrfs", "hrfs_tapered", "param_grid", "single_hrf", "multiple_hrf"),
+  type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf"),
   hrf_idx = 1,
-  tapered = FALSE,
+  tapered = TRUE,
   colors = NULL,
   ...
 )
@@ -18,8 +18,7 @@
 
 \item{type}{Character. Type of plot to generate. Options are:
 \itemize{
-\item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
-\item \code{"hrfs_tapered"} – plot all tapered HRFs, when HRFs do not resolve by 30s.
+\item \code{"hrfs"} – plot all HRFs from the parameter grid (raw or tapered based on \code{tapered} arg).
 \item \code{"param_grid"} – plot parameter grid heatmaps of time-to-peak and FWHM.
 \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 \item \code{"multiple_hrf"} – plot multiple overlapping HRFs specified by \code{hrf_idx} vector.
@@ -28,7 +27,8 @@
 \item{hrf_idx}{Integer or integer vector. Row index(es) for plotting HRF(s).
 Single value for \code{type = "single_hrf"}, vector for \code{type = "multiple_hrf"}.}
 
-\item{tapered}{Logical. Whether to plot tapered version (used with \code{type = "single_hrf"} or \code{type = "multiple_hrf"}).}
+\item{tapered}{Logical. Whether to plot tapered version. Applies to \code{type = "hrfs"},
+\code{type = "single_hrf"}, and \code{type = "multiple_hrf"}. Default is TRUE.}
 
 \item{colors}{Character vector. Colors for each HRF (required for \code{type = "multiple_hrf"}).
 Must have same length as \code{hrf_idx}.}
@@ -46,7 +46,11 @@ of raw HRFs, tapered HRFs, parameter grid heatmaps, individual HRFs, and multipl
 \examples{
 \dontrun{
 # Plot all raw HRFs
+plot(my_hrf_grid, type = "hrfs", tapered = FALSE)
+
+# Plot all tapered HRFs (default)
 plot(my_hrf_grid, type = "hrfs")
+plot(my_hrf_grid, type = "hrfs", tapered = TRUE)
 
 # Plot a single HRF
 plot(my_hrf_grid, type = "single_hrf", hrf_idx = 5)

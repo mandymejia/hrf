@@ -1,3 +1,4 @@
+
 #' Plot method for hrf_grid objects
 #'
 #' Creates diagnostic plots for HRF parameter grid results. Supports visualization
@@ -6,15 +7,15 @@
 #' @param x An object of class \code{"hrf_grid"} from \code{\link{generate_hrf_grid}}.
 #' @param type Character. Type of plot to generate. Options are:
 #'   \itemize{
-#'     \item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
-#'     \item \code{"hrfs_tapered"} – plot all tapered HRFs, when HRFs do not resolve by 30s.
+#'     \item \code{"hrfs"} – plot all HRFs from the parameter grid (raw or tapered based on \code{tapered} arg).
 #'     \item \code{"param_grid"} – plot parameter grid heatmaps of time-to-peak and FWHM.
 #'     \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 #'     \item \code{"multiple_hrf"} – plot multiple overlapping HRFs specified by \code{hrf_idx} vector.
 #'   }
 #' @param hrf_idx Integer or integer vector. Row index(es) for plotting HRF(s).
 #'   Single value for \code{type = "single_hrf"}, vector for \code{type = "multiple_hrf"}.
-#' @param tapered Logical. Whether to plot tapered version (used with \code{type = "single_hrf"} or \code{type = "multiple_hrf"}).
+#' @param tapered Logical. Whether to plot tapered version. Applies to \code{type = "hrfs"}, 
+#'   \code{type = "single_hrf"}, and \code{type = "multiple_hrf"}. Default is TRUE.
 #' @param colors Character vector. Colors for each HRF (required for \code{type = "multiple_hrf"}).
 #'   Must have same length as \code{hrf_idx}.
 #' @param ... Additional arguments passed to the specific plotting function.
@@ -27,7 +28,11 @@
 #' @examples
 #' \dontrun{
 #' # Plot all raw HRFs
+#' plot(my_hrf_grid, type = "hrfs", tapered = FALSE)
+#'
+#' # Plot all tapered HRFs (default)
 #' plot(my_hrf_grid, type = "hrfs")
+#' plot(my_hrf_grid, type = "hrfs", tapered = TRUE)
 #'
 #' # Plot a single HRF
 #' plot(my_hrf_grid, type = "single_hrf", hrf_idx = 5)
@@ -42,17 +47,37 @@
 #' }
 #'
 #' @export
-plot.hrf_grid <- function(x, type = c("hrfs", "hrfs_tapered", "param_grid", "single_hrf", "multiple_hrf"), 
-                          hrf_idx = 1, tapered = FALSE, colors = NULL, ...) {
+plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf"), 
+                          hrf_idx = 1, tapered = TRUE, colors = NULL, ...) {
   type <- match.arg(type)
   switch(type,
-         hrfs         = plot_hrfs_all(x, ...),
-         hrfs_tapered = plot_hrfs_all_tapered(x, ...),
+         hrfs         = plot_hrfs(x, tapered = tapered, ...),
          param_grid   = plot_param_grid_metrics(x, ...),
          single_hrf   = plot_hrf_single(x, hrf_idx = hrf_idx, tapered = tapered, ...),
          multiple_hrf = plot_hrf_multiple(x, hrf_idx = hrf_idx, colors = colors, tapered = tapered, ...)
   )
 }
+
+#' Plot all HRFs from parameter grid - wrapper (internal)
+#'
+#' Internal wrapper function that calls either the raw or tapered HRF plotting
+#' function based on the \code{tapered} argument.
+#'
+#' @param hrf_grid Data frame with HRF parameters and call_params attributes
+#' @param tapered Logical. If TRUE, plots tapered HRFs; if FALSE, plots raw HRFs.
+#'   Default is TRUE.
+#'
+#' @return A ggplot object
+#'
+#' @keywords internal
+plot_hrfs <- function(hrf_grid, tapered = TRUE) {
+  if (tapered) {
+    plot_hrfs_all_tapered(hrf_grid)
+  } else {
+    plot_hrfs_all(hrf_grid)
+  }
+}
+
 
 #' Plot multiple HRFs from parameter grid (internal)
 #'

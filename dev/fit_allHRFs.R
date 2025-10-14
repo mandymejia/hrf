@@ -60,7 +60,7 @@ plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
 
 plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
 plot(fit_allHRFs_result, type = "hrfs")
-plot(fit_allHRFs_result, type = "hrfs_tapered")
+plot(fit_allHRFs_result, type = "hrfs", tapered = FALSE)
 plot(fit_allHRFs_result, type = "param_grid")
 plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40)
 plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40, tapered = FALSE)

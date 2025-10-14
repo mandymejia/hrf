@@ -6,10 +6,10 @@
 \usage{
 \method{plot}{allHRFs}(
   x,
-  type = c("design", "hrfs", "hrfs_tapered", "param_grid", "single_hrf", "multiple_hrf"),
+  type = c("design", "hrfs", "param_grid", "single_hrf", "multiple_hrf"),
   subject = 1,
   hrf_idx = 1,
-  tapered = FALSE,
+  tapered = TRUE,
   colors = NULL,
   ...
 )
@@ -20,8 +20,7 @@
 \item{type}{Character. Type of plot to generate. Options are:
 \itemize{
 \item \code{"design"} – plot subject design matrix.
-\item \code{"hrfs"} – plot all raw HRFs from the parameter grid.
-\item \code{"hrfs_tapered"} – plot tapered HRFs.
+\item \code{"hrfs"} – plot all HRFs from the parameter grid (raw or tapered based on \code{tapered} arg).
 \item \code{"param_grid"} – plot HRF parameter grid heatmaps.
 \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 \item \code{"multiple_hrf"} – plot multiple overlapping HRFs specified by \code{hrf_idx} vector.
@@ -32,7 +31,8 @@
 \item{hrf_idx}{Integer or integer vector. HRF index(es) for design matrix or HRF plots.
 Single value for \code{type = "single_hrf"}, vector for \code{type = "multiple_hrf"}.}
 
-\item{tapered}{Logical. Whether to plot tapered version (for \code{type = "single_hrf"} or \code{type = "multiple_hrf"}).}
+\item{tapered}{Logical. Whether to plot tapered version. Applies to \code{type = "hrfs"},
+\code{type = "single_hrf"}, and \code{type = "multiple_hrf"}. Default is TRUE.}
 
 \item{colors}{Character vector. Colors for each HRF (required for \code{type = "multiple_hrf"}).
 Must have same length as \code{hrf_idx}.}
