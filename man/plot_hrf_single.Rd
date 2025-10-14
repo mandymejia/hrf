@@ -4,7 +4,7 @@
 \alias{plot_hrf_single}
 \title{Plot a single HRF from parameter grid (internal)}
 \usage{
-plot_hrf_single(hrf_grid, hrf_idx = 1, tapered = FALSE)
+plot_hrf_single(hrf_grid, hrf_idx = 1, tapered = TRUE)
 }
 \arguments{
 \item{hrf_grid}{Data frame with columns a1, b1, a2, b2, c and call_params attributes}
