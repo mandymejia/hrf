@@ -34,7 +34,7 @@ saveRDS(
 regularize_allHRFs_result <- readRDS(here("dev", "fixtures", "regularize_allHRFs_result_motorlr_4s.rds"))
 
 
-plot(regularize_allHRFs_result, type = "mask", fname = here("dev", "test_plots", "regularize_allHRFs", "mask_propk"))
+
 
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "A", method = "OLS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1"))
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "A", method = "WLS", fname = here("dev", "test_plots", "regularize_allHRFs", "WLS_A_a1"))

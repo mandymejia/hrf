@@ -437,11 +437,11 @@ NULL
 
 #' Minimum Active Subjects Threshold
 #'
-#' @param min_active_subjects Integer or NULL. Minimum number of subjects that
+#' @param min_active_subjects Integer. Minimum number of subjects that
 #'   must show significant activation (p < alpha) at a voxel for it to be
-#'   included in the group mask used for regularization. If NULL (default),
-#'   uses max(2, ceiling(0.10 * n_subjects)) - either 10% of total subjects
-#'   or 2 subjects, whichever is larger.
+#'   included in the group mask used for regularization. Default is 20.
+#'   If the number of successful subjects is less than this value, it will
+#'   be automatically adjusted with a warning.
 #'
 #' @name min_active_subjects_Param
 NULL

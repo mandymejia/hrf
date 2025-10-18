@@ -1,3 +1,5 @@
+plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 24)
+
 library(here)
 library(qs)
 
@@ -62,8 +64,8 @@ plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
 plot(fit_allHRFs_result, type = "hrfs")
 plot(fit_allHRFs_result, type = "hrfs", tapered = FALSE)
 plot(fit_allHRFs_result, type = "param_grid")
-plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40)
-plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40, tapered = FALSE)
+plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 24)
+plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 24, tapered = FALSE)
 
 plot(fit_allHRFs_result, type = "multiple_hrf", hrf_idx = c(1, 5, 40),
      colors = c("#2c7fb8", "#d95f02", "#7570b3"), tapered = FALSE)

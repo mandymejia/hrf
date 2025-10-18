@@ -137,14 +137,13 @@ fit_workingHRF <- function(
     offsets = TRUE,
     scrub = NULL,
     alpha = 0.01,
-    min_active_subjects = NULL,
+    min_active_subjects = 20,
     verbose = 1,
     n_cores = 1, 
     log_dir = "logs", ...
 ) {
   call_match <- match.call()
   cat("========Version 3.4444=========\n")
-  if (is.null(min_active_subjects)) min_active_subjects <- max(2, ceiling(length(BOLD) * 0.1))
   # Input validation
   validate_inputs(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, offsets, verbose)
 
@@ -174,7 +173,7 @@ fit_workingHRF <- function(
 
   # Gather P-values for F-test and creat masks
   if(verbose > 0) cat("Creating activation masks and proportion maps...\n")
-  mask_results <- create_activation_masks(subject_results, alpha, verbose)
+  mask_results <- create_activation_masks(subject_results, alpha, min_active_subjects, verbose)
 
 
   result <- list(
@@ -185,7 +184,7 @@ fit_workingHRF <- function(
       n_subjects = length(BOLD),
       TR = TR,
       alpha = alpha,
-      min_active_subjects = min_active_subjects,
+      min_active_subjects = mask_results$min_active_subjects,
       n_cores = n_cores,
       parallel_method = if(n_cores > 1) "parLapply" else "sequential",
       completion_time = Sys.time()
@@ -664,16 +663,21 @@ report_design_fit_errors <- function(subject_results, verbose = 1) {
 #'
 #' @inheritParams subject_results_Param
 #' @inheritParams alpha_Param
+#' @param min_active_subjects Integer. Minimum number of subjects required for a voxel 
+#'   to be considered active in the group mask
 #' @inheritParams verbose_Param
 #'
 #' @return List with elements:
 #'   \item{masks}{Logical matrix (locations × subjects) of significant activations}
+#'   \item{mask_prop_NA}{Logical vector with NA for inactive voxels, TRUE for active}
 #'   \item{prop}{Numeric vector of activation proportions across subjects}
 #'   \item{alpha}{The threshold used}
 #'   \item{n_subjects}{Number of successful subjects}
+#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects 
+#'     (capped at number of successful subjects if necessary)}
 #'
 #' @keywords internal
-create_activation_masks <- function(subject_results, alpha = 0.01, verbose = 1) {
+create_activation_masks <- function(subject_results, alpha = 0.01, min_active_subjects, verbose = 1) {
   successful_subjects <- which(sapply(subject_results, function(x) x$status == "success"))
   n_successful <- length(successful_subjects)
 
@@ -700,10 +704,58 @@ create_activation_masks <- function(subject_results, alpha = 0.01, verbose = 1) 
   colnames(masks) <- successful_subjects
   prop <- rowSums(masks, na.rm = TRUE) / rowSums(!is.na(masks))
 
+  # Create mask_prop_NA
+  masks_df <- masks_df <- as.data.frame(masks) # Reshape dataframe
+  masks_df$voxel <- 1:nrow(masks_df)
+  masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
+
+  masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
+  
+  subj_prop_result <- get_subj_prop(min_active_subjects, subject_results)
+  subj_prop <- subj_prop_result$subj_prop
+  min_active_subjects <- subj_prop_result$min_active_subjects
+
+
+  mask_prop <- (masks_df_prop$prop > subj_prop)   # mask_prop <- (masks_df_prop$prop > 0.1)
+  
+  mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
+
+
   return(list(
     masks = masks,
+    mask_prop_NA = mask_prop_NA,
     prop = prop,
     alpha = alpha,
-    n_subjects = n_successful
+    n_subjects = n_successful,
+    min_active_subjects = min_active_subjects
   ))
+}
+
+#' Calculate the Proportion of Active Subjects
+#'
+#' Computes the proportion threshold for determining active voxels based on
+#' the minimum number of active subjects required.
+#'
+#' @param min_active_subjects Integer. Minimum number of subjects required 
+#'   for a voxel to be considered active
+#' @param subject_results List of subject results from HRF analysis
+#' @return List with elements:
+#'   \item{subj_prop}{Numeric proportion of active subjects (rounded to two decimals)}
+#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects 
+#'     (capped at number of successful subjects if necessary)}
+#' @keywords internal
+get_subj_prop <- function(min_active_subjects, subject_results) {
+  # Count successful subjects
+  n_successful <- sum(vapply(subject_results, \(x) identical(x[["status"]], "success"), logical(1)))
+  stopifnot("No subjects processed successfully - cannot create activation masks" = n_successful > 0)
+
+
+  if (min_active_subjects > n_successful) {
+    warning("min_active_subjects (", min_active_subjects, ") exceeds number of successful subjects (", 
+            n_successful, "). Using ", n_successful, " instead.")
+    min_active_subjects <- min(min_active_subjects, n_successful)
+  }
+  subj_prop <- round(min_active_subjects / n_successful, 2)
+  message("Using group mask threshold: ", subj_prop, " (", min_active_subjects, " out of ", n_successful, " successful subjects)")
+  return(list(subj_prop = subj_prop, min_active_subjects = min_active_subjects))
 }

@@ -4,7 +4,12 @@
 \alias{create_activation_masks}
 \title{Create activation masks and proportion maps}
 \usage{
-create_activation_masks(subject_results, alpha = 0.01, verbose = 1)
+create_activation_masks(
+  subject_results,
+  alpha = 0.01,
+  min_active_subjects,
+  verbose = 1
+)
 }
 \arguments{
 \item{subject_results}{List containing GLM results for all processed
@@ -13,6 +18,9 @@ for one subject.}
 
 \item{alpha}{Numeric. P-value threshold used when generating activation
 masks across subjects. Typical values: 0.05, 0.01, or 0.001.}
+
+\item{min_active_subjects}{Integer. Minimum number of subjects required for a voxel
+to be considered active in the group mask}
 
 \item{verbose}{Integer controlling output verbosity:
 \itemize{
@@ -24,9 +32,12 @@ masks across subjects. Typical values: 0.05, 0.01, or 0.001.}
 \value{
 List with elements:
 \item{masks}{Logical matrix (locations × subjects) of significant activations}
+\item{mask_prop_NA}{Logical vector with NA for inactive voxels, TRUE for active}
 \item{prop}{Numeric vector of activation proportions across subjects}
 \item{alpha}{The threshold used}
 \item{n_subjects}{Number of successful subjects}
+\item{min_active_subjects}{Integer. Adjusted minimum number of active subjects
+(capped at number of successful subjects if necessary)}
 }
 \description{
 Generates cross-subject activation masks by thresholding F-test p-values

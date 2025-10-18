@@ -28,6 +28,7 @@ fit_workingHRF_result <- fit_workingHRF(
   alpha = 0.01,
   verbose = 2,
   n_cores = 1,
+  min_active_subjects = 2,
   log_dir = "dev/logs"
 )
 toc()
@@ -39,6 +40,8 @@ saveRDS(
 
 statuses <- sapply(fit_workingHRF_result[["subject_results"]], function(x) x[["status"]])
 table(statuses)
+
+plot(fit_workingHRF_result, type = "mask", fname = here("dev", "test_plots", "fit_workingHRF", "mask_prop"))
 
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_500s.rds"))

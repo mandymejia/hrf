@@ -135,18 +135,12 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
 #'
 #' @keywords internal
 create_best_params_df <- function(workingHRF_results, allHRF_results ) {
+  mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
+
   masks <- workingHRF_results[["activation_masks"]][["masks"]]
   masks_df <- masks_df <- as.data.frame(masks) # Reshape dataframe
   masks_df$voxel <- 1:nrow(masks_df)
   masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
-
-  masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
-  
-  subj_prop <- get_subj_prop(workingHRF_results)
-  mask_prop <- (masks_df_prop$prop > subj_prop)   # mask_prop <- (masks_df_prop$prop > 0.1)
-  
-  mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
-
 
   # At this point research code saves mask_prop_NA
   #################################################
@@ -178,26 +172,7 @@ create_best_params_df <- function(workingHRF_results, allHRF_results ) {
 
 }
 
-#' Calculate the Proportion of Active Subjects
-#'
-#' Computes the proportion of subjects considered "active" based on the
-#' `min_active_subjects` parameter in the `workingHRF_results` object.
-#' If missing, defaults to the greater of 2 or 10% of total subjects.
-#'
-#' @param workingHRF_results HRF analysis results list.
-#' @return Numeric proportion of active subjects (rounded to two decimals).
-#' @keywords internal
-get_subj_prop <- function(workingHRF_results) {
-  min_active_subjects <- workingHRF_results[["call_info"]][["min_active_subjects"]]
-  if (is.null(min_active_subjects)) {
-    total_subjects <- sum(vapply(workingHRF_results[["subject_results"]], \(x) identical(x[["status"]], "success"), logical(1)))
-    min_active_subjects <- max(2, ceiling(total_subjects * 0.10))
-    message("min_active_subjects not found in workingHRF_results (old version), defaulting to max(10% of total, 2): ", min_active_subjects, " subjects")
-  } 
-  subj_prop <- round(min_active_subjects / length(workingHRF_results[["subject_results"]]), 2)
-  message("Using group mask threshold: ", subj_prop, " (", min_active_subjects, " out of ", length(workingHRF_results[["subject_results"]]), " subjects)")
-  return(subj_prop)
-}
+
 
 #' Regularize HRF Parameters Using Hierarchical Modeling
 #'
