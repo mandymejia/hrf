@@ -174,7 +174,8 @@ fit_workingHRF <- function(
   # Gather P-values for F-test and creat masks
   if(verbose > 0) cat("Creating activation masks and proportion maps...\n")
   mask_results <- create_activation_masks(subject_results, alpha, min_active_subjects, verbose)
-
+  min_active_subjects <- mask_results$min_active_subjects
+  mask_results$min_active_subjects <- NULL  # Remove temporary field
 
   result <- list(
     activation_masks = mask_results,
@@ -184,7 +185,7 @@ fit_workingHRF <- function(
       n_subjects = length(BOLD),
       TR = TR,
       alpha = alpha,
-      min_active_subjects = mask_results$min_active_subjects,
+      min_active_subjects = min_active_subjects,
       n_cores = n_cores,
       parallel_method = if(n_cores > 1) "parLapply" else "sequential",
       completion_time = Sys.time()
