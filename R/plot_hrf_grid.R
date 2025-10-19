@@ -151,7 +151,7 @@ plot_hrf_multiple <- function(hrf_grid, hrf_idx, colors, tapered = TRUE) {
     )
     plot_df <- rbind(plot_df, temp_df)
   }
-  
+  end_time <- calculate_hrf_endpoint(hrf_grid, hrf_idx, TR, tapered)
   # Multiple HRF overlay plot
   p <- ggplot(plot_df, aes(x = .data$sec, y = .data$HRF, 
                            color = .data$hrf_label, group = .data$hrf_label)) +
@@ -159,14 +159,59 @@ plot_hrf_multiple <- function(hrf_grid, hrf_idx, colors, tapered = TRUE) {
     geom_hline(yintercept = 0, linetype = 'dashed', alpha = 0.5) +
     scale_color_manual(values = colors) +
     labs(title = sprintf("HRF Comparison%s", 
-                         ifelse(tapered, " (tapered)", "")),
+                         ifelse(tapered, "", " (non-tapered)")),
          x = "Time (seconds)", 
          y = "HRF Response",
          color = "HRF") +
     theme_minimal() +
-    theme(legend.position = "right")
-  
+    theme(legend.position = c(0.95, 0.95),
+          legend.justification = c("right", "top"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line = element_line(colour = "black")) +
+    coord_cartesian(xlim = c(0, end_time))
   return(p)
+}
+
+
+#' Calculate appropriate x-axis endpoint for HRF plots
+#'
+#' @param hrf_grid Data frame with HRF parameters
+#' @param hrf_idx Integer vector of row indices to check
+#' @param TR Time repetition value
+#' @param tapered Logical, whether HRFs are tapered
+#' @param threshold Numeric, threshold for considering HRF "zero"
+#' @param buffer Numeric, seconds to add after last non-zero value
+#' @param max_time Numeric, maximum allowed time
+#'
+#' @return Numeric endpoint for x-axis
+#' @keywords internal
+calculate_hrf_endpoint <- function(hrf_grid, hrf_idx, TR, tapered = TRUE, 
+                                   threshold = 1e-3, buffer = 2, max_time = 50) {
+  if (tapered) return(30)
+  
+  inds <- seq(1/100, 30, 1/100) * TR
+  max_end <- 0
+  
+  for (idx in hrf_idx) {
+    params <- hrf_grid[idx, ]
+    hrf_vals <- hrf::HRF_calc(
+      t = inds, 
+      deriv = 0,
+      a1 = params$a1,
+      b1 = params$b1,
+      a2 = params$a2,
+      b2 = params$b2,
+      c = params$c
+    )
+    last_nonzero <- max(which(abs(hrf_vals) > threshold))
+    max_end <- max(max_end, inds[last_nonzero])
+  }
+  
+  end_time <- min(max_end + buffer, max_time)
+  message(sprintf("Longest HRF ends at %.1f seconds, plot ends at %.1f seconds", 
+                  max_end, end_time))
+  return(end_time)
 }
 
 #' Plot a single HRF from parameter grid (internal)
@@ -222,6 +267,13 @@ plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = TRUE) {
       )
     }
   }
+
+  end_time <- 30  # default for tapered
+  if (!tapered) {
+    threshold <- 0.0018
+    last_nonzero <- max(which(abs(hrf_vals) > threshold))
+    end_time <- min(inds[last_nonzero] + 2, 60)  # Add 2 sec buffer, max 60
+  }
   
   # Plot it with ggplot
   plot_df <- data.frame(sec = inds, HRF = hrf_vals)
@@ -235,7 +287,8 @@ plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = TRUE) {
                          params$a1, params$b1, params$c),
          x = "Time (seconds)", 
          y = "HRF Response") +
-    theme_minimal()
+    theme_minimal() +
+    coord_cartesian(xlim = c(0, end_time))
 
     return(p)
 }
@@ -471,8 +524,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
     geom_tile(alpha = 0.8) +
     geom_text(aes(label = round(time_to_peak, 1))) +
     scale_fill_viridis_c('Time to Peak  ', option = 'C') +
-    scale_x_continuous(breaks = a1_vals) +
-    scale_y_continuous(breaks = b1_vals) +
+    scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) + # Expand removes padding
+    scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
     facet_grid(. ~ c_label) +
     theme_few()
 
@@ -483,8 +536,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
     geom_tile(alpha = 0.8) +
     geom_text(aes(label = round(.data$FWHM, 1))) +
     scale_fill_viridis_c('Width (FWHM)', option = 'D') +
-    scale_x_continuous(breaks = a1_vals) +
-    scale_y_continuous(breaks = b1_vals) +
+    scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
+    scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
     facet_grid(. ~ c_label) +
     theme_few()
 
