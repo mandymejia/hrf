@@ -39,11 +39,16 @@ regularize_allHRFs_result <- readRDS(here("dev", "fixtures", "regularize_allHRFs
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "A", method = "OLS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1"))
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "A", method = "WLS", fname = here("dev", "test_plots", "regularize_allHRFs", "WLS_A_a1"))
 
+plot(regularize_allHRFs_result, type = "precision", param = "a1", model = "A", method = "OLS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1_precision"))
+plot(regularize_allHRFs_result, type = "precision", param = "a1", model = "A", method = "WLS", fname = here("dev", "test_plots", "regularize_allHRFs", "WLS_A_a1_precision"))
+
 plot(regularize_allHRFs_result, type = "mean", param = "b1", fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1.png"))
 
 plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1_filtered.png"))
 
-# DEBUG AREA
+###############################################################################
+# DEBUG AREA                                                                  #
+###############################################################################
 
 var_range_A <- range(regularize_allHRFs_result[["regularized_params"]][["a1"]][["results_OLS"]][["variance_A"]], na.rm = TRUE)
 var_range_B <- range(regularize_allHRFs_result[["regularized_params"]][["a1"]][["results_OLS"]][["variance_B"]], na.rm = TRUE)
@@ -59,6 +64,3 @@ plot(regularize_allHRFs_result[["regularized_params"]][["a1"]][["residual_varian
      fname = NULL,
      legend_fname = NULL)
 
-
-package_best_params_df <- readRDS("~/Downloads/package_best_params_df.rds")
-research_best_params_df <- readRDS("~/Downloads/research_best_params_df.rds")

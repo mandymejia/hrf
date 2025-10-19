@@ -4,7 +4,7 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(x, type = c("variance", "mean_all", "mean"), ...)
+\method{plot}{regularizeHRFs}(x, type = c("variance", "mean_all", "mean", "precision"), ...)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from
