@@ -41,7 +41,7 @@ plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "A", me
 
 plot(regularize_allHRFs_result, type = "mean", param = "b1", fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1.png"))
 
-plot(regularize_allHRFs_result,  type = "mean_filtered",  param = "b1",  fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1_filtered.png"))
+plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1_filtered.png"))
 
 # DEBUG AREA
 

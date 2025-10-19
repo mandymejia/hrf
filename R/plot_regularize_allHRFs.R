@@ -13,22 +13,22 @@
 #' @param type Character. Type of plot to generate. Options:
 #'   \itemize{
 #'     \item \code{"variance"}
-#'     \item \code{"mean"} – population mean over all subjects
-#'     \item \code{"mean_filtered"} – population mean over subjects with activation only
+#'     \item \code{"mean_all"} – population mean over all subjects
+#'     \item \code{"mean"} – population mean over subjects with activation only
 #'   }
 #' @param ... Additional arguments passed to internal plotting functions
 #'   (e.g., \code{param}, \code{model}, \code{method}, \code{fname}).
 #'
 #' @return Invisibly returns the result of the plotting call.
 #' @export
-plot.regularizeHRFs <- function(x, type = c("variance", "mean", "mean_filtered"), ...) {
+plot.regularizeHRFs <- function(x, type = c("variance", "mean_all", "mean"), ...) {
   type <- match.arg(type)
 
   switch(
     type,
     variance      = plot_variance(x, ...),
-    mean          = plot_mean_param(x, ...),
-    mean_filtered = plot_mean_param_filtered(x, ...)
+    mean_all      = plot_mean_param(x, ...),
+    mean          = plot_mean_param_filtered(x, ...)
   )
 }
 

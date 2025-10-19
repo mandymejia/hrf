@@ -82,7 +82,7 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
   if (rounding) {
     rounded <-round_regularized_params(regularized_params,
                                        hrf_grid, model = "A", inside_grid = TRUE)
-  }
+  } # TODO: Only model A 
 
   result <- list (
     best_params_df = best_params_df,
