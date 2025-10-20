@@ -9,7 +9,7 @@ calculate_hrf_endpoint(
   hrf_idx,
   TR,
   tapered = TRUE,
-  threshold = 0.001,
+  threshold = .HRF_THRESHOLD,
   buffer = 2,
   max_time = 50
 )

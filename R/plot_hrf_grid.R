@@ -126,7 +126,7 @@ plot_hrf_multiple <- function(hrf_grid, hrf_idx, colors, tapered = TRUE) {
       peak2_time <- inds[which.min(hrf_vals)]
       taper_start <- min(peak2_time, 25)
       
-      if (abs(hrf_vals[which.min(abs(inds - 30))]) > 1e-3) {
+      if (abs(hrf_vals[which.min(abs(inds - 30))]) > .HRF_THRESHOLD) {
         hrf_vals <- hrf::HRF_calc(
           t = inds, 
           deriv = 0,
@@ -187,7 +187,7 @@ plot_hrf_multiple <- function(hrf_grid, hrf_idx, colors, tapered = TRUE) {
 #' @return Numeric endpoint for x-axis
 #' @keywords internal
 calculate_hrf_endpoint <- function(hrf_grid, hrf_idx, TR, tapered = TRUE, 
-                                   threshold = 1e-3, buffer = 2, max_time = 50) {
+                                   threshold = .HRF_THRESHOLD, buffer = 2, max_time = 50) {
   if (tapered) return(30)
   
   inds <- seq(1/100, 30, 1/100) * TR
@@ -252,7 +252,7 @@ plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = TRUE) {
     peak2_time <- inds[which.min(hrf_vals)]
     taper_start <- min(peak2_time, 25)
     
-    if (abs(hrf_vals[which.min(abs(inds - 30))]) > 1e-3) {
+    if (abs(hrf_vals[which.min(abs(inds - 30))]) > .HRF_THRESHOLD) {
       hrf_vals <- hrf::HRF_calc(
         t = inds, 
         deriv = 0,
@@ -270,7 +270,7 @@ plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = TRUE) {
 
   end_time <- 30  # default for tapered
   if (!tapered) {
-    threshold <- 0.0018
+    threshold <- .HRF_THRESHOLD
     last_nonzero <- max(which(abs(hrf_vals) > threshold))
     end_time <- min(inds[last_nonzero] + 2, 60)  # Add 2 sec buffer, max 60
   }
@@ -393,7 +393,7 @@ compute_hrf_metrics <- function(hrf_grid) {
     peak2_time_ii <- inds[peak2_idx]
 
     # Find time when HRF resolves (drops below threshold)
-    time_to_end_ii <- inds[max(which(abs(hrf_ii) > 1e-3))]
+    time_to_end_ii <- inds[max(which(abs(hrf_ii) > .HRF_THRESHOLD))]
 
     # Store in hrf_params
     hrf_params$FWHM[ii] <- FWHM_ii
@@ -402,7 +402,7 @@ compute_hrf_metrics <- function(hrf_grid) {
 
     # Calculate tapered version if needed
     taper_start <- min(peak2_time_ii, 25)
-    if (c_ii > 0 && abs(hrf_ii[which.min(abs(inds - 30))]) > 1e-3) {
+    if (c_ii > 0 && abs(hrf_ii[which.min(abs(inds - 30))]) > .HRF_THRESHOLD) {
       hrf_tapered_ii <- hrf::HRF_calc(
         t = inds, deriv = 0,  a1 = a1_ii, b1 = b1_ii,a2 = a2_ii, b2 = b2_ii,
         c = c_ii,taper_start = taper_start,taper_end = 30,taper_power = 1)
