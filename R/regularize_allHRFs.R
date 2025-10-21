@@ -28,6 +28,10 @@
 #'     \item{mask_prop_NA}{Logical vector mask indicating voxels with sufficient
 #'       activation consistency across subjects (values outside threshold are set
 #'       to \code{NA}). Useful for filtering voxels in downstream analyses.}
+#'     \item{hrf_grid}{The original HRF parameter grid (object of class
+#'       \code{"hrf_grid"}) used for fitting and rounding HRF parameters. This
+#'       allows reproducing or visualizing parameter grid mappings in downstream
+#'       analyses.}
 #'   }
 #'
 #' @details
@@ -88,7 +92,8 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
     best_params_df = best_params_df,
     regularized_params = regularized_params,
     rounded_params = rounded,
-    mask_prop_NA = mask_prop_NA
+    mask_prop_NA = mask_prop_NA,
+    hrf_grid = allHRF_results$hrf_grid
   )
 
   class(result) <- "regularizeHRFs"

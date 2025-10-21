@@ -32,6 +32,10 @@ objects for both OLS and WLS methods.}
 \item{mask_prop_NA}{Logical vector mask indicating voxels with sufficient
 activation consistency across subjects (values outside threshold are set
 to \code{NA}). Useful for filtering voxels in downstream analyses.}
+\item{hrf_grid}{The original HRF parameter grid (object of class
+\code{"hrf_grid"}) used for fitting and rounding HRF parameters. This
+allows reproducing or visualizing parameter grid mappings in downstream
+analyses.}
 }
 }
 \description{

@@ -501,12 +501,25 @@ create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res
 
   # Create design matrix
   dHRF <- if(derivatives) 2 else 0
+
+  taper_start <- get_taper_start(
+    a1 = hrf_params$a1,
+    b1 = hrf_params$b1,
+    a2 = hrf_params$a2,
+    b2 = hrf_params$b2,
+    c = hrf_params$c,
+    TR = TR,
+    deriv = 0 # We don't use derivative for when DECIDING to taper
+  )
  
+  cat(if(is.null(taper_start)) "No tapering needed (c=0 or HRF resolves by 30s)\n" else sprintf("Taper start: %.2f seconds\n", taper_start))
+
   tictoc::tic("***Made design matrix")
   design_result <- make_design(
     EVs = EVs, nTime = nT, TR = TR, dHRF = dHRF,
     onset = onsets,
     offset = offsets,
+    taper_start = taper_start,
     a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
     a2 = hrf_params$a2, b2 = hrf_params$b2
   )
@@ -529,6 +542,61 @@ create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res
     field_names = design_result$field_names,
     design_dims = dim(design_result$design)
   ))
+}
+
+#' Calculate taper start time for HRF
+#'
+#' Determines when to start tapering the hemodynamic response function (HRF)
+#' based on the location of the undershoot peak. Returns NULL if no tapering
+#' is needed (no undershoot or HRF resolves by 30 seconds).
+#'
+#' @param a1 Shape parameter for the positive gamma function
+#' @param b1 Scale parameter for the positive gamma function  
+#' @param a2 Shape parameter for the negative gamma function
+#' @param b2 Scale parameter for the negative gamma function
+#' @param c Amplitude of the undershoot (0 = no undershoot)
+#' @param TR Time repetition in seconds
+#' @param deriv Derivative order (default NULL, passed to HRF_calc)
+#'
+#' @return Numeric taper start time in seconds, or NULL if no tapering needed
+#'
+#' @keywords internal
+get_taper_start <- function(a1, b1, a2, b2, c, TR, deriv = NULL) {
+  if (c == 0) return(NULL)     # Return NULL if no undershoot
+
+  inds <- make_inds(TR)
+  hrf_vals <- hrf::HRF_calc(   # Calculate HRF values
+    t = inds,
+    deriv = deriv,
+    a1 = a1,
+    b1 = b1,
+    a2 = a2,
+    b2 = b2,
+    c = c
+  )
+  # Check if HRF at 30 seconds is below threshold
+  if (abs(hrf_vals[which.min(abs(inds - 30))]) <= .HRF_THRESHOLD) { return(NULL)}
+  
+  peak2_time <- inds[which.min(hrf_vals)]   # Calculate taper_start
+  taper_start <- min(peak2_time, 25)
+  
+  return(taper_start)
+}
+
+#' Generate time vector for HRF calculation
+#'
+#' Internal helper to create a time vector (in seconds) extending at least
+#' to the specified duration, scaled by TR and upsampling factor.
+#'
+#' @param TR Numeric. Repetition time in seconds.
+#' @param upsample Numeric. Temporal upsampling factor (default = 100).
+#' @param duration Numeric. Desired total duration in seconds (default = 40).
+#'
+#' @return Numeric vector of time points (seconds).
+#' @keywords internal
+make_inds <- function(TR, upsample = 100, duration = 40) {
+  max_index <- ceiling(duration / TR)
+  seq(1 / upsample, max_index, 1 / upsample) * TR
 }
 
 #' Convert design matrix to array format required by multiGLM
