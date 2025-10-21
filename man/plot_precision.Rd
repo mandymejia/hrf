@@ -68,8 +68,4 @@ less variable fits across subjects.
 The function automatically ensures consistent color scaling between models
 ("A" and "B") to facilitate visual comparison.
 }
-\seealso{
-\code{\link{plot_variance}}, \code{\link{regularize_allHRFs}},
-\code{\link[ciftiTools]{newdata_xifti}}
-}
 \keyword{internal}
