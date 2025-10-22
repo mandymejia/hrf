@@ -3,9 +3,10 @@
 #' Creates diagnostic plots for HRF regularization results.
 #' Supports visualization of:
 #' \itemize{
-#'   \item \code{"variance"} – residual variance maps for model fits
-#'   \item \code{"mean"} – population mean parameter maps (\code{param_mean0})
-#'   \item \code{"mean_filtered"} – population mean over subjects with activation only
+#'   \item \code{"variance"} - residual variance maps for model fits
+#'   \item \code{"precision"} - inverse variance (precision) maps
+#'   \item \code{"mean"} - population mean parameter maps (\code{param_mean0})
+#'   \item \code{"mean_filtered"} - population mean over subjects with activation only
 #' }
 #'
 #' @param x An object of class \code{"regularizeHRFs"} from
@@ -13,8 +14,9 @@
 #' @param type Character. Type of plot to generate. Options:
 #'   \itemize{
 #'     \item \code{"variance"}
-#'     \item \code{"mean_all"} – population mean over all subjects
-#'     \item \code{"mean"} – population mean over subjects with activation only
+#'     \item \code{"precision"}
+#'     \item \code{"mean_all"} - population mean over all subjects
+#'     \item \code{"mean"} - population mean over subjects with activation only
 #'   }
 #' @param ... Additional arguments passed to internal plotting functions
 #'   (e.g., \code{param}, \code{model}, \code{method}, \code{fname}).
@@ -189,27 +191,44 @@ plot_mean_param_filtered <- function(x,
 
 #' Plot Residual Variance Maps
 #'
-#' Creates brain surface plots showing the residual variance from OLS or WLS
-#' regression models used in HRF regularization.
+#' Creates brain surface visualizations of the residual variance from OLS or WLS
+#' regression models used during HRF parameter regularization. Each map shows
+#' the voxel-wise variance of parameter fits across subjects for either the
+#' intercept-slope (\code{"IS"}) or intercept-only (\code{"IO"}) regularization fit.
 #'
 #' @param x A \code{regularizeHRFs} object from \code{\link{regularize_allHRFs}}.
-#' @param param Character string specifying which parameter to plot ("a1", "b1", or "c").
-#' @param model Character string specifying which model to plot ("A" or "B").
-#' @param method Character string specifying estimation method ("OLS" or "WLS").
-#' @param fname Optional file path to save the plot.
-#' @param title Optional custom title for the plot. If \code{NULL}, a default
-#'   title is generated.
+#' @param param Character string specifying which HRF parameter to plot
+#'   (\code{"a1"}, \code{"b1"}, or \code{"c"}).
+#' @param model Character string specifying which regularization fit to visualize:
+#'   \code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.
+#' @param method Character string specifying the estimation method used
+#'   (\code{"OLS"} or \code{"WLS"}).
+#' @param fname Optional file path to save the plot output. If \code{NULL}
+#'   (default), the plot is displayed interactively but not saved.
+#' @param title Optional custom plot title. If \code{NULL}, a descriptive title
+#'   is generated automatically.
 #' @param legend_fname Optional file path to save the color legend separately.
-#' @param shadows Numeric value controlling shadow intensity (default = 1).
-#' @param material List with plotting material properties (default uses lit surfaces).
-#' @param NA_color Color to use for NA values (default = "#505560").
-#' @param ... Additional arguments passed to the plot function.
+#' @param shadows Numeric value controlling surface shadow intensity (default = 1).
+#' @param material List of surface rendering options (default uses
+#'   \code{list(lit = TRUE, smooth = FALSE)}).
+#' @param NA_color Color to use for NA or masked values (default = "#505560").
+#' @param ... Additional arguments passed to the underlying plotting function.
 #'
-#' @return Invisibly returns the plot result.
+#' @details
+#' The function compares voxel-level variance across both regularization fits
+#' (\code{"IS"} and \code{"IO"}) and harmonizes color scaling to ensure consistent
+#' visual interpretation between the two.
+#'
+#' Lower variance values indicate more stable parameter estimates across subjects,
+#' whereas higher values reflect increased variability or lower reliability in
+#' the estimated HRF parameters.
+#'
+#' @return Invisibly returns the plot object.
+#'
 #' @keywords internal
 plot_variance <- function(x,
                           param,
-                          model = c("A", "B"),
+                          model = c("IS", "IO"),
                           method = c("OLS", "WLS"),
                           fname,
                           title = NULL,
@@ -241,16 +260,17 @@ plot_variance <- function(x,
   }
 
   # Get variance ranges for both models to set consistent zlim
-  other_model <- if (model == "A") "B" else "A"
+  other_model <- if (model == "IS") "IO" else "IS"
   field_name_other <- paste0("residual_variance_xii_", other_model, "_", method)
 
   xii_other <- params_list[[param]][[field_name_other]]
   var_range_self  <- range(unlist(xii_obj$data), na.rm = TRUE)
   var_range_other <- range(unlist(xii_other$data), na.rm = TRUE)
   zlim_values <- range(c(var_range_self, var_range_other))
+  pretty_model <- if (model == "IS") "intercept-slope" else "intercept-only"
 
   if (is.null(title)) {
-    title <- paste0("Variance of Model ", model,
+    title <- paste0("Variance of Model ", pretty_model,
                     " Predictions for param ", param,
                     " using ", method)
   }
@@ -274,46 +294,42 @@ plot_variance <- function(x,
 
 #' Plot Precision (Inverse Variance) Maps
 #'
-#' Creates brain surface plots showing the *precision* (i.e., inverse residual variance)
+#' Creates brain surface plots showing the *precision* (inverse residual variance)
 #' derived from OLS or WLS regression models used in HRF regularization.
-#' This visualization highlights areas of higher certainty in the parameter estimates
-#' across the cortical surface.
+#' These maps highlight areas of higher certainty or reliability in the estimated
+#' HRF parameters across the cortical surface.
 #'
 #' @param x A \code{regularizeHRFs} object from \code{\link{regularize_allHRFs}}.
 #' @param param Character string specifying which HRF parameter to plot
-#'   ("a1", "b1", or "c").
-#' @param model Character string specifying which model to plot ("A" or "B").
-#' @param method Character string specifying estimation method ("OLS" or "WLS").
+#'   (\code{"a1"}, \code{"b1"}, or \code{"c"}).
+#' @param model Character string specifying which regularization fit to visualize:
+#'   \code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.
+#' @param method Character string specifying estimation method (\code{"OLS"} or \code{"WLS"}).
 #' @param fname Optional file path to save the plot. If \code{NULL}, the plot
 #'   is displayed interactively but not saved.
-#' @param title Optional custom plot title. If \code{NULL}, a default title is
-#'   generated based on model, parameter, and method.
+#' @param title Optional custom plot title. If \code{NULL}, a descriptive title
+#'   is generated automatically.
 #' @param legend_fname Optional file path to save the color legend separately.
 #' @param shadows Numeric value controlling shadow intensity (default = 1).
-#' @param material List specifying surface rendering properties. Defaults to
-#'   \code{list(lit = TRUE, smooth = FALSE)} for a lightly shaded surface.
+#' @param material List specifying surface rendering properties (default:
+#'   \code{list(lit = TRUE, smooth = FALSE)}).
 #' @param NA_color Color to use for NA or masked values (default = "#505560").
-#' @param ... Additional arguments passed to the underlying
-#'   \code{\link[ciftiTools]{plot}} method.
+#' @param ... Additional arguments passed to the underlying plotting function.
 #'
 #' @details
-#' Precision maps are generated by inverting the residual variance values from
-#' the HRF regularization results:
+#' Precision maps are computed as:
 #' \deqn{Precision = 1 / Variance}
 #'
-#' This transformation provides a spatial view of the confidence or reliability
-#' of the parameter estimates — higher precision values indicate more stable,
-#' less variable fits across subjects.
+#' Higher precision values indicate more stable and reliable parameter estimates
+#' across subjects. The function automatically aligns color scales across the two
+#' regularization fits (\code{"IS"} and \code{"IO"}) to allow direct visual comparison.
 #'
-#' The function automatically ensures consistent color scaling between models
-#' ("A" and "B") to facilitate visual comparison.
-#'
-#' @return Invisibly returns the plot result.
+#' @return Invisibly returns the plot object.
 #'
 #' @keywords internal
 plot_precision <- function(x,
                            param,
-                           model = c("A", "B"),
+                           model = c("IS", "IO"),
                            method = c("OLS", "WLS"),
                            fname,
                            title = NULL,
@@ -338,12 +354,12 @@ plot_precision <- function(x,
   xii_inv <- ciftiTools::newdata_xifti(xii_obj, dat_inv)
 
   # Match color scale to other model
-  other_model <- if (model == "A") "B" else "A"
+  other_model <- if (model == "IS") "IO" else "IS"
   xii_other <- params_list[[param]][[paste0("residual_variance_xii_", other_model, "_", method)]]
   zlim_values <- range(c(dat_inv, 1 / as.numeric(as.matrix(xii_other))), na.rm = TRUE)
-
+  pretty_model <- if (model == "IS") "intercept-slope" else "intercept-only"
   if (is.null(title)) {
-    title <- paste0("Precision (1 / Variance) of Model ", model,
+    title <- paste0("Precision (1 / Variance) of Model ", pretty_model,
                     " Predictions for param ", param,
                     " using ", method)
   }

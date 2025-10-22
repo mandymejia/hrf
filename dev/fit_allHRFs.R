@@ -58,7 +58,7 @@ fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorl
 plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
                  TR = 0.72, nT = 284, hrf_idx = 80)
 
-plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
+plot(fit_allHRFs_result, subject = 1, hrf_idx = 19)
 plot(fit_allHRFs_result, type = "hrfs")
 plot(fit_allHRFs_result, type = "hrfs", tapered = FALSE)
 plot(fit_allHRFs_result, type = "param_grid")

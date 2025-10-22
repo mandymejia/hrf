@@ -7,7 +7,7 @@
 plot_variance(
   x,
   param,
-  model = c("A", "B"),
+  model = c("IS", "IO"),
   method = c("OLS", "WLS"),
   fname,
   title = NULL,
@@ -21,32 +21,48 @@ plot_variance(
 \arguments{
 \item{x}{A \code{regularizeHRFs} object from \code{\link{regularize_allHRFs}}.}
 
-\item{param}{Character string specifying which parameter to plot ("a1", "b1", or "c").}
+\item{param}{Character string specifying which HRF parameter to plot
+(\code{"a1"}, \code{"b1"}, or \code{"c"}).}
 
-\item{model}{Character string specifying which model to plot ("A" or "B").}
+\item{model}{Character string specifying which regularization fit to visualize:
+\code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.}
 
-\item{method}{Character string specifying estimation method ("OLS" or "WLS").}
+\item{method}{Character string specifying the estimation method used
+(\code{"OLS"} or \code{"WLS"}).}
 
-\item{fname}{Optional file path to save the plot.}
+\item{fname}{Optional file path to save the plot output. If \code{NULL}
+(default), the plot is displayed interactively but not saved.}
 
-\item{title}{Optional custom title for the plot. If \code{NULL}, a default
-title is generated.}
+\item{title}{Optional custom plot title. If \code{NULL}, a descriptive title
+is generated automatically.}
 
 \item{legend_fname}{Optional file path to save the color legend separately.}
 
-\item{shadows}{Numeric value controlling shadow intensity (default = 1).}
+\item{shadows}{Numeric value controlling surface shadow intensity (default = 1).}
 
-\item{material}{List with plotting material properties (default uses lit surfaces).}
+\item{material}{List of surface rendering options (default uses
+\code{list(lit = TRUE, smooth = FALSE)}).}
 
-\item{NA_color}{Color to use for NA values (default = "#505560").}
+\item{NA_color}{Color to use for NA or masked values (default = "#505560").}
 
-\item{...}{Additional arguments passed to the plot function.}
+\item{...}{Additional arguments passed to the underlying plotting function.}
 }
 \value{
-Invisibly returns the plot result.
+Invisibly returns the plot object.
 }
 \description{
-Creates brain surface plots showing the residual variance from OLS or WLS
-regression models used in HRF regularization.
+Creates brain surface visualizations of the residual variance from OLS or WLS
+regression models used during HRF parameter regularization. Each map shows
+the voxel-wise variance of parameter fits across subjects for either the
+intercept-slope (\code{"IS"}) or intercept-only (\code{"IO"}) regularization fit.
+}
+\details{
+The function compares voxel-level variance across both regularization fits
+(\code{"IS"} and \code{"IO"}) and harmonizes color scaling to ensure consistent
+visual interpretation between the two.
+
+Lower variance values indicate more stable parameter estimates across subjects,
+whereas higher values reflect increased variability or lower reliability in
+the estimated HRF parameters.
 }
 \keyword{internal}

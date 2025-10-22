@@ -13,8 +13,9 @@
 \item{type}{Character. Type of plot to generate. Options:
 \itemize{
 \item \code{"variance"}
-\item \code{"mean_all"} – population mean over all subjects
-\item \code{"mean"} – population mean over subjects with activation only
+\item \code{"precision"}
+\item \code{"mean_all"} - population mean over all subjects
+\item \code{"mean"} - population mean over subjects with activation only
 }}
 
 \item{...}{Additional arguments passed to internal plotting functions
@@ -27,8 +28,9 @@ Invisibly returns the result of the plotting call.
 Creates diagnostic plots for HRF regularization results.
 Supports visualization of:
 \itemize{
-\item \code{"variance"} – residual variance maps for model fits
-\item \code{"mean"} – population mean parameter maps (\code{param_mean0})
-\item \code{"mean_filtered"} – population mean over subjects with activation only
+\item \code{"variance"} - residual variance maps for model fits
+\item \code{"precision"} - inverse variance (precision) maps
+\item \code{"mean"} - population mean parameter maps (\code{param_mean0})
+\item \code{"mean_filtered"} - population mean over subjects with activation only
 }
 }
