@@ -47,7 +47,8 @@ plot(regularize_allHRFs_result, type = "mean", param = "b1", fname = here("dev",
 plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1_filtered.png"))
 
 
-plot(regularize_allHRFs_result,  type = "param_heatmap")
+a <- plot(regularize_allHRFs_result,  type = "param_heatmap")
+ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO.pdf", a, width = 13, height = 7)
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_slope")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params")
 
