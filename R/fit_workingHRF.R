@@ -825,6 +825,7 @@ get_subj_prop <- function(min_active_subjects, subject_results) {
     min_active_subjects <- min(min_active_subjects, n_successful)
   }
   subj_prop <- round(min_active_subjects / n_successful, 2)
-  message("Using group mask threshold: ", subj_prop, " (", min_active_subjects, " out of ", n_successful, " successful subjects)")
+  cat(sprintf("Using group mask threshold: %s (%d out of %d successful subjects)\n", 
+            subj_prop, min_active_subjects, n_successful))
   return(list(subj_prop = subj_prop, min_active_subjects = min_active_subjects))
 }
