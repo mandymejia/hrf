@@ -5,8 +5,9 @@
 #' \itemize{
 #'   \item \code{"variance"} - residual variance maps for model fits
 #'   \item \code{"precision"} - inverse variance (precision) maps
-#'   \item \code{"mean"} - population mean parameter maps (\code{param_mean0})
-#'   \item \code{"mean_filtered"} - population mean over subjects with activation only
+#'   \item \code{"mean_all"} - population mean parameter maps
+#'   \item \code{"mean"} - population mean over subjects with activation only
+#'   \item \code{"param_heatmap"} - heatmap of parameter frequency distributions
 #' }
 #'
 #' @param x An object of class \code{"regularizeHRFs"} from
@@ -17,13 +18,14 @@
 #'     \item \code{"precision"}
 #'     \item \code{"mean_all"} - population mean over all subjects
 #'     \item \code{"mean"} - population mean over subjects with activation only
+#'     \item \code{"param_heatmap"} - frequency heatmap of parameter combinations
 #'   }
 #' @param ... Additional arguments passed to internal plotting functions
 #'   (e.g., \code{param}, \code{model}, \code{method}, \code{fname}).
 #'
 #' @return Invisibly returns the result of the plotting call.
 #' @export
-plot.regularizeHRFs <- function(x, type = c("variance", "mean_all", "mean", "precision"), ...) {
+plot.regularizeHRFs <- function(x, type = c("variance", "mean_all", "mean", "precision", "param_heatmap"), ...) {
   type <- match.arg(type)
 
   switch(
@@ -31,7 +33,8 @@ plot.regularizeHRFs <- function(x, type = c("variance", "mean_all", "mean", "pre
     variance      = plot_variance(x, ...),
     precision     = plot_precision(x, ...),
     mean_all      = plot_mean_param(x, ...),
-    mean          = plot_mean_param_filtered(x, ...)
+    mean          = plot_mean_param_filtered(x, ...),
+    param_heatmap = plot_param_heatmap(x, ...)
   )
 }
 
@@ -379,3 +382,137 @@ plot_precision <- function(x,
 
   invisible(plot_obj)
 }
+
+
+#' Plot parameter frequency heatmap
+#'
+#' Generates a heatmap showing the frequency of HRF parameter combinations
+#' across the fitted grid for a given model type. Optionally adds a custom
+#' plot title; if not provided, an informative default title is generated
+#' based on the selected model.
+#'
+#' @param x A \code{regularizeHRFs} object from
+#'   \code{\link{regularize_allHRFs}}.
+#' @param model Character. Which model to use for plotting parameter frequencies:
+#'   \code{"intercept_only"}, \code{"intercept_slope"}, or \code{"best_params"}.
+#' @param title Character or \code{NULL}. Custom plot title. If \code{NULL}
+#'   (default), a descriptive title is generated automatically based on
+#'   \code{model}.
+#' @param ... Any additional arguments to pass into ggplot formation via list(...).
+#'
+#' @return A \code{ggplot} object showing the parameter frequency heatmap.
+#' @details
+#' This plot visualizes how often each combination of HRF parameters
+#' (\code{a1}, \code{b1}, \code{c}) occurs in the regularized results, with
+#' relative frequency encoded by fill intensity. Facets indicate whether
+#' the model includes an undershoot component (\code{c = 1/6}) or not
+#' (\code{c = 0}).
+#'
+#' @examples
+#' \dontrun{
+#' plot_param_heatmap(result, model = "intercept_slope")
+#' plot_param_heatmap(result, model = "best_params", title = "Custom Heatmap Title")
+#' }
+#'
+#' @importFrom dplyr mutate distinct summarise group_by select left_join
+#' @importFrom dplyr filter
+#' @importFrom ggplot2 ggplot aes geom_hline geom_vline geom_tile geom_text
+#'   geom_rect scale_fill_viridis_c scale_x_continuous scale_y_continuous
+#'   facet_grid ggtitle
+#' @importFrom scales percent_format
+#' @importFrom ggthemes theme_few
+#'
+#' @keywords internal
+#' @export
+plot_param_heatmap <- function(x,
+                               model = c("intercept_only", "intercept_slope", "best_params"),
+                               title = NULL,
+                               ...) {
+  model <- match.arg(model)
+
+  if (!inherits(x, "regularizeHRFs")) {
+    stop("Input object must be of class 'regularizeHRFs'.")
+  }
+
+  # Define rounded_params and hrf_grid based on model type
+  if (model == "intercept_only") {
+    rounded_params <- x[["rounded_params"]][["rounded_intercept_only"]]
+  } else if (model == "intercept_slope") {
+    rounded_params <- x[["rounded_params"]][["rounded_intercept_slope"]]
+  } else if (model == "best_params") {
+    rounded_params <- x[["best_params_df"]]
+  }
+
+  if (is.null(title)) {
+    model_label <- switch(model,
+      intercept_only = "Intercept-Only Model",
+      intercept_slope = "Intercept + Slope Model",
+      best_params = "Best Parameter Estimates"
+    )
+    title <- paste("Parameter Frequency Heatmap -", model_label)
+  }
+
+  hrf_grid <- x[["hrf_grid"]]
+
+  rounded_params <- rounded_params %>%
+    mutate(c = round(.data$c, 7))
+
+  # Get the complete grid of a1, b1, c combinations from hrf_grid
+  complete_grid <- hrf_grid %>%
+    select(.data$a1, .data$b1, .data$c) %>%
+    distinct() %>%
+    mutate(c = round(.data$c, 7))  # Round here too
+
+
+
+  # Aggregate frequencies from rounded_params
+  freq_df <- rounded_params %>%
+    group_by(.data$a1, .data$b1, .data$c) %>%
+    summarise(freq = dplyr::n(), .groups = "drop")
+
+  # Left join to get zeros for missing combinations
+  freq_df <- complete_grid %>%
+    left_join(freq_df, by = c("a1", "b1", "c")) %>%
+    mutate(freq = ifelse(is.na(.data$freq), 0, .data$freq))
+
+  # Compute relative frequency for fill (legend only)
+  freq_df <- freq_df %>%
+    mutate(rel_freq = .data$freq / sum(.data$freq))
+
+  # Create facet labels
+  freq_df$c_label <- ifelse(freq_df$c == 0,
+                            "No Undershoot (c=0)",
+                            "With Undershoot (c=1/6)")
+
+  # Gridline positions - now based on the complete grid
+  a1_vals <- sort(unique(complete_grid$a1))
+  b1_vals <- sort(unique(complete_grid$b1))
+  a1_grid <- c(min(a1_vals) - 0.5, a1_vals + 0.5)
+  b1_grid <- c(min(b1_vals) - 0.125, b1_vals + 0.125)
+
+  p <- ggplot(freq_df, aes(x = .data$a1, y = .data$b1, fill = .data$rel_freq)) +
+    geom_hline(yintercept = b1_grid, alpha = 0.1) +
+    geom_vline(xintercept = a1_grid, alpha = 0.1) +
+    geom_tile(alpha = 0.8) +
+    geom_text(aes(label = ifelse(.data$freq == 0, "0", .data$freq))) +
+    geom_rect(
+      data = dplyr::filter(freq_df, .data$a1 == 6, .data$b1 == 1, abs(.data$c - 1/6) < 1e-5) %>%
+            dplyr::mutate(c_label = "With Undershoot (c=1/6)"),
+      aes(xmin = .data$a1 - 0.5, xmax = .data$a1 + 0.5,
+          ymin = .data$b1 - 0.125, ymax = .data$b1 + 0.125),
+      color = "black", size = 1.2, fill = NA
+    ) +
+    scale_fill_viridis_c(
+      'Relative \nFrequency', option = 'A',
+      labels = scales::percent_format(accuracy = 1),
+      limits = c(0, max(freq_df$rel_freq))
+    ) +
+    scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
+    scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
+    facet_grid(. ~ c_label) +
+    theme_few() + list(...) +
+    ggtitle(title)
+
+  return(p)
+
+ }

@@ -4,7 +4,11 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(x, type = c("variance", "mean_all", "mean", "precision"), ...)
+\method{plot}{regularizeHRFs}(
+  x,
+  type = c("variance", "mean_all", "mean", "precision", "param_heatmap"),
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from
@@ -16,6 +20,7 @@
 \item \code{"precision"}
 \item \code{"mean_all"} - population mean over all subjects
 \item \code{"mean"} - population mean over subjects with activation only
+\item \code{"param_heatmap"} - frequency heatmap of parameter combinations
 }}
 
 \item{...}{Additional arguments passed to internal plotting functions
@@ -30,7 +35,8 @@ Supports visualization of:
 \itemize{
 \item \code{"variance"} - residual variance maps for model fits
 \item \code{"precision"} - inverse variance (precision) maps
-\item \code{"mean"} - population mean parameter maps (\code{param_mean0})
-\item \code{"mean_filtered"} - population mean over subjects with activation only
+\item \code{"mean_all"} - population mean parameter maps
+\item \code{"mean"} - population mean over subjects with activation only
+\item \code{"param_heatmap"} - heatmap of parameter frequency distributions
 }
 }

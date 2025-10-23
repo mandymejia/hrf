@@ -46,6 +46,11 @@ plot(regularize_allHRFs_result, type = "mean", param = "b1", fname = here("dev",
 
 plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1_filtered.png"))
 
+
+plot(regularize_allHRFs_result,  type = "param_heatmap")
+plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_slope")
+plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params")
+
 ###############################################################################
 # DEBUG AREA                                                                  #
 ###############################################################################
