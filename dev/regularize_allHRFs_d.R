@@ -17,13 +17,12 @@ allHRF_results <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_50
 allHRF_results <- readRDS("~/Downloads/fit_allHRFs_result_tfMRI_MOTOR_LR_1000s.rds")
 workingHRF_results <- readRDS("~/Downloads/fit_workingHRF_result_tfMRI_MOTOR_LR_1000s.rds")
 
-regularize_allHRFs_result <- regularize_allHRFs(
+allHRF_results <- readRDS("/Users/zeshawnzahid/sshfs/hrf_adaptation/validation/fit_allHRFs/fit_allHRFs_result_tfMRI_MOTOR_LR_25s.rds")
+workingHRF_results <- readRDS("/Users/zeshawnzahid/sshfs/hrf_adaptation/validation/fit_workingHRF/fit_workingHRF_result_tfMRI_MOTOR_LR_25s.rds")
+
+regularize_allHRFs_result_x <- regularize_allHRFs(
   workingHRF_results,
-  allHRF_results,
-  rounding = TRUE#,
-  # log = TRUE,
-  # TRUNCATE = TRUE,
-  # mask = TRUE,
+  allHRF_results
 )
 
 saveRDS(
@@ -48,7 +47,7 @@ plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here
 
 
 a <- plot(regularize_allHRFs_result,  type = "param_heatmap")
-ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO.pdf", a, width = 13, height = 7)
+ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO.png", a, width = 14, height = 7)
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_slope")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params")
 

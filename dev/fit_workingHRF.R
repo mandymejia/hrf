@@ -28,7 +28,7 @@ fit_workingHRF_result <- fit_workingHRF(
   alpha = 0.01,
   verbose = 2,
   n_cores = 1,
-  min_active_subjects = 2,
+  min_active_subjects = 20,
   log_dir = "dev/logs"
 )
 toc()
