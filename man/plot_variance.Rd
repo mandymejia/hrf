@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_regularize_allHRFs.R
 \name{plot_variance}
 \alias{plot_variance}
-\title{Plot Residual Variance Maps}
+\title{Plot WLS Weights (Square Root of Precision) Maps}
 \usage{
 plot_variance(
   x,
@@ -27,20 +27,17 @@ plot_variance(
 \item{model}{Character string specifying which regularization fit to visualize:
 \code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.}
 
-\item{method}{Character string specifying the estimation method used
-(\code{"OLS"} or \code{"WLS"}).}
-
-\item{fname}{Optional file path to save the plot output. If \code{NULL}
-(default), the plot is displayed interactively but not saved.}
+\item{fname}{Optional file path to save the plot. If \code{NULL}, the plot
+is displayed interactively but not saved.}
 
 \item{title}{Optional custom plot title. If \code{NULL}, a descriptive title
 is generated automatically.}
 
 \item{legend_fname}{Optional file path to save the color legend separately.}
 
-\item{shadows}{Numeric value controlling surface shadow intensity (default = 1).}
+\item{shadows}{Numeric value controlling shadow intensity (default = 1).}
 
-\item{material}{List of surface rendering options (default uses
+\item{material}{List specifying surface rendering properties (default:
 \code{list(lit = TRUE, smooth = FALSE)}).}
 
 \item{NA_color}{Color to use for NA or masked values (default = "#505560").}
@@ -51,18 +48,19 @@ is generated automatically.}
 Invisibly returns the plot object.
 }
 \description{
-Creates brain surface visualizations of the residual variance from OLS or WLS
-regression models used during HRF parameter regularization. Each map shows
-the voxel-wise variance of parameter fits across subjects for either the
-intercept-slope (\code{"IS"}) or intercept-only (\code{"IO"}) regularization fit.
+Creates brain surface plots showing the WLS (Weighted Least Squares) weights,
+computed as the square root of precision (sqrt(1/variance)) from regression
+models used in HRF regularization. These maps highlight areas of higher
+certainty or reliability in the estimated HRF parameters across the cortical surface.
 }
 \details{
-The function compares voxel-level variance across both regularization fits
-(\code{"IS"} and \code{"IO"}) and harmonizes color scaling to ensure consistent
-visual interpretation between the two.
+WLS weights are computed as:
+\deqn{Weight = \sqrt{1 / Variance} = 1 / \sigma}
 
-Lower variance values indicate more stable parameter estimates across subjects,
-whereas higher values reflect increased variability or lower reliability in
-the estimated HRF parameters.
+where σ is the standard deviation. The square root is taken because WLS weights
+are defined as 1/σ (inverse standard deviation) rather than 1/σ² (inverse variance).
+Higher weight values indicate more stable and reliable parameter estimates
+across subjects. The function automatically aligns color scales across the two
+regularization fits (\code{"IS"} and \code{"IO"}) to allow direct visual comparison.
 }
 \keyword{internal}

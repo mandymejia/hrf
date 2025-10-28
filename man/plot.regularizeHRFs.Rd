@@ -6,7 +6,7 @@
 \usage{
 \method{plot}{regularizeHRFs}(
   x,
-  type = c("variance", "mean_all", "mean", "precision", "param_heatmap"),
+  type = c("variance", "mean_all", "mean", "wls_weights", "param_heatmap"),
   ...
 )
 }
@@ -34,7 +34,7 @@ Creates diagnostic plots for HRF regularization results.
 Supports visualization of:
 \itemize{
 \item \code{"variance"} - residual variance maps for model fits
-\item \code{"precision"} - inverse variance (precision) maps
+\item \code{"wls_weights"} - inverse variance (WLS weights) maps
 \item \code{"mean_all"} - population mean parameter maps
 \item \code{"mean"} - population mean over subjects with activation only
 \item \code{"param_heatmap"} - heatmap of parameter frequency distributions

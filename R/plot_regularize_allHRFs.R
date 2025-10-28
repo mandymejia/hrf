@@ -4,7 +4,7 @@
 #' Supports visualization of:
 #' \itemize{
 #'   \item \code{"variance"} - residual variance maps for model fits
-#'   \item \code{"precision"} - inverse variance (precision) maps
+#'   \item \code{"wls_weights"} - inverse variance (WLS weights) maps
 #'   \item \code{"mean_all"} - population mean parameter maps
 #'   \item \code{"mean"} - population mean over subjects with activation only
 #'   \item \code{"param_heatmap"} - heatmap of parameter frequency distributions
@@ -25,13 +25,13 @@
 #'
 #' @return Invisibly returns the result of the plotting call.
 #' @export
-plot.regularizeHRFs <- function(x, type = c("variance", "mean_all", "mean", "precision", "param_heatmap"), ...) {
+plot.regularizeHRFs <- function(x, type = c("variance", "mean_all", "mean", "wls_weights", "param_heatmap"), ...) {
   type <- match.arg(type)
 
   switch(
     type,
     variance      = plot_variance(x, ...),
-    precision     = plot_precision(x, ...),
+    wls_weights   = plot_precision(x, ...),
     mean_all      = plot_mean_param(x, ...),
     mean          = plot_mean_param_filtered(x, ...),
     param_heatmap = plot_param_heatmap(x, ...)
@@ -192,39 +192,38 @@ plot_mean_param_filtered <- function(x,
   invisible(plot_result)
 }
 
-#' Plot Residual Variance Maps
+#' Plot WLS Weights (Square Root of Precision) Maps
 #'
-#' Creates brain surface visualizations of the residual variance from OLS or WLS
-#' regression models used during HRF parameter regularization. Each map shows
-#' the voxel-wise variance of parameter fits across subjects for either the
-#' intercept-slope (\code{"IS"}) or intercept-only (\code{"IO"}) regularization fit.
+#' Creates brain surface plots showing the WLS (Weighted Least Squares) weights,
+#' computed as the square root of precision (sqrt(1/variance)) from regression 
+#' models used in HRF regularization. These maps highlight areas of higher 
+#' certainty or reliability in the estimated HRF parameters across the cortical surface.
 #'
 #' @param x A \code{regularizeHRFs} object from \code{\link{regularize_allHRFs}}.
 #' @param param Character string specifying which HRF parameter to plot
 #'   (\code{"a1"}, \code{"b1"}, or \code{"c"}).
 #' @param model Character string specifying which regularization fit to visualize:
 #'   \code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.
-#' @param method Character string specifying the estimation method used
-#'   (\code{"OLS"} or \code{"WLS"}).
-#' @param fname Optional file path to save the plot output. If \code{NULL}
-#'   (default), the plot is displayed interactively but not saved.
+#' @param fname Optional file path to save the plot. If \code{NULL}, the plot
+#'   is displayed interactively but not saved.
 #' @param title Optional custom plot title. If \code{NULL}, a descriptive title
 #'   is generated automatically.
 #' @param legend_fname Optional file path to save the color legend separately.
-#' @param shadows Numeric value controlling surface shadow intensity (default = 1).
-#' @param material List of surface rendering options (default uses
+#' @param shadows Numeric value controlling shadow intensity (default = 1).
+#' @param material List specifying surface rendering properties (default:
 #'   \code{list(lit = TRUE, smooth = FALSE)}).
 #' @param NA_color Color to use for NA or masked values (default = "#505560").
 #' @param ... Additional arguments passed to the underlying plotting function.
 #'
 #' @details
-#' The function compares voxel-level variance across both regularization fits
-#' (\code{"IS"} and \code{"IO"}) and harmonizes color scaling to ensure consistent
-#' visual interpretation between the two.
+#' WLS weights are computed as:
+#' \deqn{Weight = \sqrt{1 / Variance} = 1 / \sigma}
 #'
-#' Lower variance values indicate more stable parameter estimates across subjects,
-#' whereas higher values reflect increased variability or lower reliability in
-#' the estimated HRF parameters.
+#' where σ is the standard deviation. The square root is taken because WLS weights 
+#' are defined as 1/σ (inverse standard deviation) rather than 1/σ² (inverse variance).
+#' Higher weight values indicate more stable and reliable parameter estimates
+#' across subjects. The function automatically aligns color scales across the two
+#' regularization fits (\code{"IS"} and \code{"IO"}) to allow direct visual comparison.
 #'
 #' @return Invisibly returns the plot object.
 #'
@@ -273,9 +272,9 @@ plot_variance <- function(x,
   pretty_model <- if (model == "IS") "intercept-slope" else "intercept-only"
 
   if (is.null(title)) {
-    title <- paste0("Variance of Model ", pretty_model,
-                    " Predictions for param ", param,
-                    " using ", method)
+    title <- paste0("Variance (", 
+                    ifelse(model == "IS", "Intercept-Slope", "Intercept-Only"),
+                    " Model, Param ", param, ")")
   }
 
   # Plot
@@ -307,7 +306,6 @@ plot_variance <- function(x,
 #'   (\code{"a1"}, \code{"b1"}, or \code{"c"}).
 #' @param model Character string specifying which regularization fit to visualize:
 #'   \code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.
-#' @param method Character string specifying estimation method (\code{"OLS"} or \code{"WLS"}).
 #' @param fname Optional file path to save the plot. If \code{NULL}, the plot
 #'   is displayed interactively but not saved.
 #' @param title Optional custom plot title. If \code{NULL}, a descriptive title
@@ -333,7 +331,6 @@ plot_variance <- function(x,
 plot_precision <- function(x,
                            param,
                            model = c("IS", "IO"),
-                           method = c("OLS", "WLS"),
                            fname,
                            title = NULL,
                            legend_fname = NULL,
@@ -341,7 +338,7 @@ plot_precision <- function(x,
                            material = list(lit = TRUE, smooth = FALSE),
                            NA_color="#505560", ...) {
   model  <- match.arg(model)
-  method <- match.arg(method)
+  method <- "OLS"
 
   params_list <- x$regularized_params
   if (!param %in% names(params_list)) stop("No parameter named ", param)
@@ -352,19 +349,19 @@ plot_precision <- function(x,
 
   # Invert the variance values
   dat <- as.numeric(as.matrix(xii_obj))
-  dat_inv <- 1 / dat
+  dat_inv <- sqrt(1 / dat)
   dat_inv[!is.finite(dat_inv)] <- NA
   xii_inv <- ciftiTools::newdata_xifti(xii_obj, dat_inv)
 
   # Match color scale to other model
   other_model <- if (model == "IS") "IO" else "IS"
   xii_other <- params_list[[param]][[paste0("residual_variance_xii_", other_model, "_", method)]]
-  zlim_values <- range(c(dat_inv, 1 / as.numeric(as.matrix(xii_other))), na.rm = TRUE)
+  zlim_values <- range(c(dat_inv, sqrt(1 / as.numeric(as.matrix(xii_other)))), na.rm = TRUE)
   pretty_model <- if (model == "IS") "intercept-slope" else "intercept-only"
   if (is.null(title)) {
-    title <- paste0("Precision (1 / Variance) of Model ", pretty_model,
-                    " Predictions for param ", param,
-                    " using ", method)
+    title <- paste0("WLS Weights (", 
+                    ifelse(model == "IS", "Intercept-Slope", "Intercept-Only"), 
+                    " Model, Param ", param, ")")
   }
 
   plot_obj <- plot(
@@ -494,13 +491,14 @@ plot_param_heatmap <- function(x,
     geom_hline(yintercept = b1_grid, alpha = 0.1) +
     geom_vline(xintercept = a1_grid, alpha = 0.1) +
     geom_tile(alpha = 0.8) +
-    geom_text(aes(label = ifelse(.data$freq == 0, "0", .data$freq))) +
+    # geom_text(aes(label = ifelse(.data$freq == 0, "0", .data$freq))) +
+    geom_text(aes(label = ifelse(.data$freq == 0, "0%", paste0(round(.data$rel_freq * 100, 2), "%")))) +
     geom_rect(
       data = dplyr::filter(freq_df, .data$a1 == 6, .data$b1 == 1, abs(.data$c - 1/6) < 1e-5) %>%
             dplyr::mutate(c_label = "With Undershoot (c=1/6)"),
       aes(xmin = .data$a1 - 0.5, xmax = .data$a1 + 0.5,
           ymin = .data$b1 - 0.125, ymax = .data$b1 + 0.125),
-      color = "black", size = 1.2, fill = NA
+      color = "lightgrey", size = 1.2, fill = NA
     ) +
     scale_fill_viridis_c(
       'Relative \nFrequency', option = 'A',

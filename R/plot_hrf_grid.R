@@ -151,7 +151,8 @@ plot_hrf_multiple <- function(hrf_grid, hrf_idx, colors, tapered = TRUE) {
     )
     plot_df <- rbind(plot_df, temp_df)
   }
-  end_time <- calculate_hrf_endpoint(hrf_grid, hrf_idx, TR, tapered)
+  # end_time <- calculate_hrf_endpoint(hrf_grid, hrf_idx, TR, tapered)
+  end_time <- 30
   # Multiple HRF overlay plot
   p <- ggplot(plot_df, aes(x = .data$sec, y = .data$HRF, 
                            color = .data$hrf_label, group = .data$hrf_label)) +
@@ -269,11 +270,11 @@ plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = TRUE) {
   }
 
   end_time <- 30  # default for tapered
-  if (!tapered) {
-    threshold <- .HRF_THRESHOLD
-    last_nonzero <- max(which(abs(hrf_vals) > threshold))
-    end_time <- min(inds[last_nonzero] + 2, 60)  # Add 2 sec buffer, max 60
-  }
+  # if (!tapered) {
+  #   threshold <- .HRF_THRESHOLD
+  #   last_nonzero <- max(which(abs(hrf_vals) > threshold))
+  #   end_time <- min(inds[last_nonzero] + 2, 60)  # Add 2 sec buffer, max 60
+  # }
   
   # Plot it with ggplot
   plot_df <- data.frame(sec = inds, HRF = hrf_vals)
@@ -499,7 +500,6 @@ plot_hrfs_all <- function(hrf_grid) {
 #'
 #' @keywords internal
 plot_param_grid_metrics <- function(hrf_grid) {
-
   # Compute HRF metrics
   hrf_results <- compute_hrf_metrics(hrf_grid)
   hrf_params <- hrf_results$hrf_params
@@ -527,7 +527,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
     scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) + # Expand removes padding
     scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
     facet_grid(. ~ c_label) +
-    theme_few()
+    theme_few() # +
+    # theme(panel.spacing = unit(1.5, "lines"))
 
   # Create FWHM plot
   p2 <- ggplot(hrf_params, aes(x = .data$a1, y = .data$b1, fill = .data$FWHM)) +
@@ -539,7 +540,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
     scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
     scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
     facet_grid(. ~ c_label) +
-    theme_few()
+    theme_few() # + 
+    # theme(panel.spacing = unit(1.5, "lines"))
 
   # Combine plots
   combined_plot <- gridExtra::grid.arrange(p1, p2, nrow = 2)

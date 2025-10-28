@@ -414,7 +414,7 @@ plot_mask_prop <- function(x,
   thr <- round(min_active_subjects / n_successful, 2)
   message("Using group mask threshold: ", thr, " (", min_active_subjects, " out of ", n_successful, " successful subjects)")
   if (is.null(title)) {
-    title <- paste0("Subjects with Significant \"Working HRF\" Activation > ", min_active_subjects, " subjects (", round(thr * 100, 1), "%)")
+    title <- paste0("Subjects with Significant \"Working HRF\" Activation > ", min_active_subjects, " subjects")
   }
 
   plot_obj <- plot(

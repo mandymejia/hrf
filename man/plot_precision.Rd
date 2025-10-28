@@ -8,7 +8,6 @@ plot_precision(
   x,
   param,
   model = c("IS", "IO"),
-  method = c("OLS", "WLS"),
   fname,
   title = NULL,
   legend_fname = NULL,
@@ -26,8 +25,6 @@ plot_precision(
 
 \item{model}{Character string specifying which regularization fit to visualize:
 \code{"IS"} for the intercept-slope fit, or \code{"IO"} for the intercept-only fit.}
-
-\item{method}{Character string specifying estimation method (\code{"OLS"} or \code{"WLS"}).}
 
 \item{fname}{Optional file path to save the plot. If \code{NULL}, the plot
 is displayed interactively but not saved.}

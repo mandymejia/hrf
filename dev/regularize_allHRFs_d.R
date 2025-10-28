@@ -20,7 +20,7 @@ workingHRF_results <- readRDS("~/Downloads/fit_workingHRF_result_tfMRI_MOTOR_LR_
 allHRF_results <- readRDS("/Users/zeshawnzahid/sshfs/hrf_adaptation/validation/fit_allHRFs/fit_allHRFs_result_tfMRI_MOTOR_LR_25s.rds")
 workingHRF_results <- readRDS("/Users/zeshawnzahid/sshfs/hrf_adaptation/validation/fit_workingHRF/fit_workingHRF_result_tfMRI_MOTOR_LR_25s.rds")
 
-regularize_allHRFs_result_x <- regularize_allHRFs(
+regularize_allHRFs_result <- regularize_allHRFs(
   workingHRF_results,
   allHRF_results
 )
@@ -38,8 +38,7 @@ regularize_allHRFs_result <- readRDS(here("dev", "fixtures", "regularize_allHRFs
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "IS", method = "OLS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1"))
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "IS", method = "WLS", fname = here("dev", "test_plots", "regularize_allHRFs", "WLS_A_a1"))
 
-plot(regularize_allHRFs_result, type = "precision", param = "a1", model = "IS", method = "OLS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1_precision"))
-plot(regularize_allHRFs_result, type = "precision", param = "a1", model = "IS", method = "WLS", fname = here("dev", "test_plots", "regularize_allHRFs", "WLS_A_a1_precision"))
+plot(regularize_allHRFs_result, type = "wls_weights", param = "a1", model = "IS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1_precision"))
 
 plot(regularize_allHRFs_result, type = "mean", param = "b1", fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1.png"))
 

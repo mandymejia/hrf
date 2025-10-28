@@ -41,13 +41,14 @@ saveRDS(
 statuses <- sapply(fit_workingHRF_result[["subject_results"]], function(x) x[["status"]])
 table(statuses)
 
-plot(fit_workingHRF_result, type = "mask", fname = here("dev", "test_plots", "fit_workingHRF", "mask_prop"))
+
 
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_4s.rds"))
 fit_workingHRF_result <- readRDS(here("dev", "fixtures", "fit_workingHRF_result_motorlr_500s.rds"))
 
 plot(fit_workingHRF_result, subject = 2)
 
+plot(fit_workingHRF_result, type = "mask", fname = here("dev", "test_plots", "fit_workingHRF", "mask_prop"))
 
 plot(fit_workingHRF_result,
      type = "proportion",
