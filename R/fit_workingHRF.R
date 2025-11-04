@@ -789,6 +789,19 @@ create_activation_masks <- function(subject_results, alpha = 0.01, min_active_su
   
   mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
 
+  # Check if mask has any active voxels
+  n_active_voxels <- sum(mask_prop, na.rm = TRUE)
+  total_voxels <- length(mask_prop)
+  
+  if (n_active_voxels == 0) {
+    stop("No active voxels found in group mask! Try lowering alpha or min_active_subjects.")
+  }
+  
+  if (n_active_voxels < total_voxels / 2) {
+    warning("Less than half of voxels (", n_active_voxels, "/", total_voxels, 
+            ") are active in the group mask. Consider adjusting alpha or min_active_subjects.")
+  }
+
 
   return(list(
     masks = masks,
@@ -818,11 +831,12 @@ get_subj_prop <- function(min_active_subjects, subject_results) {
   n_successful <- sum(vapply(subject_results, \(x) identical(x[["status"]], "success"), logical(1)))
   stopifnot("No subjects processed successfully - cannot create activation masks" = n_successful > 0)
 
-
-  if (min_active_subjects > n_successful) {
-    warning("min_active_subjects (", min_active_subjects, ") exceeds number of successful subjects (", 
-            n_successful, "). Using ", n_successful, " instead.")
-    min_active_subjects <- min(min_active_subjects, n_successful)
+  calculated_min <- min(min_active_subjects, floor(n_successful * 0.80))
+  
+  if (min_active_subjects > calculated_min) {
+    warning("min_active_subjects (", min_active_subjects, ") exceeds 80% of successful subjects (", 
+            n_successful, "). Using ", calculated_min, " instead.")
+    min_active_subjects <- calculated_min
   }
   subj_prop <- round(min_active_subjects / n_successful, 2)
   cat(sprintf("Using group mask threshold: %s (%d out of %d successful subjects)\n", 
