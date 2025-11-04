@@ -505,8 +505,8 @@ plot_param_heatmap <- function(x,
 
   # Create facet labels
   freq_df$c_label <- ifelse(freq_df$c == 0,
-                            "No Undershoot (c=0)",
-                            "With Undershoot (c=1/6)")
+                          "No Undershoot (c=0)",
+                          paste0("With Undershoot (c=", round(freq_df$c, 3), ")"))
 
   # Gridline positions - now based on the complete grid
   a1_vals <- sort(unique(complete_grid$.data$a1))
@@ -612,8 +612,8 @@ snap_to_grid_avg <- function(pop_avg_df, hrf_grid) {
         # Among matching c values, find closest (a1, b1) using normalized Euclidean distance
         candidates <- grid_combos[c_match, ]
         distances <- sqrt(
-          ((a1 - candidates$a1) / a_range)^2 + 
-            ((b1 - candidates$b1) / b_range)^2
+          ((.data$a1 - candidates$a1) / a_range)^2 + 
+            ((.data$b1 - candidates$b1) / b_range)^2
         )
         
         # Return index of nearest point
@@ -622,11 +622,11 @@ snap_to_grid_avg <- function(pop_avg_df, hrf_grid) {
     ) %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
-      a1 = grid_combos$a1[grid_idx],
-      b1 = grid_combos$b1[grid_idx],
-      c = grid_combos$c[grid_idx]
+      a1 = grid_combos$a1[.data$grid_idx],
+      b1 = grid_combos$b1[.data$grid_idx],
+      c = grid_combos$c[.data$grid_idx]
     ) %>%
-    dplyr::select(-grid_idx)
+    dplyr::select(-.data$grid_idx)
   
   return(snapped_df)
 }
