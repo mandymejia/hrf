@@ -1,5 +1,3 @@
-plot(hrf_grid, type = "single_hrf", hrf_idx = 24, tapered = FALSE)
-
 library(here)
 library(qs)
 library(ggplot2)

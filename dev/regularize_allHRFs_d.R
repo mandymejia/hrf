@@ -35,6 +35,7 @@ regularize_allHRFs_result <- readRDS(here("dev", "fixtures", "regularize_allHRFs
 
 
 
+
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "IS", method = "OLS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1"))
 plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "IS", method = "WLS", fname = here("dev", "test_plots", "regularize_allHRFs", "WLS_A_a1"))
 
@@ -48,7 +49,9 @@ plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here
 a <- plot(regularize_allHRFs_result,  type = "param_heatmap")
 ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO.png", a, width = 14, height = 7)
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_slope")
+plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_only")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params")
+plot(regularize_allHRFs_result,  type = "param_heatmap", model = "average")
 
 ###############################################################################
 # DEBUG AREA                                                                  #
@@ -67,4 +70,94 @@ plot(regularize_allHRFs_result[["regularized_params"]][["a1"]][["residual_varian
                   na.rm = TRUE),
      fname = NULL,
      legend_fname = NULL)
+
+
+
+
+
+snap_to_grid <- function(pop_avg_df, hrf_grid) {
+
+  # Get unique grid combinations
+  grid_combos <- hrf_grid %>%
+    dplyr::select(a1, b1, c) %>%
+    dplyr::distinct()
+
+  # Calculate ranges for normalization
+  a_range <- max(grid_combos$a1) - min(grid_combos$a1)
+  b_range <- max(grid_combos$b1) - min(grid_combos$b1)
+
+  # For each voxel, find nearest grid point
+  snapped_df <- pop_avg_df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      grid_idx = {
+        # Find grid points with same c value (or closest c)
+        c_match <- abs(grid_combos$c - c) < 1e-6
+
+        if (sum(c_match) == 0) {
+          # If no exact c match, find closest c
+          c_dists <- abs(grid_combos$c - c)
+          c_match <- c_dists == min(c_dists)
+        }
+
+        # Among matching c values, find closest (a1, b1) using normalized Euclidean distance
+        candidates <- grid_combos[c_match, ]
+        distances <- sqrt(
+          ((a1 - candidates$a1) / a_range)^2 +
+            ((b1 - candidates$b1) / b_range)^2
+        )
+
+        # Return index of nearest point
+        which(c_match)[which.min(distances)]
+      }
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      a1 = grid_combos$a1[grid_idx],
+      b1 = grid_combos$b1[grid_idx],
+      c = grid_combos$c[grid_idx]
+    ) %>%
+    dplyr::select(-grid_idx)
+
+  return(snapped_df)
+}
+
+
+# Updated build function that includes snapping
+build_pop_avg_df <- function(regularize_result, snap = TRUE) {
+
+  # Extract param_mean0 for each parameter
+  a1_df <- regularize_result[["regularized_params"]][["a1"]][["results_OLS"]] %>%
+    dplyr::select(voxel, a1 = param_mean0) %>%
+    dplyr::distinct()
+
+  b1_df <- regularize_result[["regularized_params"]][["b1"]][["results_OLS"]] %>%
+    dplyr::select(voxel, b1 = param_mean0) %>%
+    dplyr::distinct()
+
+  c_df <- regularize_result[["regularized_params"]][["c"]][["results_OLS"]] %>%
+    dplyr::select(voxel, c = param_mean0) %>%
+    dplyr::distinct()
+
+  # Merge by voxel
+  pop_avg_df <- a1_df %>%
+    dplyr::left_join(b1_df, by = "voxel") %>%
+    dplyr::left_join(c_df, by = "voxel")
+
+  # Optionally snap to grid
+  if (snap) {
+    hrf_grid <- regularize_result[["hrf_grid"]]
+    if (is.null(hrf_grid)) {
+      warning("hrf_grid not found in regularize_result, cannot snap to grid")
+    } else {
+      pop_avg_df <- snap_to_grid(pop_avg_df, hrf_grid)
+    }
+  }
+
+  return(pop_avg_df)
+}
+
+pop_avg_df <- build_pop_avg_df(regularize_allHRFs_result)
+
+
 

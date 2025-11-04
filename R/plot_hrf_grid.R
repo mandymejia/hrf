@@ -97,7 +97,7 @@ plot_hrf_multiple <- function(hrf_grid, hrf_idx, colors, tapered = TRUE) {
   if (length(hrf_idx) != length(colors)) stop("Length of 'hrf_idx' must equal length of 'colors'")
   
   # Grab TR from attributes
-  TR <- attr(hrf_grid, "call_params")$TR
+  TR <- 2
   
   # Make time vector
   inds <- seq(1/100, 30, 1/100) * TR
@@ -232,7 +232,7 @@ plot_hrf_single <- function(hrf_grid, hrf_idx = 1, tapered = TRUE) {
   params <- hrf_grid[hrf_idx, ]
   
   # Grab TR from attributes
-  TR <- attr(hrf_grid, "call_params")$TR
+  TR <- 2
   
   # Make time vector
   inds <- seq(1/100, 30, 1/100) * TR
@@ -313,7 +313,7 @@ compute_hrf_metrics <- function(hrf_grid) {
   call_params <- attr(hrf_grid, "call_params")
 
   # Get parameters from attributes
-  TR <- call_params$TR
+  TR <- 2
   sr_factor <- call_params$sr_factor
   max_time <- 20  # Not in attributes, so using default
 
@@ -527,8 +527,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
     scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) + # Expand removes padding
     scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
     facet_grid(. ~ c_label) +
-    theme_few() # +
-    # theme(panel.spacing = unit(1.5, "lines"))
+    theme_few() +
+    theme(panel.spacing = unit(1.5, "lines"))
 
   # Create FWHM plot
   p2 <- ggplot(hrf_params, aes(x = .data$a1, y = .data$b1, fill = .data$FWHM)) +
@@ -540,8 +540,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
     scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
     scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
     facet_grid(. ~ c_label) +
-    theme_few() # + 
-    # theme(panel.spacing = unit(1.5, "lines"))
+    theme_few()  + 
+    theme(panel.spacing = unit(1.5, "lines"))
 
   # Combine plots
   combined_plot <- gridExtra::grid.arrange(p1, p2, nrow = 2)

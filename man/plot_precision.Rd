@@ -53,11 +53,13 @@ These maps highlight areas of higher certainty or reliability in the estimated
 HRF parameters across the cortical surface.
 }
 \details{
-Precision maps are computed as:
-\deqn{Precision = 1 / Variance}
+Precision maps are computed as the square root of the inverse variance:
+\deqn{\text{Precision} = \sqrt{1 / \text{Variance}}}
 
-Higher precision values indicate more stable and reliable parameter estimates
-across subjects. The function automatically aligns color scales across the two
-regularization fits (\code{"IS"} and \code{"IO"}) to allow direct visual comparison.
+The square root transformation is applied to improve the visual interpretability
+of the color scale. Higher precision values indicate more stable and reliable
+parameter estimates across subjects. The function automatically aligns color
+scales across the two regularization fits (\code{"IS"} and \code{"IO"}) to
+allow direct visual comparison.
 }
 \keyword{internal}
