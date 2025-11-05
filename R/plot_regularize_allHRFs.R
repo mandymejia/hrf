@@ -502,15 +502,16 @@ plot_param_heatmap <- function(x,
   # Compute relative frequency for fill (legend only)
   freq_df <- freq_df %>%
     mutate(rel_freq = .data$freq / sum(.data$freq))
-
-  # Create facet labels
+ 
+  # Create facet labels - works for any c value, with special case for 1/6
   freq_df$c_label <- ifelse(freq_df$c == 0,
-                          "No Undershoot (c=0)",
-                          paste0("With Undershoot (c=", round(freq_df$c, 3), ")"))
-
+                            "No Undershoot (c=0)",
+                            ifelse(abs(freq_df$c - 1/6) < 1e-5,
+                                  "With Undershoot (c=1/6)",
+                                  paste0("With Undershoot (c=", freq_df$c, ")")))
   # Gridline positions - now based on the complete grid
-  a1_vals <- sort(unique(complete_grid$.data$a1))
-  b1_vals <- sort(unique(complete_grid$.data$b1))
+  a1_vals <- sort(unique(complete_grid$a1))
+  b1_vals <- sort(unique(complete_grid$b1))
   a1_grid <- c(min(a1_vals) - 0.5, a1_vals + 0.5)
   b1_grid <- c(min(b1_vals) - 0.125, b1_vals + 0.125)
 
@@ -539,11 +540,9 @@ plot_param_heatmap <- function(x,
     geom_hline(yintercept = b1_grid, alpha = 0.1) +
     geom_vline(xintercept = a1_grid, alpha = 0.1) +
     geom_tile(alpha = 0.8) +
-    # geom_text(aes(label = ifelse(.data$freq == 0, "0", .data$freq))) +
     geom_text(aes(label = ifelse(.data$freq == 0, "0%", paste0(round(.data$rel_freq * 100, 2), "%")))) +
     geom_rect(
-      data = dplyr::filter(freq_df, .data$a1 == 6, .data$b1 == 1, abs(.data$c - 1/6) < 1e-5) %>%
-            dplyr::mutate(c_label = "With Undershoot (c=1/6)"),
+      data = dplyr::filter(freq_df, .data$a1 == 6, .data$b1 == 1, .data$c != 0),
       aes(xmin = .data$a1 - 0.5, xmax = .data$a1 + 0.5,
           ymin = .data$b1 - 0.125, ymax = .data$b1 + 0.125),
       color = "lightgrey", size = 1.2, fill = NA
