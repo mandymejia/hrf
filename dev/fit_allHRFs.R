@@ -17,12 +17,12 @@ my_hrf_grid <- generate_hrf_grid()
 #                                 RUN fit_allHRFs
 # ------------------------------------------------------------------------------
 
-session_data <- readRDS(here("dev", "fixtures", "session_data_4s", "session_data_gambling_lr_4s.rds"))
+session_data <- readRDS(here("dev", "fixtures", "session_data_4s", "session_data_motor_lr_4s.rds"))
 
 data("default_hrf_grid")
 head(default_hrf_grid)
 
-t <- 3 # Temporary till we loop
+t <- 1 # Temporary till we loop
 
 fit_allHRFs_result <- fit_allHRFs(
   BOLD = session_data$BOLD_files,

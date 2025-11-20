@@ -120,7 +120,7 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results) {
     regularized_params = regularized_params,
     rounded_params = rounded,
     mask_prop_NA = mask_prop_NA,
-    hrf_grid = allHRF_results$hrf_grid
+    hrf_grid = hrf_grid
   )
 
   class(result) <- "regularizeHRFs"

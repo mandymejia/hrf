@@ -25,13 +25,19 @@ regularize_allHRFs_result <- regularize_allHRFs(
   allHRF_results
 )
 
+regularize_allHRFs_result <- regularize_allHRFs(
+  fit_workingHRF_result,
+  fit_allHRFs_result
+)
+
 saveRDS(
   regularize_allHRFs_result,
   file = here("dev", "fixtures", "regularize_allHRFs_result_motorlr_500s.rds")
 )
 
 regularize_allHRFs_result <- readRDS(here("dev", "fixtures", "regularize_allHRFs_result_motorlr_4s.rds"))
-
+base_dir <- "/Volumes/LaCie/root/hrf_adaptation"
+regularize_allHRFs_result <- readRDS(file.path(base_dir, "validation/regularize_allHRFs/regularize_allHRFs_result_tfMRI_WM_LR_1083s.rds"))
 
 
 
@@ -42,6 +48,9 @@ plot(regularize_allHRFs_result, type = "variance", param = "a1", model = "IS", m
 plot(regularize_allHRFs_result, type = "wls_weights", param = "a1", model = "IS", fname = here("dev", "test_plots", "regularize_allHRFs", "OLS_A_a1_precision"))
 
 plot(regularize_allHRFs_result, type = "mean", param = "b1", fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1.png"))
+plot(regularize_allHRFs_result, type = "mean", param = "a1", fname = here("dev", "test_plots", "regularize_allHRFs", "mean_a1.png"))
+plot(regularize_allHRFs_result, type = "mean", param = "c", fname = here("dev", "test_plots", "regularize_allHRFs", "mean_c.png"))
+
 
 plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here("dev", "test_plots", "regularize_allHRFs", "mean_b1_filtered.png"))
 

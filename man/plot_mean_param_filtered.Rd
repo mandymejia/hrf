@@ -12,6 +12,8 @@ plot_mean_param_filtered(
   shadows = 1,
   material = list(lit = TRUE, smooth = FALSE),
   NA_color = "#505560",
+  smooth = FALSE,
+  param_range = NULL,
   ...
 )
 }
@@ -31,6 +33,18 @@ title is generated.}
 \item{material}{List with plotting material properties (default uses lit surfaces).}
 
 \item{NA_color}{Color to use for NA values (default = "#505560").}
+
+\item{smooth}{Logical. Whether to apply surface smoothing to the data before plotting.}
+
+\item{param_range}{Optional list giving z-limits for each parameter.
+Must be a named list with elements \code{a1}, \code{b1}, and \code{c}, each a
+numeric vector of length 2 (e.g., \code{c(min, max)}).
+
+Default:
+\code{list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17))}.
+
+Example:
+\code{param_range = list(a1 = c(3, 10), b1 = c(0.3, 2), c = c(0, 0.25))}.}
 
 \item{...}{Additional arguments passed to the plot function.}
 }

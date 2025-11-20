@@ -115,11 +115,11 @@ multiGLM_fun <- function(
   # QC mask. -------------------------------------------------------------------
   # Mask based on quality control metrics of the BOLD data.
   mask_qc <- do_QC(
-    list(BOLD),
+    list(t(BOLD)),
     meanTol=meanTol, varTol=varTol, verbose=verbose>0
   ) #, snrTol=snrTol)
   if (!any(mask_qc$mask)) { stop("No locations meeeting `meanTol` and `varTol`.") }
-  if (any(!mask_qc$mask)) { BOLD <- BOLD[,mask_qc,drop=FALSE] }
+  if (any(!mask_qc$mask)) { BOLD <- BOLD[mask_qc$mask, ,drop=FALSE] }
 
   # Scale, nuisance regress, and/or concatenate session data. ------------------
 
@@ -156,6 +156,11 @@ multiGLM_fun <- function(
   # # Center design matrix.
   # des_means <- rep(colMeans(design[,valid_cols,,drop=FALSE]), nV$mdata)
   # design[,valid_cols,] <- design[,valid_cols,,drop=FALSE] - des_means
+
+  # Scale PSC
+  mu <- rowMeans(BOLD)
+  if (any(abs(mu) <= 1e-6)) stop("Near-zero mean detected; PSC invalid.") # TODO: Implement QC and add the voxels to mask downstream.
+  BOLD <- ((BOLD - mu) / mu) * 100
 
   result <- GLM_multi(y=t(BOLD), X=design, X2=nuisance, Xc=design_canonical, verbose=verbose)
 }

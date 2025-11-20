@@ -129,6 +129,16 @@ plot_mean_param <- function(x,
 #' @param shadows Numeric value controlling shadow intensity (default = 1).
 #' @param material List with plotting material properties (default uses lit surfaces).
 #' @param NA_color Color to use for NA values (default = "#505560").
+#' @param param_range Optional list giving z-limits for each parameter.
+#'   Must be a named list with elements `a1`, `b1`, and `c`, each a
+#'   numeric vector of length 2 (e.g., `c(min, max)`).
+#'
+#'   Default:
+#'   \code{list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17))}.
+#'
+#'   Example:
+#'   \code{param_range = list(a1 = c(3, 10), b1 = c(0.3, 2), c = c(0, 0.25))}.
+#' @param smooth Logical. Whether to apply surface smoothing to the data before plotting.
 #' @param ... Additional arguments passed to the plot function.
 #'
 #' @return Invisibly returns the plot result.
@@ -141,6 +151,8 @@ plot_mean_param_filtered <- function(x,
                                      shadows = 1,
                                      material = list(lit = TRUE, smooth = FALSE),
                                      NA_color = "#505560",
+                                     smooth = FALSE,
+                                     param_range = NULL,
                                      ...) {
   
   # Get the best_params_df from your results
@@ -161,11 +173,13 @@ plot_mean_param_filtered <- function(x,
   xii <- attr(x, "xii")
   
   # Visualization parameters
-  param_range <- list(
-    a1 = c(4, 8),
-    b1 = c(0.5, 1.5),
-    c  = c(0, 0.17)
-  )
+  if (is.null(param_range)) {
+    param_range <- list(
+      a1 = c(4, 8),
+      b1 = c(0.5, 1.5),
+      c  = c(0, 0.17)
+    )
+  }
   
   zlim_values <- param_range[[param]]
   color_mode <- if (param == "c") "sequential" else "diverging"
@@ -176,6 +190,10 @@ plot_mean_param_filtered <- function(x,
   
   # Create xifti with filtered data
   new_xifti <- ciftiTools::newdata_xifti(xii, full_vector)
+
+  if (smooth) {
+    new_xifti <- ciftiTools::smooth_xifti(new_xifti)
+  }
   
   plot_result <- plot(
     new_xifti,

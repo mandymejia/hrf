@@ -97,6 +97,18 @@ GLM_multi <- function(y, X, X2, Xc=NULL, verbose=TRUE) {
   nP <- dim(X)[3]
   RSS <- matrix(NA, nrow=nV_D, ncol=nP) #keep track of residual sum of squares (proxy for R^2 or AIC)
 
+  nRegressors <- ncol(X) + 1 + ncol(X2)  # task + intercept + nuisance
+  betas_all <- array(NA, dim = c(nRegressors, nV_D, nP))
+  Fstat_all <- matrix(NA, nrow=nV_D, ncol=nP)
+
+  # Null model
+  X0 <- cbind(rep(1, nT), X2)
+  XtX_inv0 <- try(Matrix::solve(Matrix::crossprod(X0)))
+  coef0 <- XtX_inv0 %*% t(X0) %*% y
+  resid0 <- y - X0 %*% coef0
+  RSS0 <- colSums(resid0^2)
+
+
   if(verbose > 0) { cat('\tFitting models: Model ') }
   for(pp in 1:nP){
     if(verbose > 0) { cat(paste0(pp,'\t')) }
@@ -112,6 +124,11 @@ GLM_multi <- function(y, X, X2, Xc=NULL, verbose=TRUE) {
     coef_pp <- XtX_inv_pp %*% t(X_sp) %*% y
     resid_pp <- y - X_sp %*% coef_pp #TxV matrix
     RSS[,pp] <- sqrt(colSums(resid_pp^2)/(nT - ncol(X_sp)))
+    betas_all[,,pp] <- coef_pp
+    # Calculate F-stat for this model:
+    RSS1 <- colSums(resid_pp^2)
+    DOF1 <- nT - ncol(X_sp)
+    Fstat_all[,pp] <- (RSS0 - RSS1)/RSS1 * DOF1/ncol(X[,,pp])
   }
   if (verbose > 0) { cat("\n") }
 
@@ -127,6 +144,8 @@ GLM_multi <- function(y, X, X2, Xc=NULL, verbose=TRUE) {
   list(
     bestmodel = bestmodel,
     Fstat = Fstat,
-    pvalF = pvalF
+    pvalF = pvalF,
+    betas_all = betas_all,
+    Fstat_all = Fstat_all
   )
 }
