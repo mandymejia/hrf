@@ -1,5 +1,6 @@
 *.dtseries.nii filter=lfs diff=lfs merge=lfs -text
 dev/fixtures/fit_workingHRF_result_motorlr_500s.rds filter=lfs diff=lfs merge=lfs -text
+*.qs filter=lfs diff=lfs merge=lfs -text
 dev/work/work_20251211_213638_6154/allhrf_subject_001.qs filter=lfs diff=lfs merge=lfs -text
 dev/work/work_20251211_213638_6154/allhrf_subject_002.qs filter=lfs diff=lfs merge=lfs -text
 dev/work/work_20251211_213638_6154/allhrf_subject_003.qs filter=lfs diff=lfs merge=lfs -text
