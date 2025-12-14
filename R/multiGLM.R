@@ -306,57 +306,6 @@ multiGLM <- function(
     field_names = field_names,
     mGLM0s = mGLM0s
   )
- ## Save beta estimates as `xifti` objects. ------------------------------
-  for(bb in names(result$mGLM0s)) {
-    result$mGLM0s[[bb]]$betas_all <- NULL
-    result$mGLM0s[[bb]]$Fstat_all <- NULL
-  }
-
-  result$GLMs <- setNames(vector("list", nD), design_names)
-
-  for(pp in 1:nD){
-    # Extract betas for model pp (just task regressors, not intercept/nuisance)
-    # betas_all[1:nK, , pp]  instead of betas_all[, , pp]
-    
-    # Prepare beta data for each brain structure
-    cortexL_betas <- if(!is.null(mGLM0s$cortexL)) t(mGLM0s$cortexL$betas_all[1:nK, , pp]) else NULL
-    cortexR_betas <- if(!is.null(mGLM0s$cortexR)) t(mGLM0s$cortexR$betas_all[1:nK, , pp]) else NULL
-    subcort_betas <- if(!is.null(mGLM0s$subcortical)) t(mGLM0s$subcortical$betas_all[1:nK, , pp]) else NULL
-    
-    betas_pp_xii <- ciftiTools::as.xifti(
-      cortexL = cortexL_betas,
-      cortexL_mwall = maskL,
-      cortexR = cortexR_betas,
-      cortexR_mwall = maskR,
-      subcortVol = subcort_betas,
-      subcortLabs = submeta$labels,
-      subcortMask = submeta$mask
-    )
-    betas_pp_xii$meta$cifti$names <- field_names
-    
-    # Extract Fstat for model pp
-    cortexL_fstat <- if(!is.null(mGLM0s$cortexL)) mGLM0s$cortexL$Fstat_all[, pp] else NULL
-    cortexR_fstat <- if(!is.null(mGLM0s$cortexR)) mGLM0s$cortexR$Fstat_all[, pp] else NULL
-    subcort_fstat <- if(!is.null(mGLM0s$subcortical)) mGLM0s$subcortical$Fstat_all[, pp] else NULL
-    
-    Fstat_pp_xii <- ciftiTools::as.xifti(
-      cortexL = cortexL_fstat,
-      cortexL_mwall = maskL,
-      cortexR = cortexR_fstat,
-      cortexR_mwall = maskR,
-      subcortVol = subcort_fstat,
-      subcortLabs = submeta$labels,
-      subcortMask = submeta$mask
-    )
-    Fstat_pp_xii$meta$cifti$names <- field_names
-    
-    result$GLMs[[pp]] <- list(
-      betas = betas_pp_xii,
-      Fstat = Fstat_pp_xii
-    )
-  }
-
-
 
   #format as xii: (1) index of best model and (2) locations of no signal
   for(meas in c('bestmodel', 'Fstat', 'pvalF')){
