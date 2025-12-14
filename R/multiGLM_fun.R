@@ -157,10 +157,5 @@ multiGLM_fun <- function(
   # des_means <- rep(colMeans(design[,valid_cols,,drop=FALSE]), nV$mdata)
   # design[,valid_cols,] <- design[,valid_cols,,drop=FALSE] - des_means
 
-  # Scale PSC
-  mu <- rowMeans(BOLD)
-  if (any(abs(mu) <= 1e-6)) stop("Near-zero mean detected; PSC invalid.") # TODO: Implement QC and add the voxels to mask downstream.
-  BOLD <- ((BOLD - mu) / mu) * 100
-
   result <- GLM_multi(y=t(BOLD), X=design, X2=nuisance, Xc=design_canonical, verbose=verbose)
 }
