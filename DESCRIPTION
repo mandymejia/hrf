@@ -60,7 +60,8 @@ Imports:
     magrittr,
     ggplot2,
     gridExtra,
-    ggthemes
+    ggthemes,
+    scales
 Suggests:
     covr,
     knitr,

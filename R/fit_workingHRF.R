@@ -137,14 +137,13 @@ fit_workingHRF <- function(
     offsets = TRUE,
     scrub = NULL,
     alpha = 0.01,
-    min_active_subjects = NULL,
+    min_active_subjects = 20,
     verbose = 1,
     n_cores = 1, 
     log_dir = "logs", ...
 ) {
   call_match <- match.call()
   cat("========Version 3.4444=========\n")
-  if (is.null(min_active_subjects)) min_active_subjects <- max(2, ceiling(length(BOLD) * 0.1))
   # Input validation
   validate_inputs(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, offsets, verbose)
 
@@ -174,8 +173,9 @@ fit_workingHRF <- function(
 
   # Gather P-values for F-test and creat masks
   if(verbose > 0) cat("Creating activation masks and proportion maps...\n")
-  mask_results <- create_activation_masks(subject_results, alpha, verbose)
-
+  mask_results <- create_activation_masks(subject_results, alpha, min_active_subjects, verbose)
+  min_active_subjects <- mask_results$min_active_subjects
+  mask_results$min_active_subjects <- NULL  # Remove temporary field
 
   result <- list(
     activation_masks = mask_results,
@@ -501,12 +501,25 @@ create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res
 
   # Create design matrix
   dHRF <- if(derivatives) 2 else 0
+
+  taper_start <- get_taper_start(
+    a1 = hrf_params$a1,
+    b1 = hrf_params$b1,
+    a2 = hrf_params$a2,
+    b2 = hrf_params$b2,
+    c = hrf_params$c,
+    TR = TR,
+    deriv = 0 # We don't use derivative for when DECIDING to taper
+  )
  
+  cat(if(is.null(taper_start)) "No tapering needed (c=0 or HRF resolves by 30s)\n" else sprintf("Taper start: %.2f seconds\n", taper_start))
+
   tictoc::tic("***Made design matrix")
   design_result <- make_design(
     EVs = EVs, nTime = nT, TR = TR, dHRF = dHRF,
     onset = onsets,
     offset = offsets,
+    taper_start = taper_start,
     a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
     a2 = hrf_params$a2, b2 = hrf_params$b2
   )
@@ -529,6 +542,61 @@ create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res
     field_names = design_result$field_names,
     design_dims = dim(design_result$design)
   ))
+}
+
+#' Calculate taper start time for HRF
+#'
+#' Determines when to start tapering the hemodynamic response function (HRF)
+#' based on the location of the undershoot peak. Returns NULL if no tapering
+#' is needed (no undershoot or HRF resolves by 30 seconds).
+#'
+#' @param a1 Shape parameter for the positive gamma function
+#' @param b1 Scale parameter for the positive gamma function  
+#' @param a2 Shape parameter for the negative gamma function
+#' @param b2 Scale parameter for the negative gamma function
+#' @param c Amplitude of the undershoot (0 = no undershoot)
+#' @param TR Time repetition in seconds
+#' @param deriv Derivative order (default NULL, passed to HRF_calc)
+#'
+#' @return Numeric taper start time in seconds, or NULL if no tapering needed
+#'
+#' @keywords internal
+get_taper_start <- function(a1, b1, a2, b2, c, TR, deriv = NULL) {
+  if (c == 0) return(NULL)     # Return NULL if no undershoot
+
+  inds <- make_inds(TR)
+  hrf_vals <- hrf::HRF_calc(   # Calculate HRF values
+    t = inds,
+    deriv = deriv,
+    a1 = a1,
+    b1 = b1,
+    a2 = a2,
+    b2 = b2,
+    c = c
+  )
+  # Check if HRF at 30 seconds is below threshold
+  if (abs(hrf_vals[which.min(abs(inds - 30))]) <= .HRF_THRESHOLD) { return(NULL)}
+  
+  peak2_time <- inds[which.min(hrf_vals)]   # Calculate taper_start
+  taper_start <- min(peak2_time, 25)
+  
+  return(taper_start)
+}
+
+#' Generate time vector for HRF calculation
+#'
+#' Internal helper to create a time vector (in seconds) extending at least
+#' to the specified duration, scaled by TR and upsampling factor.
+#'
+#' @param TR Numeric. Repetition time in seconds.
+#' @param upsample Numeric. Temporal upsampling factor (default = 100).
+#' @param duration Numeric. Desired total duration in seconds (default = 40).
+#'
+#' @return Numeric vector of time points (seconds).
+#' @keywords internal
+make_inds <- function(TR, upsample = 100, duration = 40) {
+  max_index <- ceiling(duration / TR)
+  seq(1 / upsample, max_index, 1 / upsample) * TR
 }
 
 #' Convert design matrix to array format required by multiGLM
@@ -664,16 +732,21 @@ report_design_fit_errors <- function(subject_results, verbose = 1) {
 #'
 #' @inheritParams subject_results_Param
 #' @inheritParams alpha_Param
+#' @param min_active_subjects Integer. Minimum number of subjects required for a voxel 
+#'   to be considered active in the group mask
 #' @inheritParams verbose_Param
 #'
 #' @return List with elements:
 #'   \item{masks}{Logical matrix (locations × subjects) of significant activations}
+#'   \item{mask_prop_NA}{Logical vector with NA for inactive voxels, TRUE for active}
 #'   \item{prop}{Numeric vector of activation proportions across subjects}
 #'   \item{alpha}{The threshold used}
 #'   \item{n_subjects}{Number of successful subjects}
+#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects 
+#'     (capped at number of successful subjects if necessary)}
 #'
 #' @keywords internal
-create_activation_masks <- function(subject_results, alpha = 0.01, verbose = 1) {
+create_activation_masks <- function(subject_results, alpha = 0.01, min_active_subjects, verbose = 1) {
   successful_subjects <- which(sapply(subject_results, function(x) x$status == "success"))
   n_successful <- length(successful_subjects)
 
@@ -700,10 +773,73 @@ create_activation_masks <- function(subject_results, alpha = 0.01, verbose = 1) 
   colnames(masks) <- successful_subjects
   prop <- rowSums(masks, na.rm = TRUE) / rowSums(!is.na(masks))
 
+  # Create mask_prop_NA
+  masks_df <- masks_df <- as.data.frame(masks) # Reshape dataframe
+  masks_df$voxel <- 1:nrow(masks_df)
+  masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
+
+  masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
+  
+  subj_prop_result <- get_subj_prop(min_active_subjects, subject_results)
+  subj_prop <- subj_prop_result$subj_prop
+  min_active_subjects <- subj_prop_result$min_active_subjects
+
+
+  mask_prop <- (masks_df_prop$prop > subj_prop)   # mask_prop <- (masks_df_prop$prop > 0.1)
+  
+  mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
+
+  # Check if mask has any active voxels
+  n_active_voxels <- sum(mask_prop, na.rm = TRUE)
+  total_voxels <- length(mask_prop)
+  
+  if (n_active_voxels == 0) {
+    stop("No active voxels found in group mask! Try lowering alpha or min_active_subjects.")
+  }
+  
+  if (n_active_voxels < total_voxels / 2) {
+    warning("Less than half of voxels (", n_active_voxels, "/", total_voxels, 
+            ") are active in the group mask. Consider adjusting alpha or min_active_subjects.")
+  }
+
+
   return(list(
     masks = masks,
+    mask_prop_NA = mask_prop_NA,
     prop = prop,
     alpha = alpha,
-    n_subjects = n_successful
+    n_subjects = n_successful,
+    min_active_subjects = min_active_subjects
   ))
+}
+
+#' Calculate the Proportion of Active Subjects
+#'
+#' Computes the proportion threshold for determining active voxels based on
+#' the minimum number of active subjects required.
+#'
+#' @param min_active_subjects Integer. Minimum number of subjects required 
+#'   for a voxel to be considered active
+#' @param subject_results List of subject results from HRF analysis
+#' @return List with elements:
+#'   \item{subj_prop}{Numeric proportion of active subjects (rounded to two decimals)}
+#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects 
+#'     (capped at number of successful subjects if necessary)}
+#' @keywords internal
+get_subj_prop <- function(min_active_subjects, subject_results) {
+  # Count successful subjects
+  n_successful <- sum(vapply(subject_results, \(x) identical(x[["status"]], "success"), logical(1)))
+  stopifnot("No subjects processed successfully - cannot create activation masks" = n_successful > 0)
+
+  calculated_min <- min(min_active_subjects, floor(n_successful * 0.80))
+  
+  if (min_active_subjects > calculated_min) {
+    warning("min_active_subjects (", min_active_subjects, ") exceeds 80% of successful subjects (", 
+            n_successful, "). Using ", calculated_min, " instead.")
+    min_active_subjects <- calculated_min
+  }
+  subj_prop <- round(min_active_subjects / n_successful, 2)
+  cat(sprintf("Using group mask threshold: %s (%d out of %d successful subjects)\n", 
+            subj_prop, min_active_subjects, n_successful))
+  return(list(subj_prop = subj_prop, min_active_subjects = min_active_subjects))
 }

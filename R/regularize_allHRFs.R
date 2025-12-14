@@ -1,70 +1,78 @@
 #' Regularize HRF Parameters Across Subjects
 #'
 #' Performs spatial regularization of hemodynamic response function (HRF)
-#' parameters by combining activation masks from working HRF analysis with
-#' best-fitting parameters from all-HRFs analysis. The function applies both
+#' parameters by combining activation masks from the working HRF analysis with
+#' best-fitting parameters from the all-HRFs analysis. The function applies both
 #' ordinary least squares (OLS) and weighted least squares (WLS) methods to
 #' estimate subject-level deviations from population averages.
 #'
 #' @param workingHRF_results Results object from \code{fit_workingHRF()},
-#'   containing activation masks that indicate which voxels showed significant
-#'   activation for each subject using the working HRF model.
+#'   containing activation masks indicating which voxels showed significant
+#'   activation for each subject under the working HRF model.
 #' @param allHRF_results Results object from \code{fit_allHRFs()}, containing
-#'   best-fitting HRF parameters (a1, b1, c) for each voxel-subject combination
-#'   from fitting multiple HRF variants.
-#' @param rounding Logical; if TRUE (default), round the regularized HRF parameters
-#'   to the nearest values in the provided HRF grid for better interpretability.
+#'   best-fitting HRF parameters (a1, b1, c) for each voxel–subject combination
+#'   obtained by fitting multiple HRF variants.
 #'
 #' @return An object of class \code{"regularizeHRFs"} containing:
 #'   \describe{
-#'     \item{best_params_df}{Combined dataframe with HRF parameters and
-#'       activation masks for all subjects and voxels.}
-#'     \item{regularized_params}{Nested list structure with regularization
-#'       results for each parameter (a1, b1, c), including population averages,
-#'       subject-level estimates, residual variances, and brain visualization
-#'       objects for both OLS and WLS methods.}
-#'     \item{rounded_params}{Rounded regularized HRF parameters (if
-#'       \code{rounding = TRUE}), aligned to the nearest values in the HRF grid.}
+#'     \item{best_params_df}{Combined dataframe of HRF parameters and activation
+#'       masks for all subjects and voxels.}
+#'     \item{regularized_params}{Nested list of regularization results for each
+#'       HRF parameter (a1, b1, c), including population averages, subject-level
+#'       estimates, residual variances, and brain visualization objects for both
+#'       OLS and WLS estimation methods.}
+#'     \item{rounded_params}{List of rounded regularized HRF parameters,
+#'       containing \code{rounded_intercept_slope} (rounded parameters from the
+#'       intercept–slope regularization fit) and \code{rounded_intercept_only}
+#'       (rounded parameters from the intercept-only regularization fit).
+#'       Each element contains HRF parameter values aligned to the nearest
+#'       entries in the HRF parameter grid.}
 #'     \item{mask_prop_NA}{Logical vector mask indicating voxels with sufficient
-#'       activation consistency across subjects (values outside threshold are set
-#'       to \code{NA}). Useful for filtering voxels in downstream analyses.}
+#'       activation consistency across subjects. Voxels outside this threshold
+#'       are set to \code{NA}. Useful for downstream filtering.}
+#'     \item{hrf_grid}{The HRF parameter grid (object of class \code{"hrf_grid"})
+#'       used for fitting and rounding HRF parameters, enabling consistent
+#'       mapping and visualization in later analyses.}
 #'   }
 #'
 #' @details
-#' The regularization process consists of several steps:
+#' The regularization process proceeds through the following steps:
 #' \enumerate{
-#'   \item Validates input dimensions and extracts brain template
-#'   \item Merges activation masks with parameter estimates
-#'   \item For each parameter (a1, b1, c):
+#'   \item Validate and align input data structures.
+#'   \item Merge subject-level activation masks with best-fitting HRF parameters.
+#'   \item For each HRF parameter (\code{a1}, \code{b1}, \code{c}):
 #'     \itemize{
-#'       \item Computes population-averaged parameter estimates
-#'       \item Estimates subject-level slopes and intercepts using OLS
-#'       \item Calculates residual variances for uncertainty quantification
-#'       \item Re-estimates parameters using WLS with inverse variance weights
-#'       \item Creates brain visualization objects for all results
+#'       \item Compute population-level average parameter estimates.
+#'       \item Estimate subject-level intercepts and slopes using OLS.
+#'       \item Compute residual variances for uncertainty quantification.
+#'       \item Refit parameters using WLS with inverse-variance weighting.
+#'       \item Create brain visualization objects for all derived quantities.
 #'     }
 #' }
 #'
-#' The function handles missing data through activation masking and provides
-#' both unweighted (OLS) and precision-weighted (WLS) estimates to account
-#' for heteroscedastic variance across brain regions.
+#' The function automatically handles missing or unreliable data via activation
+#' masking and provides both unweighted (OLS) and precision-weighted (WLS)
+#' regularized estimates to account for heteroscedasticity across brain regions.
 #'
 #' @seealso \code{\link{fit_workingHRF}}, \code{\link{fit_allHRFs}},
 #'   \code{\link{HRF_regularize}}
 #'
 #' @examples
 #' \dontrun{
-#' # Assuming you have results from previous steps
+#' # Assuming results are available from prior steps
 #' working_results <- fit_workingHRF(BOLD, EVs, TR = 0.72)
 #' all_results <- fit_allHRFs(BOLD, EVs, TR = 0.72, hrf_grid = my_grid)
 #'
-#' # Regularize parameters
+#' # Regularize HRF parameters across subjects
 #' regularized <- regularize_allHRFs(working_results, all_results)
 #'
+#' # Access rounded parameter sets
+#' regularized$rounded_params$rounded_intercept_slope
+#' regularized$rounded_params$rounded_intercept_only
 #' }
 #'
 #' @export
-regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TRUE) {
+regularize_allHRFs <- function(workingHRF_results, allHRF_results) {
   cat("****************Version 0.1.11********************\n")
 
   xii <- validate_previous_results(workingHRF_results, allHRF_results)
@@ -79,16 +87,40 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
                                        log = TRUE, truncate = TRUE, WLS = TRUE, 
                                        use_subject_activation_mask = TRUE)
 
-  if (rounding) {
-    rounded <-round_regularized_params(regularized_params,
-                                       hrf_grid, model = "A", inside_grid = TRUE)
-  }
+  rounded_A <- round_regularized_params(
+    regularized_params,
+    hrf_grid,
+    model = "A",
+    inside_grid = TRUE
+  )
 
+  rounded_B <- round_regularized_params(
+    regularized_params,
+    hrf_grid,
+    model = "B",
+    inside_grid = TRUE
+  )
+
+  rounded <- list(
+    rounded_intercept_slope = rounded_A,
+    rounded_intercept_only  = rounded_B
+  )
+
+  # TODO: Refactor innternal code to match this naming convention after regression testing is setup.
+  regularized_params <- lapply(regularized_params, function(param_list) {
+    names(param_list) <- gsub("A_", "IS_", names(param_list))
+    names(param_list) <- gsub("B_", "IO_", names(param_list))
+    names(param_list) <- gsub("_A", "_IS", names(param_list))
+    names(param_list) <- gsub("_B", "_IO", names(param_list))
+    param_list
+  })
+    
   result <- list (
     best_params_df = best_params_df,
     regularized_params = regularized_params,
     rounded_params = rounded,
-    mask_prop_NA = mask_prop_NA
+    mask_prop_NA = mask_prop_NA,
+    hrf_grid = hrf_grid
   )
 
   class(result) <- "regularizeHRFs"
@@ -135,18 +167,12 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, rounding = TR
 #'
 #' @keywords internal
 create_best_params_df <- function(workingHRF_results, allHRF_results ) {
+  mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
+
   masks <- workingHRF_results[["activation_masks"]][["masks"]]
   masks_df <- masks_df <- as.data.frame(masks) # Reshape dataframe
   masks_df$voxel <- 1:nrow(masks_df)
   masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
-
-  masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
-  
-  subj_prop <- get_subj_prop(workingHRF_results)
-  mask_prop <- (masks_df_prop$prop > subj_prop)   # mask_prop <- (masks_df_prop$prop > 0.1)
-  
-  mask_prop_NA <- mask_prop; mask_prop_NA[!mask_prop_NA] <- NA
-
 
   # At this point research code saves mask_prop_NA
   #################################################
@@ -178,26 +204,7 @@ create_best_params_df <- function(workingHRF_results, allHRF_results ) {
 
 }
 
-#' Calculate the Proportion of Active Subjects
-#'
-#' Computes the proportion of subjects considered "active" based on the
-#' `min_active_subjects` parameter in the `workingHRF_results` object.
-#' If missing, defaults to the greater of 2 or 10% of total subjects.
-#'
-#' @param workingHRF_results HRF analysis results list.
-#' @return Numeric proportion of active subjects (rounded to two decimals).
-#' @keywords internal
-get_subj_prop <- function(workingHRF_results) {
-  min_active_subjects <- workingHRF_results[["call_info"]][["min_active_subjects"]]
-  if (is.null(min_active_subjects)) {
-    total_subjects <- sum(vapply(workingHRF_results[["subject_results"]], \(x) identical(x[["status"]], "success"), logical(1)))
-    min_active_subjects <- max(2, ceiling(total_subjects * 0.10))
-    message("min_active_subjects not found in workingHRF_results (old version), defaulting to max(10% of total, 2): ", min_active_subjects, " subjects")
-  } 
-  subj_prop <- round(min_active_subjects / length(workingHRF_results[["subject_results"]]), 2)
-  message("Using group mask threshold: ", subj_prop, " (", min_active_subjects, " out of ", length(workingHRF_results[["subject_results"]]), " subjects)")
-  return(subj_prop)
-}
+
 
 #' Regularize HRF Parameters Using Hierarchical Modeling
 #'

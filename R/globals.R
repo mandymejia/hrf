@@ -61,3 +61,29 @@ utils::globalVariables(c(
   "weight_B",
   "n_obs"
 ))
+
+
+# ======================================================================
+# GLOBAL VARIABLES
+# ======================================================================
+
+#' @section Canonical HRF Constants:
+#' The following constants define canonical thresholding and tapering
+#' behavior for the hemodynamic response function (HRF) across the package.
+#' These are used internally to ensure consistent resolution detection,
+#' taper application, and HRF truncation logic in functions such as
+#' \code{compute_hrf_metrics()}, \code{plot_hrf_single()}, and
+#' \code{calculate_hrf_endpoint()}.
+#'
+#' @details
+#' - \code{.HRF_THRESHOLD} defines the absolute HRF amplitude threshold
+#'   used to determine when the signal has effectively returned to baseline.
+#'   It corresponds to the canonical SPM HRF amplitude at approximately
+#'   30 seconds (~0.0018).
+#'
+#' - Future constants (e.g., taper power, taper start, or smoothing
+#'   parameters) should be declared here for centralized management.
+#'
+#' @keywords internal
+#' @noRd
+.HRF_THRESHOLD <- 0.0018

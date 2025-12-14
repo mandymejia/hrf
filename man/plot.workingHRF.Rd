@@ -4,12 +4,12 @@
 \alias{plot.workingHRF}
 \title{Plot method for \code{workingHRF} objects}
 \usage{
-\method{plot}{workingHRF}(x, type = c("design", "proportion", "binary"), subject = 1, ...)
+\method{plot}{workingHRF}(x, type = c("design", "proportion", "binary", "mask"), subject = 1, ...)
 }
 \arguments{
 \item{x}{A \code{workingHRF} object.}
 
-\item{type}{Type of plot to display. One of \code{"design"}, \code{"proportion"}, or \code{"binary"}.}
+\item{type}{Type of plot to display. One of \code{"design"}, \code{"proportion"}, \code{"binary"}, or \code{"mask"}.}
 
 \item{subject}{Integer. Subject index for the design matrix plot (only used if \code{type = "design"}).}
 
@@ -19,7 +19,7 @@
 A plot is rendered; invisibly returns the underlying object used for plotting.
 }
 \description{
-Dispatches to one of three plot types for visualizing results from a
+Dispatches to one of four plot types for visualizing results from a
 \code{\link{fit_workingHRF}} object:
 }
 \details{
@@ -27,6 +27,7 @@ Dispatches to one of three plot types for visualizing results from a
 \item{\code{type = "design"}}{Plots the design matrix for a specific subject.}
 \item{\code{type = "proportion"}}{Displays the cross-subject activation proportion map.}
 \item{\code{type = "binary"}}{Displays the binary activation mask after thresholding.}
+\item{\code{type = "mask"}}{Displays the population-level activation mask (mask_prop_NA).}
 }
 }
 \examples{
@@ -35,6 +36,7 @@ result <- fit_workingHRF(...)
 plot(result, type = "design", subject = 1)
 plot(result, type = "proportion")
 plot(result, type = "binary", threshold = 0.2)
+plot(result, type = "mask")
 }
 
 }

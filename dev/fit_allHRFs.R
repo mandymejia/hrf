@@ -1,5 +1,6 @@
 library(here)
 library(qs)
+library(ciftiTools) # make hrf package load ciftitools
 
 ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
 
@@ -38,7 +39,7 @@ fit_allHRFs_result <- fit_allHRFs(
   offsets = if(t == 3) FALSE else TRUE,   # No offsets for gambling
   scrub = NULL,
   verbose = 2,
-  n_cores = 1,
+  n_cores = 2,
   log_dir = "dev/logs",
   work_dir = "dev/work/"
 )
@@ -58,11 +59,21 @@ fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorl
 plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],
                  TR = 0.72, nT = 284, hrf_idx = 80)
 
-plot(fit_allHRFs_result, subject = 1, hrf_idx = 12)
+plot(fit_allHRFs_result, subject = 1, hrf_idx = 19)
+plot(fit_allHRFs_result, subject = 1, hrf_idx = 21)
+
 plot(fit_allHRFs_result, type = "hrfs")
-plot(fit_allHRFs_result, type = "hrfs_tapered")
+plot(fit_allHRFs_result, type = "hrfs", tapered = FALSE)
 plot(fit_allHRFs_result, type = "param_grid")
-plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40)
+plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 24)
+plot(fit_allHRFs_result, type = "single_hrf", hrf_idx = 40, tapered = FALSE)
+
+plot(fit_allHRFs_result, type = "multiple_hrf", hrf_idx = c(1, 5, 40),
+     colors = c("#2c7fb8", "#d95f02", "#7570b3"), tapered = TRUE)
+
+plot(fit_allHRFs_result, type = "multiple_hrf", hrf_idx = c(1, 5, 40),
+     colors = c("#2c7fb8", "#d95f02", "#7570b3"), tapered = FALSE)
+
 
 # ------------------------------------------------------------------------------
 #                                   DEBUG AREA

@@ -5,21 +5,16 @@
 \title{Generate HRF parameter grid}
 \usage{
 generate_hrf_grid(
-  TR = 2,
   a1_range = c(a1_spm/2, a1_spm * 2),
   a1_step = 1,
   b1_range = c(b1_spm/2, b1_spm * 2),
   b1_step = 0.25,
   c_vals = c(1/6, 0),
-  sr_factor = 100,
   time_to_peak_min = 2,
   peak2_time_max = 22.74
 )
 }
 \arguments{
-\item{TR}{Numeric. Repetition time in seconds. The temporal sampling
-rate of the BOLD acquisition.}
-
 \item{a1_range}{Numeric vector of length 2. Min/max values for a1 parameter.
 Default spans canonical value ±2x: c(3, 12).}
 
@@ -32,9 +27,6 @@ Default spans canonical value ±2x: c(0.5, 2.0).}
 
 \item{c_vals}{Numeric vector. Undershoot scaling values to include.
 Default: c(1/6, 0) for with/without undershoot.}
-
-\item{sr_factor}{Integer. Super-resolution factor for HRF timing calculations.
-Default: 100.}
 
 \item{time_to_peak_min}{Numeric. Minimum allowed time-to-peak in seconds.
 Default: 2.}

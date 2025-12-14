@@ -1,16 +1,17 @@
 #' Plot method for `workingHRF` objects
 #'
-#' Dispatches to one of three plot types for visualizing results from a
+#' Dispatches to one of four plot types for visualizing results from a
 #' \code{\link{fit_workingHRF}} object:
 #'
 #' \describe{
 #'   \item{\code{type = "design"}}{Plots the design matrix for a specific subject.}
 #'   \item{\code{type = "proportion"}}{Displays the cross-subject activation proportion map.}
 #'   \item{\code{type = "binary"}}{Displays the binary activation mask after thresholding.}
+#'   \item{\code{type = "mask"}}{Displays the population-level activation mask (mask_prop_NA).}
 #' }
 #'
 #' @param x A \code{workingHRF} object.
-#' @param type Type of plot to display. One of \code{"design"}, \code{"proportion"}, or \code{"binary"}.
+#' @param type Type of plot to display. One of \code{"design"}, \code{"proportion"}, \code{"binary"}, or \code{"mask"}.
 #' @param subject Integer. Subject index for the design matrix plot (only used if \code{type = "design"}).
 #' @param ... Additional arguments passed to the specific plot function. If you wish to use you must set all positional arguments.
 #'
@@ -22,17 +23,19 @@
 #' plot(result, type = "design", subject = 1)
 #' plot(result, type = "proportion")
 #' plot(result, type = "binary", threshold = 0.2)
+#' plot(result, type = "mask")
 #' }
 #'
 #' @export
-plot.workingHRF <- function(x, type = c("design", "proportion", "binary"), subject = 1, ...) {
+plot.workingHRF <- function(x, type = c("design", "proportion", "binary", "mask"), subject = 1, ...) {
   type <- match.arg(type)
   cat("Plotting type:", type, "\n")
 
   switch(type,
     design = plot_design_fit(x, subject = subject, ...),
     proportion = plot_activation_proportion(x, ...),
-    binary = plot_binary_map(x, ...)
+    binary = plot_binary_map(x, ...),
+    mask = plot_mask_prop(x, ...)
   )
 }
 
@@ -368,4 +371,62 @@ plot_design_fit_core <- function(design_dHRFs, title_prefix = "Main HRF", ...) {
     dhrf = if ("dhrf" %in% names(df_list)) plot_dhrf else NULL,
     ddhrf = if ("ddhrf" %in% names(df_list)) plot_ddhrf else NULL
   )))
+}
+
+#' Plot mask_prop_NA (population activation mask)
+#'
+#' Visualize the population-level activation mask across subjects,
+#' using a provided xifti template for surface geometry.
+#'
+#' @param x A \code{regularizeHRFs} object containing \code{mask_prop_NA}.
+#' @param fname Optional output filename. If provided, the plot is saved.
+#' @param title Plot title. Default is 'Subjects with Significant "Working HRF" Activation > 10%'.
+#' @param legend_fname Optional filename to save the color legend separately.
+#' @param shadows Numeric, shadow depth for rendering. Default is 1.
+#' @param material List of rendering options. Default is \code{list(lit = TRUE, smooth = FALSE)}.
+#' @param NA_color Color for NA values and medial wall. Default is "#505560".
+#' @param ... Additional arguments passed to \code{ciftiTools::view_xifti_surface}.
+#'
+#' @return Invisibly returns the plot object.
+#' @importFrom ciftiTools newdata_xifti
+#' @importFrom ciftiTools view_xifti_surface
+#' @keywords internal
+plot_mask_prop <- function(x,
+                           fname = NULL,
+                           title = NULL,
+                           legend_fname = NULL,
+                           shadows = 1,
+                           material = list(lit = TRUE, smooth = FALSE),
+                           NA_color="#505560",
+                           ...  # shadows, material, etc will pass through
+) {
+  stopifnot("mask_prop_NA not found in object" = "mask_prop_NA" %in% names(x[["activation_masks"]]))
+
+  # Extract xii from workingHRF_results (which is x)
+  xii <- x[["subject_results"]][[1]][["glm_results"]][["bestmodel_xii"]]
+  xii <- ciftiTools::convert_xifti(xii, "dscalar")
+  
+  # Calculate threshold from x (which is workingHRF_results)
+  min_active_subjects <- x[["call_info"]][["min_active_subjects"]]
+  n_successful <- sum(vapply(x[["subject_results"]], 
+                             \(res) identical(res[["status"]], "success"), 
+                             logical(1)))
+  thr <- round(min_active_subjects / n_successful, 2)
+  message("Using group mask threshold: ", thr, " (", min_active_subjects, " out of ", n_successful, " successful subjects)")
+  if (is.null(title)) {
+    title <- paste0("Subjects with Significant \"Working HRF\" Activation > ", min_active_subjects, " subjects")
+  }
+
+  plot_obj <- plot(
+    newdata_xifti(xii, x[["activation_masks"]][["mask_prop_NA"]]),
+    title = title,
+    color_mode = "qualitative",
+    fname = fname,
+    legend_fname = legend_fname,
+    shadows = shadows,
+    material = material,
+    NA_color=NA_color,
+    ...
+  )
+  invisible(plot_obj)
 }

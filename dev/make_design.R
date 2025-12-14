@@ -46,7 +46,7 @@ for (t in 1) {  # 1 = motor, 2 = wm, 3 = gambling
   design_optimized <- make_design(
     EVs = EVs, nTime = nTime, TR = 0.72, dHRF = 2,
     onset = if (t == 3) FALSE else TRUE,
-    offset = if (t == 3) FALSE else TRUE,
+    offset = if (t == 3) FALSE else TRUE, taper_start = 5
     # onset = onsets, offset = offsets,
     # optimize = TRUE
   )

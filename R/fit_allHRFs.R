@@ -466,9 +466,18 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
   # Get number of fields from first design (to determine array dimensions)
   hrf_params_1 <- extract_hrf_params(hrf_grid, 1)
   cat("Running make_design idx=1\n")
+
+  taper_start_1 <- get_taper_start(
+    a1 = hrf_params_1$a1, b1 = hrf_params_1$b1,
+    a2 = hrf_params_1$a2, b2 = hrf_params_1$b2,
+    c = hrf_params_1$c, TR = TR, deriv = 0 )
+  cat(if (is.null(taper_start_1)) "No tapering needed (c=0 or HRF resolves by 30s)\n"
+    else sprintf("Taper start (idx=1): %.2f seconds\n", taper_start_1))
+
   design_1 <- make_design(
     EVs = EVs, nTime = nT, TR = TR, dHRF = 0,  # No derivatives in allHRFs
     onset = onsets, offset = offsets,
+    taper_start = taper_start_1,
     a1 = hrf_params_1$a1, b1 = hrf_params_1$b1, c = hrf_params_1$c,
     a2 = hrf_params_1$a2, b2 = hrf_params_1$b2
   )
@@ -489,9 +498,17 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
     cat(sprintf("***Running make_design idx=%d\n", pp))
     hrf_params <- extract_hrf_params(hrf_grid, pp)
 
+    taper_start_pp <- get_taper_start(
+      a1 = hrf_params$a1, b1 = hrf_params$b1,
+      a2 = hrf_params$a2, b2 = hrf_params$b2,
+      c = hrf_params$c, TR = TR,deriv = 0 )
+    cat(if (is.null(taper_start_pp)) sprintf("No tapering (idx=%d)\n", pp)
+        else sprintf("Taper start (idx=%d): %.2f seconds\n", pp, taper_start_pp))
+
     design_pp <- make_design(
       EVs = EVs, nTime = nT, TR = TR, dHRF = 0,
       onset = onsets, offset = offsets,
+      taper_start = taper_start_pp,
       a1 = hrf_params$a1, b1 = hrf_params$b1, c = hrf_params$c,
       a2 = hrf_params$a2, b2 = hrf_params$b2
     )

@@ -32,7 +32,6 @@
 #' from the research pipeline. Filters out physiologically implausible
 #' combinations based on timing constraints.
 #'
-#' @inheritParams TR_Param
 #' @param a1_range Numeric vector of length 2. Min/max values for a1 parameter.
 #'   Default spans canonical value ±2x: c(3, 12).
 #' @param a1_step Numeric. Step size for a1 sequence. Default: 1.
@@ -41,8 +40,6 @@
 #' @param b1_step Numeric. Step size for b1 sequence. Default: 0.25.
 #' @param c_vals Numeric vector. Undershoot scaling values to include.
 #'   Default: c(1/6, 0) for with/without undershoot.
-#' @param sr_factor Integer. Super-resolution factor for HRF timing calculations.
-#'   Default: 100.
 #' @param time_to_peak_min Numeric. Minimum allowed time-to-peak in seconds.
 #'   Default: 2.
 #' @param peak2_time_max Numeric. Maximum allowed undershoot peak time in seconds.
@@ -53,16 +50,16 @@
 #'
 #' @export
 generate_hrf_grid <- function(
-    TR               = 2,
     a1_range         = c(a1_spm/2, a1_spm*2),
     a1_step          = 1,
     b1_range         = c(b1_spm/2, b1_spm*2),
     b1_step          = 0.25,
     c_vals           = c(1/6, 0),
-    sr_factor        = 100,
     time_to_peak_min = 2,
     peak2_time_max   = 22.74
 ) {
+  TR <- 2  # Hardcoded
+  sr_factor <- 100  # super-resolution factor
   # canonical SPM defaults
   a1_spm <- 6
   b1_spm <- 1
@@ -120,7 +117,6 @@ generate_hrf_grid <- function(
 
   # attach call params so downstream functions can use them
   attr(result, "call_params") <- list(
-    TR = TR,
     a1_range = a1_range,
     a1_step = a1_step,
     b1_range = b1_range,
