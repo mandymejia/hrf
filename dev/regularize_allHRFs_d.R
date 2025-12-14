@@ -1,4 +1,5 @@
 library(here)
+library(rgl)
 
 ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
 
@@ -37,7 +38,7 @@ saveRDS(
 
 regularize_allHRFs_result <- readRDS(here("dev", "fixtures", "regularize_allHRFs_result_motorlr_4s.rds"))
 base_dir <- "/Volumes/LaCie/root/hrf_adaptation"
-regularize_allHRFs_result <- readRDS(file.path(base_dir, "validation/regularize_allHRFs/regularize_allHRFs_result_tfMRI_WM_LR_1083s.rds"))
+regularize_allHRFs_result <- readRDS(file.path(base_dir, "validation/regularize_allHRFs/regularize_allHRFs_result_tfMRI_WM_RL_1085s.rds"))
 
 
 
@@ -56,7 +57,7 @@ plot(regularize_allHRFs_result,  type = "mean_all",  param = "b1",  fname = here
 
 
 a <- plot(regularize_allHRFs_result,  type = "param_heatmap")
-ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO.png", a, width = 14, height = 7)
+ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO_14x.png", a, width = 12, height = 4.5)
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_slope")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_only")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params")

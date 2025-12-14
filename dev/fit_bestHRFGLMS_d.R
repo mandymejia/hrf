@@ -6,12 +6,13 @@ ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub
 devtools::load_all("~/Documents/Github/hrf-z")
 
 # Extract rounded params from earlier compute
-# base_dir <- "/Volumes/LaCie/root/hrf_adaptation"
-# regularize_allHRFs_result <- readRDS(file.path(base_dir, "validation/regularize_allHRFs/regularize_allHRFs_result_tfMRI_MOTOR_LR_1080s.rds"))
-# saveRDS(
-#   regularize_allHRFs_result[["rounded_params"]],
-#   file = here("dev", "fixtures", "regularized_params_motor_1080s.rds")
-# )
+base_dir <- "/Volumes/LaCie/root/hrf_adaptation"
+regularize_allHRFs_result <- readRDS(file.path(base_dir, "validation/regularize_allHRFs/regularize_allHRFs_result_tfMRI_MOTOR_LR_1080s.rds"))
+saveRDS(
+  regularize_allHRFs_result[["rounded_params"]],
+  file = here("dev", "fixtures", "regularized_params_motor_1080s.rds")
+)
+
 
 
 fit_allHRFs_result <- readRDS(here("dev", "fixtures", "fit_allHRFs_result_motorlr_4s.rds"))
@@ -86,7 +87,7 @@ plot(best_fstat_xifti)
 model <- "rounded_intercept_only"
 subjects <- 1080
 resolution <- 18792
-subject <- 1
+subject <- 2
 
 # Extract subject-specific regularized parameters
 chunk_size <- length(regularized_params[[model]]$a1) / subjects
@@ -204,11 +205,18 @@ for (i in 1:n_regressors) {
 cat(rep("-", 70), "\n", sep="")
 
 # Plot examples
-plot(best_betas_xifti, idx = 1, zlim = c(-1350,904), title = "cue betas (best hrfs)")
-plot(best_betas_xifti, idx = 6, zlim = c(-1350,904), title = "tongue betas (best hrfs)")
+plot(best_betas_xifti, idx = 1, title = "cue betas (best hrfs)", fname=here("dev/htmlplots/cue_betas_s2.png"),
+     zlim=c(-1.85,1.85))
+plot(best_betas_xifti, idx = 6, title = "tongue betas (best hrfs)", fname=here("dev/htmlplots/tongue_betas_s2.png"),
+     zlim=c(-1.49, 1.49))
 
-plot(fit_allHRFs_result[["subject_results"]][[1]][["glm_result"]][["GLMs"]][[24]][["betas"]], idx = 1, zlim = c(-1350,904))
-plot(fit_allHRFs_result[["subject_results"]][[1]][["glm_result"]][["GLMs"]][[24]][["betas"]], idx = 6, zlim = c(-1350,904))
+plot(best_betas_xifti, idx = 1, title = "cue betas (best hrfs)", fname=here("dev/fuck.png"))
+plot(fit_allHRFs_result[["subject_results"]][[1]][["glm_result"]][["GLMs"]][[24]][["betas"]], idx = 1,
+     fname=here("dev/htmlplots/cue_s2.png"), title = "cue betas (canonical)",
+     zlim=c(-1.85,1.85))
+plot(fit_allHRFs_result[["subject_results"]][[1]][["glm_result"]][["GLMs"]][[24]][["betas"]], idx = 6,
+     fname=here("dev/htmlplots/tongue_s2.png"), title = "tongue betas (canonical)",
+     zlim=c(-1.49, 1.49))
 
 # Optionally save the result
 # saveRDS(best_betas_xifti, here("dev", "fixtures", "regularized_betas_subject1.rds"))

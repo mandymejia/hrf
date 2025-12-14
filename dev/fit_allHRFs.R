@@ -1,5 +1,6 @@
 library(here)
 library(qs)
+library(ciftiTools) # make hrf package load ciftitools
 
 ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
 
@@ -38,7 +39,7 @@ fit_allHRFs_result <- fit_allHRFs(
   offsets = if(t == 3) FALSE else TRUE,   # No offsets for gambling
   scrub = NULL,
   verbose = 2,
-  n_cores = 1,
+  n_cores = 2,
   log_dir = "dev/logs",
   work_dir = "dev/work/"
 )
