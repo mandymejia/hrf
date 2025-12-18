@@ -423,6 +423,9 @@ plot_precision <- function(x,
 #' @param title Character or \code{NULL}. Custom plot title. If \code{NULL}
 #'   (default), a descriptive title is generated automatically based on
 #'   \code{model}.
+#' @param mask Logical. If \code{TRUE}, filters \code{best_params_df} to only
+#'   include voxel-subject pairs where the subject activation mask is \code{TRUE}.
+#'   Only applies when \code{model = "best_params"}. Default is \code{FALSE}.
 #' @param ... Any additional arguments to pass into ggplot formation via list(...).
 #'
 #' @return A \code{ggplot} object showing the parameter frequency heatmap.
@@ -437,11 +440,18 @@ plot_precision <- function(x,
 #' comparisons across different model types. By default, the three regularized
 #' models share a common scale, while the population average uses its own scale.
 #'
+#' When \code{mask = TRUE} and \code{model = "best_params"}, only voxels where
+#' subjects showed significant activation (based on the working HRF analysis) are
+#' included in the frequency calculations. This can reduce pile-ups at grid boundaries
+#' caused by noise-driven parameter estimates.
+#'
 #' @importFrom dplyr mutate distinct summarise group_by select left_join
 #' @examples
 #' \dontrun{
 #' plot_param_heatmap(result, model = "intercept_slope")
 #' plot_param_heatmap(result, model = "best_params", title = "Custom Heatmap Title")
+#' # Filter by subject activation masks
+#' plot_param_heatmap(result, model = "best_params", mask = TRUE)
 #' # Use common scale for average and best_params
 #' plot_param_heatmap(result, model = "average", scale = c("average", "best_params"))
 #' }
@@ -449,6 +459,7 @@ plot_param_heatmap <- function(x,
                                model = c("intercept_only", "intercept_slope", "best_params", "average"),
                                scale = NULL,
                                title = NULL,
+                               mask = FALSE,
                                ...) {
   model <- match.arg(model)
   # Set default scale based on model
@@ -474,6 +485,11 @@ plot_param_heatmap <- function(x,
     rounded_params <- x[["rounded_params"]][["rounded_intercept_slope"]]
   } else if (model == "best_params") {
     rounded_params <- x[["best_params_df"]]
+
+    # Apply subject activation mask filtering if requested
+    if (mask) {
+      rounded_params <- rounded_params %>% dplyr::filter(.data$mask == TRUE)
+    }
   } else if (model == "average") {
     rounded_params <- build_pop_avg_df(x)
   } else {
@@ -485,10 +501,14 @@ plot_param_heatmap <- function(x,
       intercept_only = "Intercept-Only Model",
       intercept_slope = "Intercept + Slope Model",
       best_params = "Best Parameter Estimates",
-      average = "Subject Average"  
+      average = "Subject Average"
     )
     title <- if (model == "best_params") {
-      "Parameter Frequency (Raw)"
+      if (mask) {
+        "Parameter Frequency (Raw, Masked)"
+      } else {
+        "Parameter Frequency (Raw)"
+      }
     } else {
       paste("Parameter Frequency (", model_label, ")", sep = "")
     }
@@ -558,7 +578,10 @@ plot_param_heatmap <- function(x,
     geom_hline(yintercept = b1_grid, alpha = 0.1) +
     geom_vline(xintercept = a1_grid, alpha = 0.1) +
     geom_tile(alpha = 0.8) +
-    geom_text(aes(label = ifelse(.data$freq == 0, "0%", paste0(round(.data$rel_freq * 100, 2), "%")))) +
+    geom_text(aes(label = ifelse(.data$freq == 0 | .data$rel_freq * 100 < 0.1, "0%",
+                                  ifelse(.data$rel_freq * 100 < 1,
+                                         sprintf("%.1f%%", .data$rel_freq * 100),
+                                         paste0(signif(.data$rel_freq * 100, 2), "%"))))) +
     geom_rect(
       data = dplyr::filter(freq_df, .data$a1 == 6, .data$b1 == 1, .data$c != 0),
       aes(xmin = .data$a1 - 0.5, xmax = .data$a1 + 0.5,
