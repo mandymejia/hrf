@@ -7,6 +7,10 @@ Authors@R: c(
            family = "Mejia",
            email = "mandy.mejia@gmail.com",
            role = c("aut", "cre")),
+    person(given = "Zeshawn",
+           family = "Zahid",
+           email = "zzahid@iu.edu",
+           role = c("aut")),
     person(given = "Damon",
            family = "Pham",
            email = "damondpham@gmail.com",
@@ -61,5 +65,5 @@ VignetteBuilder:
     knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Language: en-US
