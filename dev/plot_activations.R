@@ -16,8 +16,8 @@ design_2d <- make_design(
   EVs = session_data[["EVs_list"]][[1]],
   nTime = ncol(BOLD_xii),
   TR = 0.72,
-  onset = TRUE,
-  offset = TRUE
+  # onset = TRUE,
+  # offset = TRUE
 )
 
 plot(design_2d)
@@ -145,10 +145,11 @@ plot(glm_result[["GLMs"]][[4]][["betas"]], idx = 6, zlim = c(-1350,904))
 ################################################################################
 # CLASSICAL GLM
 library(BayesfMRI)
+library(hrf)
 ################################################################################
 
 # shared: build design + nuisance
-design <- BayesfMRI::make_design(
+design <- make_design(
   EVs   = session_data[["EVs_list"]][[1]],
   nTime = ncol(BOLD_xii),
   TR    = 0.72

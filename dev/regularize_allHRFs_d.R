@@ -61,6 +61,7 @@ ggsave("dev/test_plots/regularize_allHRFs/heatmap_IO_14x.png", a, width = 12, he
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_slope")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "intercept_only")
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params", scale=c("best_params"))
+plot(regularize_allHRFs_result,  type = "param_heatmap", model = "best_params", scale=c("best_params"), mask = TRUE)
 plot(regularize_allHRFs_result,  type = "param_heatmap", model = "average")
 
 ###############################################################################

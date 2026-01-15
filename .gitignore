@@ -10,6 +10,7 @@
 # Documentation & metadata
 /doc/
 /Meta/
+Agents.MD
 
 # Debug folders
 debug/
