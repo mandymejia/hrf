@@ -445,3 +445,21 @@ NULL
 #'
 #' @name min_active_subjects_Param
 NULL
+
+#' Spatial Smoothing Options
+#'
+#' @param smoothing Logical. Whether to apply spatial smoothing to BOLD data
+#'   after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.
+#'
+#' @name smoothing_Param
+NULL
+
+#' Surface Smoothing FWHM
+#'
+#' @param surf_FWHM Numeric. Full width at half maximum (FWHM) parameter for
+#'   Gaussian surface smoothing kernel in millimeters. Only used if
+#'   \code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
+#'   \code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.
+#'
+#' @name surf_FWHM_Param
+NULL

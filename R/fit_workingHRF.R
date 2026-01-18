@@ -46,6 +46,8 @@
 #' @inheritParams scrub_Param
 #' @inheritParams alpha_Param
 #' @inheritParams min_active_subjects_Param
+#' @inheritParams smoothing_Param
+#' @inheritParams surf_FWHM_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
 #' @inheritParams log_dir_Param
@@ -138,12 +140,14 @@ fit_workingHRF <- function(
     scrub = NULL,
     alpha = 0.01,
     min_active_subjects = 20,
+    smoothing = TRUE,
+    surf_FWHM = 5,
     verbose = 1,
     n_cores = 1, 
     log_dir = "logs", ...
 ) {
   call_match <- match.call()
-  cat("========Version 3.4444=========\n")
+  cat("**********Version 3.6**********\n")
   # Input validation
   validate_inputs(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, offsets, verbose)
 
@@ -153,13 +157,15 @@ fit_workingHRF <- function(
   if(n_cores > 1) {
     subject_results <- run_parallel_subjects_df(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores, log_dir
+      hrf_params, derivatives, onsets, offsets, scrub, smoothing,
+      surf_FWHM, verbose, n_cores, log_dir
     )
   } else {
     if(verbose > 0) cat("Using sequential processing\n")
     subject_results <- run_sequential_subjects_df(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_params, derivatives, onsets, offsets, scrub, verbose
+      hrf_params, derivatives, onsets, offsets, scrub,
+      smoothing, surf_FWHM, verbose
     )
   }
 
@@ -290,7 +296,7 @@ validate_inputs <- function(BOLD, EVs, nuisance, hrf_params, n_cores, onsets, of
 #'
 #' @keywords internal
 run_parallel_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                     hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose, n_cores, log_dir) {
+                                     hpf, hrf_params, derivatives, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir) {
 
   if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores.\n")
 
@@ -305,7 +311,7 @@ run_parallel_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, r
   on.exit(parallel::stopCluster(cl), add = TRUE)
 
   vars_to_export <- c("BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
-                      "hpf", "hrf_params", "derivatives", "onsets", "offsets", "verbose")
+                      "hpf", "hrf_params", "derivatives", "onsets", "offsets", "smoothing", "surf_FWHM", "verbose")
   setup_parallel_cluster(cl, verbose, vars_to_export)
 
   if(verbose > 0) cat("Processing subjects in parallel\n")
@@ -319,7 +325,8 @@ run_parallel_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, r
       scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
       TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
       hpf = hpf, hrf_params = hrf_params, derivatives = derivatives,
-      onsets = onsets, offsets = offsets, verbose = verbose
+      onsets = onsets, offsets = offsets,
+      smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose
     )
   })
 
@@ -351,7 +358,7 @@ run_parallel_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, r
 #'
 #' @keywords internal
 run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                       hpf, hrf_params, derivatives, onsets, offsets, scrub, verbose) {
+                                       hpf, hrf_params, derivatives, onsets, offsets, scrub, smoothing, surf_FWHM, verbose) {
 
   lapply(1:length(BOLD), function(i) {
     process_single_subject_df(
@@ -362,7 +369,8 @@ run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures,
       scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
       TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
       hpf = hpf, hrf_params = hrf_params, derivatives = derivatives,
-      onsets = onsets, offsets = offsets, verbose = verbose
+      onsets = onsets, offsets = offsets,
+      smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose
     )
   })
 }
@@ -387,6 +395,8 @@ run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures,
 #' @inheritParams onsets_Param
 #' @inheritParams offsets_Param
 #' @inheritParams scrub_Param
+#' @inheritParams smoothing_Param
+#' @inheritParams surf_FWHM_Param
 #' @inheritParams verbose_Param
 #'
 #' @return List with elements:
@@ -404,7 +414,7 @@ run_sequential_subjects_df <- function(BOLD, EVs, nuisance, TR, brainstructures,
 #' @keywords internal
 process_single_subject_df <- function(subject_idx, BOLD_file, EVs, nuisance_file,
                                       TR, brainstructures, resamp_res, hpf,
-                                      hrf_params, derivatives, onsets, offsets, scrub, verbose) {
+                                      hrf_params, derivatives, onsets, offsets, scrub, smoothing, surf_FWHM, verbose) {
   start_time <- Sys.time()
   if(verbose > 1) cat("Subject", subject_idx, ": Starting pipeline...\n")
 
@@ -413,7 +423,7 @@ process_single_subject_df <- function(subject_idx, BOLD_file, EVs, nuisance_file
     # Step 1a: Load data and create design matrix
     bold_and_design <- create_design_matrix(
       BOLD_file, EVs, TR, brainstructures, resamp_res, hrf_params, derivatives,
-      onsets, offsets, verbose, subject_idx
+      onsets, offsets, smoothing, surf_FWHM, verbose, subject_idx
     )
     cat("***Subject", subject_idx, ": Design matrix created in: ")
     tictoc::toc()
@@ -475,6 +485,8 @@ process_single_subject_df <- function(subject_idx, BOLD_file, EVs, nuisance_file
 #' @inheritParams derivatives_Param
 #' @inheritParams onsets_Param
 #' @inheritParams offsets_Param
+#' @inheritParams smoothing_Param
+#' @inheritParams surf_FWHM_Param
 #' @inheritParams verbose_Param
 #' @inheritParams subject_idx_Param
 #'
@@ -489,11 +501,11 @@ process_single_subject_df <- function(subject_idx, BOLD_file, EVs, nuisance_file
 #'
 #' @keywords internal
 create_design_matrix <- function(BOLD_file, EVs, TR, brainstructures, resamp_res,
-                                 hrf_params, derivatives, onsets, offsets, verbose, subject_idx) {
+                                 hrf_params, derivatives, onsets, offsets, smoothing, surf_FWHM, verbose, subject_idx) {
   if(verbose > 1) cat("Subject", subject_idx, ": Loading BOLD and creating design matrix...\n")
 
   tictoc::tic()
-  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res)
+  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res, smoothing, surf_FWHM)
   cat("***Subject", subject_idx, ": BOLD data loaded in: ")
   tictoc::toc()
   nT <- bold_data$nT
@@ -622,6 +634,8 @@ convert_design_to_array <- function(design_matrix) {
 #' @param BOLD_file Character. File path to CIFTI data file.
 #' @inheritParams brainstructures_Param
 #' @inheritParams resamp_res_Param
+#' @inheritParams smoothing_Param
+#' @inheritParams surf_FWHM_Param
 #'
 #' @return List with elements:
 #'   \item{BOLD_xii}{Loaded xifti object containing BOLD time-series}
@@ -629,10 +643,15 @@ convert_design_to_array <- function(design_matrix) {
 #'   \item{n_locations}{Total number of brain locations}
 #'
 #' @keywords internal
-load_bold_data <- function(BOLD_file, brainstructures, resamp_res) {
+load_bold_data <- function(BOLD_file, brainstructures, resamp_res, smoothing = TRUE, surf_FWHM = 5) {
   BOLD_xii <- ciftiTools::read_cifti(BOLD_file,
                                      brainstructures = brainstructures,
                                      resamp_res = resamp_res)
+  if (isTRUE(smoothing)) {
+    cat("Smoothing...\n")
+    BOLD_xii <- ciftiTools::smooth_xifti(BOLD_xii, surf_FWHM = surf_FWHM, vol_FWHM = 3)
+  } 
+
   nT <- ncol(BOLD_xii)
   n_locations <- nrow(as.matrix(BOLD_xii))
 
@@ -765,7 +784,7 @@ create_activation_masks <- function(subject_results, alpha = 0.01, min_active_su
   for(i in seq_along(successful_subjects)) {
     subj_idx <- successful_subjects[i]
     pvals <- as.vector(as.matrix(subject_results[[subj_idx]]$glm_results$pvalF_xii))
-    pvals_matrix[, i] <- pvals
+    pvals_matrix[, i] <- p.adjust(pvals, method = "bonferroni")
   }
 
   # Create masks and proportions

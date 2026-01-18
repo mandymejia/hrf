@@ -17,6 +17,8 @@ process_entire_subject(
   onsets,
   offsets,
   scrub,
+  smoothing,
+  surf_FWHM,
   verbose
 )
 }

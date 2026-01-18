@@ -19,6 +19,8 @@ fit_workingHRF(
   scrub = NULL,
   alpha = 0.01,
   min_active_subjects = 20,
+  smoothing = TRUE,
+  surf_FWHM = 5,
   verbose = 1,
   n_cores = 1,
   log_dir = "logs",
@@ -92,6 +94,14 @@ must show significant activation (p < alpha) at a voxel for it to be
 included in the group mask used for regularization. Default is 20.
 If the number of successful subjects is less than this value, it will
 be automatically adjusted with a warning.}
+
+\item{smoothing}{Logical. Whether to apply spatial smoothing to BOLD data
+after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.}
+
+\item{surf_FWHM}{Numeric. Full width at half maximum (FWHM) parameter for
+Gaussian surface smoothing kernel in millimeters. Only used if
+\code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
+\code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.}
 
 \item{verbose}{Integer controlling output verbosity:
 \itemize{

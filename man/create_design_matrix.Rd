@@ -14,6 +14,8 @@ create_design_matrix(
   derivatives,
   onsets,
   offsets,
+  smoothing,
+  surf_FWHM,
   verbose,
   subject_idx
 )

@@ -16,6 +16,8 @@ run_sequential_subjects_allHRFs(
   onsets,
   offsets,
   scrub,
+  smoothing,
+  surf_FWHM,
   verbose,
   work_dir
 )

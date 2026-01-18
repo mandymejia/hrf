@@ -16,6 +16,8 @@ fit_allHRFs(
   onsets = TRUE,
   offsets = TRUE,
   scrub = NULL,
+  smoothing = TRUE,
+  surf_FWHM = 5,
   verbose = 1,
   n_cores = 1,
   log_dir = "logs",
@@ -69,6 +71,14 @@ Only compatible with block designs (events with duration > 1s).}
 \item{scrub}{List (one logical vector per subject) or \code{NULL}.
 Frames set to \code{TRUE} are excluded from the GLM. Used to remove
 high-motion or artifact-contaminated timepoints.}
+
+\item{smoothing}{Logical. Whether to apply spatial smoothing to BOLD data
+after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.}
+
+\item{surf_FWHM}{Numeric. Full width at half maximum (FWHM) parameter for
+Gaussian surface smoothing kernel in millimeters. Only used if
+\code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
+\code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.}
 
 \item{verbose}{Integer controlling output verbosity:
 \itemize{

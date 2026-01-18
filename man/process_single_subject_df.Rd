@@ -18,6 +18,8 @@ process_single_subject_df(
   onsets,
   offsets,
   scrub,
+  smoothing,
+  surf_FWHM,
   verbose
 )
 }

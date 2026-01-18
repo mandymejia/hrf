@@ -17,6 +17,8 @@ run_sequential_subjects_df(
   onsets,
   offsets,
   scrub,
+  smoothing,
+  surf_FWHM,
   verbose
 )
 }

@@ -9,6 +9,7 @@ plot_param_heatmap(
   model = c("intercept_only", "intercept_slope", "best_params", "average"),
   scale = NULL,
   title = NULL,
+  mask = FALSE,
   ...
 )
 }
@@ -30,6 +31,10 @@ models except \code{"average"}, which uses only \code{"average"}.}
 \item{title}{Character or \code{NULL}. Custom plot title. If \code{NULL}
 (default), a descriptive title is generated automatically based on
 \code{model}.}
+
+\item{mask}{Logical. If \code{TRUE}, filters \code{best_params_df} to only
+include voxel-subject pairs where the subject activation mask is \code{TRUE}.
+Only applies when \code{model = "best_params"}. Default is \code{FALSE}.}
 
 \item{...}{Any additional arguments to pass into ggplot formation via list(...).}
 }
@@ -53,11 +58,18 @@ the model includes an undershoot component (\code{c = 1/6}) or not
 The \code{scale} argument controls the color scale range to enable fair
 comparisons across different model types. By default, the three regularized
 models share a common scale, while the population average uses its own scale.
+
+When \code{mask = TRUE} and \code{model = "best_params"}, only voxels where
+subjects showed significant activation (based on the working HRF analysis) are
+included in the frequency calculations. This can reduce pile-ups at grid boundaries
+caused by noise-driven parameter estimates.
 }
 \examples{
 \dontrun{
 plot_param_heatmap(result, model = "intercept_slope")
 plot_param_heatmap(result, model = "best_params", title = "Custom Heatmap Title")
+# Filter by subject activation masks
+plot_param_heatmap(result, model = "best_params", mask = TRUE)
 # Use common scale for average and best_params
 plot_param_heatmap(result, model = "average", scale = c("average", "best_params"))
 }

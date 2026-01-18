@@ -30,6 +30,8 @@
 #' @inheritParams onsets_Param
 #' @inheritParams offsets_Param
 #' @inheritParams scrub_Param
+#' @inheritParams smoothing_Param
+#' @inheritParams surf_FWHM_Param
 #' @inheritParams verbose_Param
 #' @inheritParams n_cores_Param
 #' @inheritParams log_dir_Param
@@ -90,6 +92,8 @@ fit_allHRFs <- function(
     onsets = TRUE,
     offsets = TRUE,
     scrub = NULL,
+    smoothing = TRUE,
+    surf_FWHM = 5,
     verbose = 1,
     n_cores = 1,
     log_dir = "logs", work_dir = NULL, ...
@@ -109,13 +113,13 @@ fit_allHRFs <- function(
   if(n_cores > 1) {
     subject_results <- run_parallel_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir, work_dir
+      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir
     )
   } else {
     if(verbose > 0) cat("Using sequential processing\n")
     subject_results <- run_sequential_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, verbose, work_dir
+      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir
     )
   }
 
@@ -163,7 +167,9 @@ fit_allHRFs <- function(
       resamp_res = resamp_res,
       hpf = hpf,
       onsets = onsets,
-      offsets = offsets
+      offsets = offsets,
+      smoothing = smoothing,
+      surf_FWHM = surf_FWHM
     )
   )
 
@@ -200,7 +206,7 @@ fit_allHRFs <- function(
 #'
 #' @keywords internal
 run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                          hpf, hrf_grid, onsets, offsets, scrub, verbose, n_cores, log_dir, work_dir) {
+                                          hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir) {
 
   if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n")
 
@@ -217,7 +223,7 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
 
   vars_to_export <- c(
     "BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
-    "hpf", "hrf_grid", "onsets", "offsets", "verbose"
+    "hpf", "hrf_grid", "onsets", "offsets", "smoothing", "surf_FWHM", "verbose"
   )
 
   setup_parallel_cluster(cl, verbose, vars_to_export)
@@ -235,7 +241,7 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
         nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
         scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
         TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
+        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose
       )
 
 
@@ -289,7 +295,7 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
 #'
 #' @keywords internal
 run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                            hpf, hrf_grid, onsets, offsets, scrub, verbose, work_dir) {
+                                            hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir) {
 
   lapply(1:length(BOLD), function(i) {
     tryCatch({
@@ -300,7 +306,7 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
         nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
         scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
         TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
+        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose
       )
 
       file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
@@ -332,6 +338,8 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
 #' @inheritParams offsets_Param
 #' @inheritParams scrub_Param
 #' @inheritParams verbose_Param
+#' @inheritParams smoothing_Param
+#' @inheritParams surf_FWHM_Param
 #'
 #' @return List with elements:
 #'   \item{subject_idx}{Subject identifier}
@@ -344,7 +352,7 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
 #' @keywords internal
 process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
                                    TR, brainstructures, resamp_res, hpf,
-                                   hrf_grid, onsets, offsets, scrub, verbose) {
+                                   hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose) {
 
   tictoc::tic()
   cat("***STARTING NEW SUBJECT....***\n")
@@ -366,7 +374,7 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
 
     # Step 1: Load BOLD data (reuse from fit_workingHRF)
     tictoc::tic()
-    bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res)
+    bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res, smoothing, surf_FWHM)
     cat("*****#%#time elapsed for load_bold_data: ")
     tictoc::toc()
     nT <- bold_data$nT

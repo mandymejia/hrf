@@ -17,6 +17,8 @@ run_parallel_subjects_df(
   onsets,
   offsets,
   scrub,
+  smoothing,
+  surf_FWHM,
   verbose,
   n_cores,
   log_dir

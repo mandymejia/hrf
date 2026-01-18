@@ -4,7 +4,13 @@
 \alias{load_bold_data}
 \title{Load BOLD data and extract dimensions}
 \usage{
-load_bold_data(BOLD_file, brainstructures, resamp_res)
+load_bold_data(
+  BOLD_file,
+  brainstructures,
+  resamp_res,
+  smoothing = TRUE,
+  surf_FWHM = 5
+)
 }
 \arguments{
 \item{BOLD_file}{Character. File path to CIFTI data file.}
@@ -17,6 +23,14 @@ hemispheres, or \code{c("left", "right", "subcortical")}.}
 \item{resamp_res}{Integer or \code{NULL}. Surface resampling resolution
 (e.g., 10000 for 10k vertices per hemisphere). If \code{NULL}, uses
 native resolution of the input data.}
+
+\item{smoothing}{Logical. Whether to apply spatial smoothing to BOLD data
+after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.}
+
+\item{surf_FWHM}{Numeric. Full width at half maximum (FWHM) parameter for
+Gaussian surface smoothing kernel in millimeters. Only used if
+\code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
+\code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.}
 }
 \value{
 List with elements:

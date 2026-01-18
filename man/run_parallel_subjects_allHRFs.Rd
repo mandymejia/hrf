@@ -16,6 +16,8 @@ run_parallel_subjects_allHRFs(
   onsets,
   offsets,
   scrub,
+  smoothing,
+  surf_FWHM,
   verbose,
   n_cores,
   log_dir,
