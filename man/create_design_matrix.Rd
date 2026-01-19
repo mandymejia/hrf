@@ -64,6 +64,14 @@ per trial type? If \code{TRUE}, adds offset regressors for all tasks.
 If character vector, specifies which tasks to model offsets for.
 Only compatible with block designs (events with duration > 1s).}
 
+\item{smoothing}{Logical. Whether to apply spatial smoothing to BOLD data
+after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.}
+
+\item{surf_FWHM}{Numeric. Full width at half maximum (FWHM) parameter for
+Gaussian surface smoothing kernel in millimeters. Only used if
+\code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
+\code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.}
+
 \item{verbose}{Integer controlling output verbosity:
 \itemize{
 \item 0 = silent
