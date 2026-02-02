@@ -16,23 +16,6 @@ Authors@R: c(
            email = "damondpham@gmail.com",
            role = c("ctb"),
            comment = c(ORCID = "0000-0001-7563-4727")),
-    person(given = "David",
-           family = "Bolin",
-           email = "david.bolin@kaust.edu.sa",
-           role = c("ctb")),
-    person(given = "Yu (Ryan)",
-           family = "Yue",
-           email = "yybaruch@gmail.com",
-           role = c("ctb")),
-    person(given = "Daniel",
-           family = "Spencer",
-           email = "danieladamspencer@gmail.com",
-           role = c("aut"),
-           comment = c(ORCID = "0000-0002-9705-3605")),
-    person(given = "Sarah",
-           family = "Ryan",
-           email = "sarahryan320@gmail.com",
-           role = c("ctb"))
            )
 Maintainer: Amanda Mejia <mandy.mejia@gmail.com>
 Description: Computes the hemodynamic response function (HRF) for task 
