@@ -1,785 +1,522 @@
-#' Regularize HRF Parameters Across Subjects
+#' Compute HRF Metrics (Time-to-Peak and FWHM)
 #'
-#' Performs spatial regularization of hemodynamic response function (HRF)
-#' parameters by combining activation masks from the working HRF analysis with
-#' best-fitting parameters from the all-HRFs analysis. The function applies both
-#' ordinary least squares (OLS) and weighted least squares (WLS) methods to
-#' estimate subject-level deviations from population averages.
+#' Converts HRF parameters (a1, b1, c) to interpretable metrics:
+#' time-to-peak and full-width-at-half-maximum.
 #'
-#' @param workingHRF_results Results object from \code{fit_workingHRF()},
-#'   containing activation masks indicating which voxels showed significant
-#'   activation for each subject under the working HRF model.
-#' @param allHRF_results Results object from \code{fit_allHRFs()}, containing
-#'   best-fitting HRF parameters (a1, b1, c) for each voxel–subject combination
-#'   obtained by fitting multiple HRF variants.
+#' @param a1 Numeric vector of a1 parameter values.
+#' @param b1 Numeric vector of b1 parameter values.
+#' @param c Numeric vector of c parameter values.
+#' @param tapered Logical. If TRUE (default), applies tapering for c > 0
+#'   to handle the undershoot properly when computing FWHM.
 #'
-#' @return An object of class \code{"regularizeHRFs"} containing:
+#' @return A data.frame with columns:
 #'   \describe{
-#'     \item{best_params_df}{Combined dataframe of HRF parameters and activation
-#'       masks for all subjects and voxels.}
-#'     \item{regularized_params}{Nested list of regularization results for each
-#'       HRF parameter (a1, b1, c), including population averages, subject-level
-#'       estimates, residual variances, and brain visualization objects for both
-#'       OLS and WLS estimation methods.}
-#'     \item{rounded_params}{List of rounded regularized HRF parameters,
-#'       containing \code{rounded_intercept_slope} (rounded parameters from the
-#'       intercept–slope regularization fit) and \code{rounded_intercept_only}
-#'       (rounded parameters from the intercept-only regularization fit).
-#'       Each element contains HRF parameter values aligned to the nearest
-#'       entries in the HRF parameter grid.}
-#'     \item{mask_prop_NA}{Logical vector mask indicating voxels with sufficient
-#'       activation consistency across subjects. Voxels outside this threshold
-#'       are set to \code{NA}. Useful for downstream filtering.}
-#'     \item{hrf_grid}{The HRF parameter grid (object of class \code{"hrf_grid"})
-#'       used for fitting and rounding HRF parameters, enabling consistent
-#'       mapping and visualization in later analyses.}
+#'     \item{a1, b1, c}{Input parameter values}
+#'     \item{time_to_peak}{Time to peak (= a1 - b1)}
+#'     \item{FWHM}{Full-width-at-half-maximum of the HRF}
 #'   }
-#'
-#' @details
-#' The regularization process proceeds through the following steps:
-#' \enumerate{
-#'   \item Validate and align input data structures.
-#'   \item Merge subject-level activation masks with best-fitting HRF parameters.
-#'   \item For each HRF parameter (\code{a1}, \code{b1}, \code{c}):
-#'     \itemize{
-#'       \item Compute population-level average parameter estimates.
-#'       \item Estimate subject-level intercepts and slopes using OLS.
-#'       \item Compute residual variances for uncertainty quantification.
-#'       \item Refit parameters using WLS with inverse-variance weighting.
-#'       \item Create brain visualization objects for all derived quantities.
-#'     }
-#' }
-#'
-#' The function automatically handles missing or unreliable data via activation
-#' masking and provides both unweighted (OLS) and precision-weighted (WLS)
-#' regularized estimates to account for heteroscedasticity across brain regions.
-#'
-#' @seealso \code{\link{fit_workingHRF}}, \code{\link{fit_allHRFs}},
-#'   \code{\link{HRF_regularize}}
-#'
-#' @examples
-#' \dontrun{
-#' # Assuming results are available from prior steps
-#' working_results <- fit_workingHRF(BOLD, EVs, TR = 0.72)
-#' all_results <- fit_allHRFs(BOLD, EVs, TR = 0.72, hrf_grid = my_grid)
-#'
-#' # Regularize HRF parameters across subjects
-#' regularized <- regularize_allHRFs(working_results, all_results)
-#'
-#' # Access rounded parameter sets
-#' regularized$rounded_params$rounded_intercept_slope
-#' regularized$rounded_params$rounded_intercept_only
-#' }
-#'
-#' @export
-regularize_allHRFs <- function(workingHRF_results, allHRF_results) {
-  cat("****************Version 0.1.11********************\n")
-
-  xii <- validate_previous_results(workingHRF_results, allHRF_results)
-  result <- create_best_params_df(workingHRF_results, allHRF_results)
-
-  best_params_df <- result$best_params_df
-  mask_prop_NA <- result$mask_prop_NA
-
-  hrf_grid <- allHRF_results$hrf_grid
-  rm(workingHRF_results, allHRF_results); gc()
-  regularized_params <- HRF_regularize(best_params_df, mask_prop_NA, xii, mask = TRUE,
-                                       log = TRUE, truncate = TRUE, WLS = TRUE, 
-                                       use_subject_activation_mask = TRUE)
-
-  rounded_A <- round_regularized_params(
-    regularized_params,
-    hrf_grid,
-    model = "A",
-    inside_grid = TRUE
-  )
-
-  rounded_B <- round_regularized_params(
-    regularized_params,
-    hrf_grid,
-    model = "B",
-    inside_grid = TRUE
-  )
-
-  rounded <- list(
-    rounded_intercept_slope = rounded_A,
-    rounded_intercept_only  = rounded_B
-  )
-
-  # TODO: Refactor innternal code to match this naming convention after regression testing is setup.
-  regularized_params <- lapply(regularized_params, function(param_list) {
-    names(param_list) <- gsub("A_", "IS_", names(param_list))
-    names(param_list) <- gsub("B_", "IO_", names(param_list))
-    names(param_list) <- gsub("_A", "_IS", names(param_list))
-    names(param_list) <- gsub("_B", "_IO", names(param_list))
-    param_list
-  })
-    
-  result <- list (
-    best_params_df = best_params_df,
-    regularized_params = regularized_params,
-    rounded_params = rounded,
-    mask_prop_NA = mask_prop_NA,
-    hrf_grid = hrf_grid
-  )
-
-  class(result) <- "regularizeHRFs"
-  attr(result, "xii") <- xii
-  return(result)
-
-}
-
-#' Create Best Parameters Dataframe for HRF Regularization
-#'
-#' This function merges activation masks from working HRF analysis with best-fitting
-#' HRF parameters from all-HRFs analysis to create a consolidated dataframe for
-#' regularization. It prepares the data structure needed for the regularization
-#' step by combining subject-specific activation information with overfitted
-#' parameter estimates.
-#'
-#' @param workingHRF_results Results object from \code{fit_workingHRF()}, containing
-#'   activation masks that indicate which voxels showed significant activation
-#'   for each subject using the working HRF model.
-#' @param allHRF_results Results object from \code{fit_allHRFs()}, containing
-#'   best-fitting HRF parameters (a1, b1, c) for each voxel-subject combination
-#'   from fitting multiple HRF variants.
-#'
-#' @return A dataframe with the following columns:
-#'   \describe{
-#'     \item{a1, b1, c}{HRF parameters (numeric) from the best-fitting model}
-#'     \item{voxel}{Voxel/location identifier (integer)}
-#'     \item{subject}{Subject identifier (character)}
-#'     \item{mask}{Logical indicating significant activation for this voxel-subject pair}
-#'   }
-#'
-#' @details
-#' The function performs the following steps:
-#' \enumerate{
-#'   \item Extracts activation masks from working HRF results
-#'   \item Reshapes masks from wide to long format using \code{reshape2::melt()}
-#'   \item Extracts best-fitting parameters from all-HRFs results
-#'   \item Converts parameters to factors then back to numeric (matching research pipeline)
-#'   \item Merges masks with parameters using \code{dplyr::left_join()}
-#' }
-#'
-#' The resulting dataframe contains both the overfitted parameter estimates and
-#' activation information needed for spatial regularization of HRF parameters.
 #'
 #' @keywords internal
-create_best_params_df <- function(workingHRF_results, allHRF_results ) {
+get_hrf_metrics <- function(a1, b1, c, tapered = TRUE) {
+  n <- length(a1)
+  time_to_peak <- numeric(n)
+  FWHM <- numeric(n)
+
+  # Time grid: TR=2, sr_factor=100, max_time=20
+  inds <- seq(1/100, 20, 1/100) * 2
+
+  for (i in 1:n) {
+    a1_i <- a1[i]
+    b1_i <- b1[i]
+    c_i <- c[i]
+
+    # Compute a2 from a1, b1 (standard relationship)
+    a2_i <- (16 / sqrt(6)) * sqrt(a1_i) * sqrt(b1_i)
+    b2_i <- b1_i
+
+    # Time-to-peak is simply a1 - b1
+    time_to_peak[i] <- a1_i - b1_i
+
+    # Compute HRF curve
+    hrf_raw <- HRF_calc(t = inds, deriv = 0, a1 = a1_i, b1 = b1_i,
+                        a2 = a2_i, b2 = b2_i, c = c_i)
+
+    # Apply tapering if needed (for c > 0, the undershoot can cause issues)
+    if (tapered && c_i > 0) {
+      peak2_idx <- which.min(hrf_raw)
+      peak2_time <- inds[peak2_idx]
+      taper_start <- min(peak2_time, 25)
+
+      # Only taper if HRF hasn't returned to baseline by t=30
+      if (abs(hrf_raw[which.min(abs(inds - 30))]) > 0.01) {
+        hrf_use <- HRF_calc(t = inds, deriv = 0, a1 = a1_i, b1 = b1_i,
+                            a2 = a2_i, b2 = b2_i, c = c_i,
+                            taper_start = taper_start, taper_end = 30, taper_power = 1)
+      } else {
+        hrf_use <- hrf_raw
+      }
+    } else {
+      hrf_use <- hrf_raw
+    }
+
+    # Compute FWHM from the HRF curve
+    peak_val <- max(hrf_use)
+    peak_idx <- which.max(hrf_use)
+    vals_left <- hrf_use[1:peak_idx]
+    vals_right <- hrf_use[peak_idx:length(hrf_use)]
+
+    x1 <- min(which(vals_left > 0.5 * peak_val))
+    x2 <- max(which(vals_right > 0.5 * peak_val))
+    time1 <- inds[x1]
+    time2 <- inds[peak_idx + x2 - 1]
+    FWHM[i] <- time2 - time1
+  }
+
+  return(data.frame(a1 = a1, b1 = b1, c = c, time_to_peak = time_to_peak, FWHM = FWHM))
+}
+
+
+#' Determine Winning C Value Across Subjects
+#'
+#' Compares RSS between c values (e.g., c=0 vs c=1/6) across all subjects
+#' and voxels to determine which c value provides better fits overall.
+#'
+#' @param allHRF_results Results from \code{fit_allHRFs()}.
+#' @param workingHRF_results Results from \code{fit_workingHRF()}.
+#' @param verbose Integer verbosity level.
+#'
+#' @return A list with:
+#'   \describe{
+#'     \item{winning_c}{The c value with more wins (lower RSS more often)}
+#'     \item{c_votes}{Named vector with vote counts per c value}
+#'     \item{c_keys}{Character vector of c value keys}
+#'   }
+#'
+#' @keywords internal
+determine_winning_c <- function(allHRF_results, workingHRF_results, verbose = 1) {
+  # Get masks
   mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
+  pop_mask_voxels <- which(!is.na(mask_prop_NA))
+  subject_masks <- workingHRF_results[["activation_masks"]][["masks"]]
 
-  masks <- workingHRF_results[["activation_masks"]][["masks"]]
-  masks_df <- masks_df <- as.data.frame(masks) # Reshape dataframe
-  masks_df$voxel <- 1:nrow(masks_df)
-  masks_df <- reshape2::melt(masks_df, id.vars = 'voxel', variable.name = 'subject', value.name = 'mask')
+  n_subjects <- length(allHRF_results[["subject_results"]])
+  n_voxels <- nrow(subject_masks)
 
-  # At this point research code saves mask_prop_NA
-  #################################################
+  # Get c value keys from first subject
+  c_keys <- names(allHRF_results[["subject_results"]][[1]][["glm_result"]][["mGLM0s"]][["cortexL"]][["best_per_c"]])
 
-  # best_params_df creation
-  best_params_df <- allHRF_results[["best_params_results"]]
-  a1_vals <- sort(unique(best_params_df$a1))
-  b1_vals <- sort(unique(best_params_df$b1))
-  c_vals <- sort(unique(best_params_df$c))
-  best_params_df$a1 <- factor(best_params_df$a1, levels=a1_vals)
-  best_params_df$b1 <- factor(best_params_df$b1, levels=b1_vals)
-  best_params_df$c <- factor(best_params_df$c, levels=c_vals)
+  if (verbose > 0) cat("C values found:", c_keys, "\n")
 
-  best_params_df$subject <- as.character(best_params_df$subject) # Convert to left join
-  masks_df$subject <- as.character(masks_df$subject)
+  # Initialize vote counts
+  c_votes <- setNames(rep(0, length(c_keys)), c_keys)
 
+  # Count votes across all subjects
+  for (i in 1:n_subjects) {
+    subj_result <- allHRF_results[["subject_results"]][[i]][["glm_result"]][["mGLM0s"]]
+    subj_mask <- subject_masks[, i]
 
-  #1. merge masks into best_params_df
-  best_params_df <- left_join(best_params_df, masks_df)
+    # Get RSS for each c value (combine cortexL and cortexR)
+    rss_by_c <- lapply(c_keys, function(k) {
+      c(subj_result[["cortexL"]][["best_per_c"]][[k]]$rss,
+        subj_result[["cortexR"]][["best_per_c"]][[k]]$rss)
+    })
+    names(rss_by_c) <- c_keys
 
-  best_params_df$a1 <- as.numeric(as.character(best_params_df$a1))
-  best_params_df$b1 <- as.numeric(as.character(best_params_df$b1))
-  best_params_df$c <- as.numeric(as.character(best_params_df$c))
+    # Apply masks: both subject mask and population mask
+    both_mask <- subj_mask & (seq_len(n_voxels) %in% pop_mask_voxels)
 
-  return(list(
-    best_params_df = best_params_df,
-    mask_prop_NA = mask_prop_NA
-  ))
-
-}
-
-
-
-#' Regularize HRF Parameters Using Hierarchical Modeling
-#'
-#' Performs hierarchical regularization of HRF parameters by modeling
-#' subject-specific deviations from population averages. The function
-#' implements both ordinary least squares (OLS) and weighted least squares
-#' (WLS) approaches to estimate subject-level parameters while accounting
-#' for spatial heterogeneity in estimation uncertainty.
-#'
-#' @param best_params_df Dataframe containing HRF parameter estimates with
-#'   columns for parameters (a1, b1, c), voxel identifiers, subject
-#'   identifiers, and activation masks.
-#' @param xii Template xifti object used for creating brain visualizations
-#'   with proper anatomical structure and dimensions.
-#' @param mask Logical. If \code{TRUE} (default), only analyze voxels that
-#'   showed significant activation in the working HRF analysis. If \code{FALSE},
-#'   analyze all voxels.
-#' @param log Logical. Reserved for future log-transformation of parameters.
-#'   Currently not implemented.
-#' @param truncate Logical. If \code{TRUE} (default), subjects with negative
-#'   slopes are identified and their slopes are set to zero, with intercepts
-#'   re-estimated accordingly.
-#' @param WLS Logical. If \code{TRUE} (default), performs weighted least
-#'   squares estimation using inverse variance weights after initial OLS
-#'   estimation. If \code{FALSE}, only performs OLS estimation.
-#' @param use_subject_activation_mask Logical. If \code{TRUE} (default), only
-#'   includes subjects with activation at each voxel when computing population
-#'   averages (i.e., filters by \code{best_params_df$mask == TRUE}). If
-#'   \code{FALSE}, includes all subjects regardless of individual activation
-#'   status.
-#'
-#' @return A nested list with one entry per parameter (a1, b1, c), where each
-#'   parameter's results contain:
-#'   \describe{
-#'     \item{pop_mean_xii}{Brain map of population-averaged parameter values}
-#'     \item{best_params_df_est_OLS}{Subject-level OLS estimates (slopes,
-#'       intercepts, offsets)}
-#'     \item{results_OLS}{Full dataframe with OLS predictions, residuals,
-#'       and variances}
-#'     \item{residual_variance_xii_A_OLS, residual_variance_xii_B_OLS}{Brain
-#'       maps of OLS residual variances for Model A and B}
-#'     \item{best_params_df_est_WLS}{Subject-level WLS estimates (if WLS=TRUE)}
-#'     \item{results_WLS}{Full dataframe with WLS predictions, residuals,
-#'       and variances (if WLS=TRUE)}
-#'     \item{residual_variance_xii_A_WLS, residual_variance_xii_B_WLS}{Brain
-#'       maps of WLS residual variances (if WLS=TRUE)}
-#'   }
-#'
-#' @details
-#' The regularization process for each parameter involves:
-#' \enumerate{
-#'   \item \strong{Population Estimation}: Computing voxel-wise averages
-#'     across subjects for activated regions
-#'   \item \strong{OLS Subject Modeling}: For each subject, fitting linear
-#'     models relating individual estimates to population averages:
-#'     \itemize{
-#'       \item Model A: \eqn{param_{ij} = intercept_i + slope_i \times pop\_avg_j}
-#'       \item Model B: \eqn{param_{ij} = offset_i + pop\_avg_j}
-#'     }
-#'   \item \strong{Variance Estimation}: Computing residual variances to
-#'     quantify estimation uncertainty
-#'   \item \strong{WLS Re-estimation}: Using inverse variance weights to
-#'     improve parameter estimates in heteroscedastic regions
-#' }
-#'
-#' Negative slope truncation prevents unrealistic parameter relationships where
-#' subjects systematically deviate in the opposite direction from population trends.
-#'
-#' @keywords internal
-HRF_regularize <- function(best_params_df, mask_prop_NA, xii, mask = TRUE,
-                           log = TRUE, truncate = TRUE, WLS = TRUE, 
-                           use_subject_activation_mask = TRUE  ) {
-  param_names <-  extract_param_names(best_params_df)
-  model_outputs <- list() # To store the results for each param
-
-  best_params_df$use <- if(!use_subject_activation_mask) TRUE else best_params_df$mask
-
-  for(pp in param_names) {
-    print(paste("Running analysis for param", pp, "..."))
-
-    pop_results <- estimate_population_parameters(best_params_df, mask_prop_NA, pp, xii, mask)
-    best_params_df <- pop_results$best_params_df
-    mean0_xii <- pop_results$mean0_xii
-
-    # Initialize an empty list and save pop_mean_xii as function output
-    model_outputs[[pp]] <- list()
-    model_outputs[[pp]]$pop_mean_xii <- mean0_xii
-
-    # OLS estimation and variance calculation
-    ols_results <- estimate_ols_and_variance(best_params_df, truncate, xii)
-    best_params_df <- ols_results$best_params_df
-    model_outputs[[pp]]$best_params_df_est_OLS <- ols_results$best_params_df_est
-    model_outputs[[pp]]$results_OLS <- ols_results$best_params_df
-    model_outputs[[pp]]$residual_variance_xii_A_OLS <- ols_results$variance_xii_A
-    model_outputs[[pp]]$residual_variance_xii_B_OLS <- ols_results$variance_xii_B
-
-    print("Completed OLS")
-
-    if(WLS) {
-
-      wls_results <- estimate_wls_and_variance(best_params_df, truncate, mean0_xii)
-      model_outputs[[pp]]$best_params_df_est_WLS <- wls_results$best_params_df_est
-      model_outputs[[pp]]$results_WLS <- wls_results$best_params_df
-      model_outputs[[pp]]$residual_variance_xii_A_WLS <- wls_results$variance_xii_A
-      model_outputs[[pp]]$residual_variance_xii_B_WLS <- wls_results$variance_xii_B
-
-      print("Completed WLS")
+    # For masked voxels, find which c has lower RSS and count votes
+    for (k in c_keys) {
+      rss_k <- rss_by_c[[k]][both_mask]
+      # Compare against other c values
+      other_keys <- setdiff(c_keys, k)
+      wins <- rep(TRUE, sum(both_mask))
+      for (ok in other_keys) {
+        wins <- wins & (rss_k < rss_by_c[[ok]][both_mask])
+      }
+      c_votes[k] <- c_votes[k] + sum(wins)
     }
   }
-  return(model_outputs)
+
+  # Determine winning c
+  winning_c_key <- names(which.max(c_votes))
+  winning_c <- as.numeric(winning_c_key)
+
+  if (verbose > 0) {
+    cat("C votes:", paste(names(c_votes), "=", c_votes, collapse = ", "), "\n")
+    cat("Winning c:", winning_c, "\n")
+  }
+
+  return(list(
+    winning_c = winning_c,
+    c_votes = c_votes,
+    c_keys = c_keys
+  ))
 }
 
-#' Estimate Population-Level HRF Parameters
+
+#' Extract Best HRF Parameters Per Subject
 #'
-#' Computes population-averaged HRF parameter estimates by averaging individual
-#' subject estimates across voxels. This represents the first step in the HRF
-#' regularization process, creating group-level parameter maps and preparing
-#' data for subsequent subject-level modeling.
+#' Extracts the best HRF parameters for each voxel and subject using the
+#' winning c value. Combines cortexL and cortexR data and adds t2p/fwhm
+#' metrics via lookup from the precomputed hrf_grid.
 #'
-#' @param best_params_df Dataframe containing HRF parameter estimates with columns
-#'   for parameters (a1, b1, c), voxel identifiers, subject identifiers, and
-#'   activation masks. Modified in place with additional columns.
-#' @param pp Character string specifying which parameter column to process
-#'   (e.g., "a1", "b1", "c").
-#' @param xii Template xifti object used for creating brain visualizations with
-#'   proper anatomical structure and dimensions.
+#' @param allHRF_results Results from \code{fit_allHRFs()}.
+#' @param workingHRF_results Results from \code{fit_workingHRF()}.
+#' @param winning_c The winning c value from \code{determine_winning_c()}.
+#' @param hrf_grid HRF grid with precomputed time_to_peak and FWHM columns.
+#' @param verbose Integer verbosity level.
 #'
-#' @return A list containing:
+#' @return A data.frame with columns:
 #'   \describe{
-#'     \item{best_params_df}{Updated dataframe with new columns: \code{param},
-#'       \code{param0}, and \code{param_mean0} joined from population averaging.
-#'       Previous iteration columns are cleared.}
-#'     \item{mean0_xii}{xifti object containing population-averaged parameter
-#'       values properly formatted for brain visualization, with NA padding
-#'       for voxels not meeting activation criteria.}
+#'     \item{voxel}{Voxel index (1 to n_voxels)}
+#'     \item{subject}{Subject index}
+#'     \item{a1, b1, c}{Best HRF parameters for winning c}
+#'     \item{rss}{Residual sum of squares}
+#'     \item{time_to_peak, FWHM}{HRF metrics looked up from grid}
+#'     \item{mask}{Subject activation mask (TRUE/FALSE)}
 #'   }
 #'
-#' @details
-#' The function performs the following operations:
-#' \enumerate{
-#'   \item Selects the current parameter and clears previous iteration columns
-#'   \item Filters to voxels meeting activation criteria (\code{use} column)
-#'   \item Computes voxel-wise averages across subjects
-#'   \item Joins population averages back to the main dataframe
-#'   \item Creates an xifti visualization object with NA padding for missing voxels
-#' }
-#'
-#' This function modifies the input dataframe by adding parameter-specific columns
-#' and clearing columns from previous parameter iterations to ensure a clean state.
-#'
 #' @keywords internal
-estimate_population_parameters <- function(best_params_df, mask_prop_NA, pp, xii, mask) {
-  best_params_df$param <- best_params_df[,pp] #select the current parameter
-  best_params_df$param0 <- best_params_df$param
+extract_best_params_per_subject <- function(allHRF_results, workingHRF_results,
+                                             winning_c, hrf_grid, verbose = 1) {
+  # Get subject masks
 
-  best_params_df$param_mean0 <- NULL # Initiliazation
-  best_params_df$param_offset <- best_params_df$param_int <- best_params_df$param_slope <- NULL
-  best_params_df$param_pred_A <- best_params_df$param_pred_B <- NULL
-  print("Running Ordinary Least Squares Method")
+subject_masks <- workingHRF_results[["activation_masks"]][["masks"]]
+  n_subjects <- length(allHRF_results[["subject_results"]])
+  n_voxels <- nrow(subject_masks)
 
-  if(mask) {
-    # Use population mask + activation mask
-    best_params_df_avg0 <- best_params_df %>%
-      filter(use & voxel %in% which(!is.na(mask_prop_NA))) %>%
-      group_by(voxel) %>%
-      summarize(param_mean0 = mean(param0, na.rm=TRUE))
-  } else {
-    # Original behavior - all voxels, all subjects
-    best_params_df_avg0 <- best_params_df %>%
-      filter(use) %>%  # When mask=FALSE, use=TRUE for everyone
-      group_by(voxel) %>%
-      summarize(param_mean0 = mean(param0, na.rm=TRUE))
+  # Convert winning_c to character key
+  winning_c_key <- as.character(winning_c)
+
+  # Create lookup for t2p/fwhm from hrf_grid
+  # Key: "a1_b1_c" -> row index in hrf_grid
+  hrf_grid$key <- paste(hrf_grid$a1, hrf_grid$b1, hrf_grid$c, sep = "_")
+
+  if (verbose > 0) cat("Extracting best params for", n_subjects, "subjects...\n")
+
+  best_params_list <- vector("list", n_subjects)
+
+  for (i in seq_len(n_subjects)) {
+    if (verbose > 1 && i %% 100 == 0) cat("  Subject", i, "/", n_subjects, "\n")
+
+    subj_result <- allHRF_results[["subject_results"]][[i]][["glm_result"]][["mGLM0s"]]
+    subj_mask <- subject_masks[, i]
+
+    # Get best params for winning c (cortexL + cortexR)
+    best_L <- subj_result[["cortexL"]][["best_per_c"]][[winning_c_key]]
+    best_R <- subj_result[["cortexR"]][["best_per_c"]][[winning_c_key]]
+
+    # Combine hemispheres
+    a1_vec <- c(best_L$a1, best_R$a1)
+    b1_vec <- c(best_L$b1, best_R$b1)
+    c_vec <- c(best_L$c, best_R$c)
+    rss_vec <- c(best_L$rss, best_R$rss)
+
+    # Create lookup keys and get t2p/fwhm
+    keys <- paste(a1_vec, b1_vec, c_vec, sep = "_")
+    grid_idx <- match(keys, hrf_grid$key)
+
+    best_params_list[[i]] <- data.frame(
+      voxel = seq_len(n_voxels),
+      subject = i,
+      a1 = a1_vec,
+      b1 = b1_vec,
+      c = c_vec,
+      rss = rss_vec,
+      time_to_peak = hrf_grid$time_to_peak[grid_idx],
+      FWHM = hrf_grid$FWHM[grid_idx],
+      mask = subj_mask
+    )
   }
 
-  best_params_df <- best_params_df %>% left_join(best_params_df_avg0, by = "voxel") # Bing population means back into full df
+  best_params_df <- do.call(rbind, best_params_list)
 
-  best_params_df <- best_params_df %>%
-    filter(!is.na(param_mean0)) # Because mask_prop_NA is applied, so the left join can create NAs
+  if (verbose > 0) {
+    cat("Built best_params_df:", nrow(best_params_df), "rows\n")
+  }
 
-  mean0_xii <- create_xifti_with_padding(best_params_df_avg0, "param_mean0", xii)
-  # mean0_xii <- ciftiTools::newdata_xifti(xii, best_params_df_avg0$param_mean0)
+  return(best_params_df)
+}
+
+
+#' Snap t2p/fwhm Values to Nearest Grid Point
+#'
+#' Converts population-averaged t2p and fwhm values back to the nearest
+#' (a1, b1) grid point for a fixed c value. Uses normalized Euclidean
+#' distance in (t2p, fwhm) space to find the closest match.
+#'
+#' @param t2p Numeric vector of time-to-peak values.
+#' @param fwhm Numeric vector of FWHM values.
+#' @param hrf_grid HRF grid with precomputed time_to_peak and FWHM columns.
+#' @param fixed_c The fixed c value to snap to.
+#'
+#' @return A data.frame with columns: a1, b1, c (snapped to grid).
+#'
+#' @keywords internal
+snap_to_grid_t2p_fwhm <- function(t2p, fwhm, hrf_grid, fixed_c) {
+  # Filter grid to matching c value
+  grid_subset <- hrf_grid[abs(hrf_grid$c - fixed_c) < 1e-6, ]
+
+  # Normalization ranges
+  t2p_range <- max(grid_subset$time_to_peak) - min(grid_subset$time_to_peak)
+  fwhm_range <- max(grid_subset$FWHM) - min(grid_subset$FWHM)
+
+  # Build matrices for vectorized distance computation
+  # grid_t2p and grid_fwhm are length-G vectors (G = grid subset size)
+  grid_t2p <- grid_subset$time_to_peak
+  grid_fwhm <- grid_subset$FWHM
+
+  # Compute distance matrix: (n_voxels x G)
+  # Each row is a voxel, each column is a grid point
+  t2p_dist <- outer(t2p, grid_t2p, function(a, b) ((a - b) / t2p_range)^2)
+  fwhm_dist <- outer(fwhm, grid_fwhm, function(a, b) ((a - b) / fwhm_range)^2)
+  dist_matrix <- sqrt(t2p_dist + fwhm_dist)
+
+  # Find nearest grid point for each voxel
+  nearest_idx <- apply(dist_matrix, 1, which.min)
+
+  data.frame(
+    a1 = grid_subset$a1[nearest_idx],
+    b1 = grid_subset$b1[nearest_idx],
+    c = fixed_c
+  )
+}
+
+
+#' Snap Parameters to Nearest Grid Point
+#'
+#' Snaps arbitrary (a1, b1, c) values to the nearest valid HRF grid point.
+#' Matches c value first, then finds the nearest (a1, b1) by normalized
+#' Euclidean distance.
+#'
+#' @param a1 Numeric vector of a1 values to snap.
+#' @param b1 Numeric vector of b1 values to snap.
+#' @param c Numeric vector of c values to snap.
+#' @param hrf_grid HRF grid data.frame with a1, b1, c columns.
+#'
+#' @return A data.frame with columns: a1, b1, c (snapped to grid).
+#'
+#' @keywords internal
+snap_to_grid <- function(a1, b1, c, hrf_grid) {
+  # Get unique grid combos
+  grid_combos <- unique(hrf_grid[, c("a1", "b1", "c")])
+
+  # Normalization ranges
+  a1_range <- max(grid_combos$a1) - min(grid_combos$a1)
+  b1_range <- max(grid_combos$b1) - min(grid_combos$b1)
+
+  # Get unique c values in grid
+  unique_c <- unique(grid_combos$c)
+
+  n <- length(a1)
+  a1_out <- numeric(n)
+  b1_out <- numeric(n)
+  c_out <- numeric(n)
+
+  # Process by c value for efficiency
+  for (c_val in unique_c) {
+    # Which inputs match this c?
+    c_match <- abs(c - c_val) < 1e-6
+    if (!any(c_match)) next
+
+    # Grid points for this c
+    grid_c <- grid_combos[abs(grid_combos$c - c_val) < 1e-6, ]
+
+    # Vectorized distance: inputs matching this c vs grid points for this c
+    a1_sub <- a1[c_match]
+    b1_sub <- b1[c_match]
+
+    a1_dist <- outer(a1_sub, grid_c$a1, function(a, b) ((a - b) / a1_range)^2)
+    b1_dist <- outer(b1_sub, grid_c$b1, function(a, b) ((a - b) / b1_range)^2)
+    dist_matrix <- sqrt(a1_dist + b1_dist)
+
+    nearest_idx <- apply(dist_matrix, 1, which.min)
+    a1_out[c_match] <- grid_c$a1[nearest_idx]
+    b1_out[c_match] <- grid_c$b1[nearest_idx]
+    c_out[c_match] <- c_val
+  }
+
+  data.frame(a1 = a1_out, b1 = b1_out, c = c_out)
+}
+
+
+#' Create Candidate Maps from Population Average
+#'
+#' Generates candidate HRF maps by applying offset combinations to the
+#' population average map. Each candidate is a shifted version of the
+#' population map, snapped back to valid grid points.
+#'
+#' @param pop_avg Data.frame from population averaging with columns:
+#'   voxel, a1_snapped, b1_snapped, c_snapped.
+#' @param hrf_grid HRF grid with precomputed time_to_peak and FWHM columns.
+#' @param a1_offsets Numeric vector of a1 offsets (default: c(-2,-1,0,1,2)).
+#' @param b1_offsets Numeric vector of b1 offsets (default: c(-0.5,-0.25,0,0.25,0.5)).
+#' @param verbose Integer verbosity level.
+#'
+#' @return A list with:
+#'   \describe{
+#'     \item{candidate_maps}{List of data.frames, one per offset combo. Each has
+#'       columns: voxel, a1, b1, c, model_idx, time_to_peak, FWHM, offset_id,
+#'       a1_offset, b1_offset.}
+#'     \item{offset_combos}{Data.frame of offset combinations used.}
+#'   }
+#'
+#' @keywords internal
+create_candidate_maps <- function(pop_avg, hrf_grid,
+                                   a1_offsets = c(-2, -1, 0, 1, 2),
+                                   b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
+                                   verbose = 1) {
+  offset_combos <- expand.grid(a1_offset = a1_offsets, b1_offset = b1_offsets)
+  n_candidates <- nrow(offset_combos)
+
+  if (verbose > 0) cat("Creating", n_candidates, "candidate maps\n")
+
+  # Valid grid ranges
+  a1_min <- min(hrf_grid$a1)
+  a1_max <- max(hrf_grid$a1)
+  b1_min <- min(hrf_grid$b1)
+  b1_max <- max(hrf_grid$b1)
+
+  # Build model index lookup (unique HRF combos across all candidates)
+  # We'll assign model indices after collecting all unique combos
+  hrf_grid$key <- paste(hrf_grid$a1, hrf_grid$b1, hrf_grid$c, sep = "_")
+
+  candidate_maps <- vector("list", n_candidates)
+
+  for (i in seq_len(n_candidates)) {
+    a1_off <- offset_combos$a1_offset[i]
+    b1_off <- offset_combos$b1_offset[i]
+
+    # Apply offset and clamp to valid range
+    a1_shifted <- pmin(pmax(pop_avg$a1_snapped + a1_off, a1_min), a1_max)
+    b1_shifted <- pmin(pmax(pop_avg$b1_snapped + b1_off, b1_min), b1_max)
+    c_vals <- pop_avg$c_snapped
+
+    # Snap to nearest valid grid point
+    snapped <- snap_to_grid(a1_shifted, b1_shifted, c_vals, hrf_grid)
+
+    # Look up model index and metrics from hrf_grid
+    keys <- paste(snapped$a1, snapped$b1, snapped$c, sep = "_")
+    grid_idx <- match(keys, hrf_grid$key)
+
+    candidate_maps[[i]] <- data.frame(
+      voxel = pop_avg$voxel,
+      a1 = snapped$a1,
+      b1 = snapped$b1,
+      c = snapped$c,
+      model_idx = grid_idx,
+      time_to_peak = hrf_grid$time_to_peak[grid_idx],
+      FWHM = hrf_grid$FWHM[grid_idx],
+      offset_id = i,
+      a1_offset = a1_off,
+      b1_offset = b1_off
+    )
+  }
+
+  if (verbose > 0) {
+    # Count unique HRF combos across all candidates
+    all_keys <- unique(unlist(lapply(candidate_maps, function(cm) {
+      paste(cm$a1, cm$b1, cm$c, sep = "_")
+    })))
+    cat("Total unique HRF combos across candidates:", length(all_keys), "\n")
+  }
 
   return(list(
-    best_params_df = best_params_df,
-    mean0_xii = mean0_xii
+    candidate_maps = candidate_maps,
+    offset_combos = offset_combos
   ))
 }
 
-#' Estimate OLS Parameters and Calculate Variance
+
+#' Fit Candidate Maps via RSS Lookup
 #'
-#' Performs ordinary least squares estimation for subject-level parameters
-#' and calculates residual variances for Model A and Model B predictions.
+#' Uses pre-computed RSS matrices stored in .qs files to evaluate
+#' candidate maps for each subject. Much faster than refitting.
+#' Requires \code{fit_allHRFs} to have been run with \code{save_rss = TRUE}.
 #'
-#' @param best_params_df Dataframe with parameter estimates and population means
-#' @param truncate Logical, whether to truncate negative slopes
-#' @param xii Template xifti object for creating variance visualizations
-#'
-#' @return List containing updated dataframe, estimates, and variance objects
-#' @keywords internal
-estimate_ols_and_variance <- function(best_params_df, truncate, xii) {
-  ### NORMAL METHOD IMPLEMENTATION (NON-WLS)
-  # This section contains the original non-weighted implementation
-
-  ### Step 2: for each subject, fit a model relating the over-fitted estimates to the population average
-  ### Model A: intercept and slope
-  ### Model B: offset-only (an intercept-only model, which might be preferable when model A results in slope = 0 or negative slopes)
-
-  best_params_df_est <- best_params_df %>%
-    filter(use) %>%
-    group_by(subject) %>%
-    summarize(param_offset = mean(param - param_mean0),
-              param_slope = slope_fun(param, param_mean0, lm=FALSE),
-              param_int = mean(param) - param_slope*mean(param_mean0))
-
-
-  ### Step 3: truncate negative slopes, re-estimate intercepts as the straight mean
-  if(truncate) best_params_df_est <- truncate_negative_slopes(best_params_df,
-                                                              best_params_df_est,
-                                                              method = "OLS")
-
-  # Keep subjects in numerical order
-  best_params_df_est <- arrange(best_params_df_est, subject)
-
-
-  # Bring subject-level slopes and intercepts back into full df
-  best_params_df <- best_params_df %>% left_join(best_params_df_est, by = 'subject')
-
-  ### Step 4: generate predictions & update \gamma_v using predictions (for iteration)
-  best_params_df$param_pred_A <- best_params_df$param_int + best_params_df$param_slope * best_params_df$param_mean0
-  best_params_df$param_pred_B <- best_params_df$param_offset + best_params_df$param_mean0
-
-  # Step 4.a: Compute residuals
-  best_params_df$residual_A <- best_params_df$param - best_params_df$param_pred_A
-  best_params_df$residual_B <- best_params_df$param - best_params_df$param_pred_B
-
-
-  # Step 4.b: Estimate variance over subjects (grouping by voxel)
-  residual_variance <- best_params_df %>%
-    filter(use) %>%
-    group_by(voxel) %>%
-    # summarize(
-    #   n_obs = dplyr::n(),
-    #   # Return 0 variance if only one subjects for voxel
-    #   variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
-    #   variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
-    # )
-    summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
-              variance_B = var(residual_B, na.rm = TRUE))
-
-  # Create xifti objects for variance datasets for OLS
-  variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", xii)
-  variance_xii_B <- create_xifti_with_padding(residual_variance, "variance_B", xii)
-
-  # Bring variances back to main dataframe
-  best_params_df <- best_params_df %>%
-    select(-any_of(c("variance_A", "variance_B"))) %>%
-    left_join(residual_variance, by = "voxel")
-
-  print("Saving predictions, residuals, variances, variance xiftis for Ordinary Least Squares Method")
-  return(list(
-    best_params_df = best_params_df,
-    best_params_df_est = best_params_df_est,
-    variance_xii_A = variance_xii_A,
-    variance_xii_B = variance_xii_B
-  ))
-}
-
-#' Estimate WLS Parameters and Calculate Final Variance
-#'
-#' Performs weighted least squares estimation using inverse variance weights
-#' and calculates final residual variances for Model A and Model B predictions.
-#'
-#' @param best_params_df Dataframe with parameter estimates, population means, and variances
-#' @param truncate Logical, whether to truncate negative slopes
-#' @param mean0_xii Template xifti object for creating variance visualizations
-#'
-#' @return List containing estimates and variance objects
-#' @keywords internal
-estimate_wls_and_variance <- function(best_params_df, truncate, mean0_xii) {
-  # Now that we have variances, we will use WLS method to re-estimate the slope and intercept
-  # gamma_iv ->param , gamma_v -> param_mean0
-  # weight_A -> inverse square root of variances for model A
-  # weight_B -> inverse square root of variances for model B
-
-  print("Running weighted Least squares method")
-
-  best_params_df$weight_A <- 1 / sqrt(best_params_df$variance_A)
-  best_params_df$weight_B <- 1 / sqrt(best_params_df$variance_B) # TODO: Do we need below fix?
-
-  # best_params_df$weight_A <- ifelse(best_params_df$variance_A > 1e-10,
-  #                                   1 / sqrt(best_params_df$variance_A), 0)
-  # best_params_df$weight_B <- ifelse(best_params_df$variance_B > 1e-10,
-  #                                   1 / sqrt(best_params_df$variance_B), 0)
-
-  # Now calculate weighted estimates with proper weights
-  # best_params_df$weight_A[ !is.finite(best_params_df$weight_A) ] <- 0  # zero-out NA / Inf
-  # best_params_df$weight_B[ !is.finite(best_params_df$weight_B) ] <- 0 # FIX FOR ROUND
-  best_params_df_est <- best_params_df %>%
-    filter(use) %>%
-    group_by(subject) %>%
-    summarize(param_offset = weighted.mean(param - param_mean0, weight_B, na.rm = TRUE),
-              param_slope = slope_fun_WLS(param, param_mean0, weight_A, lm=FALSE),
-              param_int = weighted.mean(param, weight_A, na.rm = TRUE) -
-                param_slope * weighted.mean(param_mean0, weight_A, na.rm = TRUE))
-
-  if(truncate) best_params_df_est <- truncate_negative_slopes(best_params_df,
-                                                              best_params_df_est,
-                                                              method = "WLS")
-
-
-  # Keep subjects in numerical order
-  best_params_df_est <- arrange(best_params_df_est, subject) #new param_offset, param_slope, param_int
-
-
-  best_params_df <- best_params_df %>%
-    select(-any_of(c("param_int", "param_slope", "param_offset"))) %>%
-    left_join(best_params_df_est, by = "subject")
-
-  # "variance A","variance_B", "param_pred_A","param_pred_B", "residual_A", "residual_B"
-
-  best_params_df$param_pred_A <- best_params_df$param_int + best_params_df$param_slope * best_params_df$param_mean0
-  best_params_df$param_pred_B <- best_params_df$param_offset + best_params_df$param_mean0
-
-  # Compute residuals for final variance calculation
-  best_params_df$residual_A <- best_params_df$weight_A * (best_params_df$param - best_params_df$param_pred_A)
-  best_params_df$residual_B <- best_params_df$weight_B * (best_params_df$param - best_params_df$param_pred_B)
-
-  # Calculate final variance
-  residual_variance <- best_params_df %>%
-    filter(use) %>%
-    group_by(voxel) %>%
-    # summarize(
-    #   n_obs = dplyr::n(),
-    #   variance_A = if(n_obs >= 2) var(residual_A, na.rm = TRUE) else 0,
-    #   variance_B = if(n_obs >= 2) var(residual_B, na.rm = TRUE) else 0
-    # )
-    summarize(variance_A = var(residual_A, na.rm = TRUE), # TODO: Do we need above fix?
-              variance_B = var(residual_B, na.rm = TRUE))
-
-  # Create xifti objects for variance datasets
-  variance_xii_A <- create_xifti_with_padding(residual_variance, "variance_A", mean0_xii)
-  variance_xii_B <- create_xifti_with_padding(residual_variance, "variance_B", mean0_xii)
-
-  # Bring variances back to main dataframe
-  best_params_df <- best_params_df %>%
-    select(-any_of(c("variance_A", "variance_B"))) %>%
-    left_join(residual_variance, by = "voxel")
-
-  print('Saving predictions, residuals, variances, weights, variance xiftis for Weighted Least Squares Method')
-
-  return(list(
-    best_params_df = best_params_df,
-    best_params_df_est = best_params_df_est,
-    variance_xii_A = variance_xii_A,
-    variance_xii_B = variance_xii_B
-  ))
-}
-
-
-
-#' Truncate Negative Slopes and Re-estimate Intercepts
-#'
-#' This function finds subjects with negative slopes in the parameter estimates
-#' and sets their slopes to zero. It then re-estimates their intercepts as the
-#' simple mean of the parameter values. The resulting estimates are merged back
-#' into the original set of estimates.
-#'
-#' @param best_params_df The full dataframe containing parameter values,
-#'   population means, and subject IDs.
-#' @param best_params_df_est A summarized dataframe with columns `subject`,
-#'   `param_offset`, `param_slope`, and `param_int`.
-#'
-#' @return A modified version of `best_params_df_est` with negative slopes
-#'   truncated to 0 and corresponding intercepts re-estimated.
-#'
-#' @keywords internal
-truncate_negative_slopes <- function(best_params_df, best_params_df_est, method = "OLS") {
-  print("In truncataion*****************")
-  if (sum(best_params_df_est$param_slope < 0) > 0) {
-    if (method == "OLS") {
-      cat("OLS: Some subjects had negative slopes, truncating...\n")
-      subj_neg_slope <- best_params_df_est$subject[best_params_df_est$param_slope < 0]
-
-      best_params_df_est2 <- best_params_df %>%
-        filter(subject %in% subj_neg_slope) %>%
-        filter(use) %>%
-        group_by(subject) %>%
-        summarize(param_offset = mean(param - param_mean0),
-                  param_slope = 0,
-                  param_int = mean(param))
-
-      best_params_df_est <- rbind(filter(best_params_df_est, param_slope >= 0), best_params_df_est2)
-    } else if (method == "WLS") {
-      cat("WLS: Some subjects had negative slopes, truncating...\n")
-      subj_neg_slope <- best_params_df_est$subject[best_params_df_est$param_slope < 0]
-
-      best_params_df_est2 <- best_params_df %>%
-        filter(subject %in% subj_neg_slope) %>%
-        filter(use) %>%
-        group_by(subject) %>%
-        summarize(param_offset = weighted.mean(param - param_mean0, weight_B, na.rm = TRUE),
-                  param_slope = 0,
-                  param_int = weighted.mean(param, weight_B, na.rm = TRUE))
-
-      best_params_df_est <- rbind(filter(best_params_df_est, param_slope >= 0), best_params_df_est2)
-    } else { stop("Attempted to truncate slopes but passed through WLS and OLS methods.")}
-  } else {print("***********No need for truncation.")}
-
-  best_params_df_est
-}
-
-#' Compute Subject-Level Slope Relative to Population HRF Estimate
-#'
-#' Computes the slope of subject-level parameter estimates (`gamma_iv`)
-#' against population-averaged estimates (`gamma_v`) either via direct formula
-#' or linear regression.
-#'
-#' @param gamma_iv Numeric vector of subject-specific HRF parameter estimates
-#'   (length = number of vertices used for a specific subject).
-#' @param gamma_v Numeric vector of voxel-wise population-averaged HRF parameters.
-#' @param lm Logical; if `TRUE`, uses linear regression. If `FALSE`, computes slope manually.
-#'
-#' @return Numeric scalar representing the slope estimate.
-#'
-#' @keywords internal
-slope_fun <- function(gamma_iv, gamma_v, lm=TRUE){
-  # All arguments must be of length V, where V is the number of vertices
-  # included in a particular model (which may differ by subject).
-  # gamma_v contains the voxel-wise parameter estimates, averaged across subjects.
-  # gamma_iv contains the subject-level, voxel-wise parameter estimates.
-
-  if(!lm) {
-    gamma_v_ctr <- gamma_v - mean(gamma_v)
-    return(sum(gamma_v_ctr * (gamma_iv - mean(gamma_iv))) / sum(gamma_v_ctr^2))
-  }
-
-  if(lm) coefficients(lm(gamma_iv ~ gamma_v))[2]
-}
-
-#' Compute Subject-Level Slope Using Weighted Least Squares
-#'
-#' Computes the weighted slope of subject-level parameter estimates (`gamma_iv`)
-#' against population-averaged estimates (`gamma_v`) using inverse variance
-#' weighting for improved estimation accuracy.
-#'
-#' @param gamma_iv Numeric vector of subject-specific HRF parameter estimates
-#'   (length = number of vertices used for a specific subject).
-#' @param gamma_v Numeric vector of voxel-wise population-averaged HRF parameters.
-#' @param weight_A Numeric vector of weights (typically inverse variance) for
-#'   weighted least squares estimation.
-#' @param lm Logical; currently unused, kept for compatibility. The function
-#'   uses manual weighted calculation rather than `lm()`.
-#'
-#' @return Numeric scalar representing the weighted slope estimate, or NA if
-#'   weight normalization fails.
-#'
-#' @details
-#' The function performs weighted least squares slope estimation by:
-#' \enumerate{
-#'   \item Computing weighted means for centering both variables
-#'   \item Normalizing weights to sum to 1 for numerical stability
-#'   \item Computing the weighted slope using the manual formula
-#' }
-#'
-#' The manual approach is used instead of `lm()` to maintain control over
-#' the weight normalization and reuse normalized weights efficiently.
-#'
-#' @keywords internal
-slope_fun_WLS <- function(gamma_iv, gamma_v, weight_A, lm=FALSE) {
-  # weight_A[!is.finite(weight_A)] <- 0
-  stopifnot("All weights are zero or invalid - cannot estimate slope" = sum(weight_A) > 0)
-
-  # Center gamma_v using weighted mean
-  gamma_v_mean <- weighted.mean(gamma_v, weight_A, na.rm = TRUE)
-  gamma_iv_mean <- weighted.mean(gamma_iv, weight_A, na.rm = TRUE)
-  gamma_v_ctr <- gamma_v - gamma_v_mean
-
-  # Recompute weights sum to 1
-  weight_A <- weight_A/sum(weight_A) # weighted.mean()
-  if (abs(sum(weight_A) - 1) > 1e-10) {
-    print(paste("ERROR: Sum of weights not normalized to 1; instead:", sum(weight_A)))
-    return(NA)
-  }
-
-  return(sum(weight_A * gamma_v_ctr * (gamma_iv - gamma_iv_mean)) /
-           sum(weight_A * gamma_v_ctr^2))
-
-  # if (lm) {
-  #   return(coefficients(lm(gamma_iv ~ gamma_v, weights = weight_A))[2])
-  # }
-}
-
-
-#' Extract Parameter Column Names
-#'
-#' Given a data frame of HRF parameters along with columns \code{"voxel"},
-#' \code{"subject"}, and \code{"mask"}, this function returns the names of
-#' all remaining numeric columns.
-#'
-#' @param params_df A data frame containing numeric parameter columns and the
-#'   identifier columns \code{"voxel"}, \code{"subject"}, and \code{"mask"}.
-#' @return A character vector of column names in \code{params_df} that are numeric
-#'   and not one of \code{"voxel"}, \code{"subject"}, or \code{"mask"}.
-#' @keywords internal
-extract_param_names <- function(params_df) {
-  param_names <- names(params_df)[
-    vapply(params_df, is.numeric, logical(1)) &
-      !(names(params_df) %in% c("voxel", "subject", "mask"))
-  ]
-  param_names
-}
-
-
-#' Validate Previous Results and Extract Brain Template
-#'
-#' Validates that \code{workingHRF} and \code{allHRF} results have matching
-#' dimensions and extracts a brain template (\code{xii}) for visualization.
-#'
+#' @param candidate_maps List of candidate map data.frames from
+#'   \code{create_candidate_maps()}.
+#' @param allHRF_results Results from \code{fit_allHRFs(save_rss = TRUE)}.
 #' @param workingHRF_results Results from \code{fit_workingHRF()}.
-#' @param allHRF_results Results from \code{fit_allHRFs()}.
+#' @param verbose Integer verbosity level.
 #'
-#' @return A \code{xii} template object (converted to dscalar format).
+#' @return A data.frame with one row per subject, columns:
+#'   subject, winning_candidate_id, winning_a1_offset, winning_b1_offset,
+#'   winning_weighted_RSS, plus RSS for all candidates.
+#'
 #' @keywords internal
-validate_previous_results <- function(workingHRF_results, allHRF_results) {
+fit_candidate_maps_lookup <- function(candidate_maps, allHRF_results,
+                                      workingHRF_results, verbose = 1) {
+  result_paths <- attr(allHRF_results, "result_paths")
+  n_subjects <- length(result_paths)
+  n_candidates <- length(candidate_maps)
 
-  stopifnot(length(workingHRF_results[["subject_results"]]) == length(allHRF_results[["subject_results"]]))
+  if (verbose > 0) cat("RSS lookup mode:", n_subjects, "subjects,", n_candidates, "candidates\n")
 
-  # Extract xii objects from both results
-  working_xii <- workingHRF_results[["subject_results"]][[1]][["glm_results"]][["bestmodel_xii"]]
-  all_xii <- allHRF_results[["subject_results"]][[1]][["glm_result"]][["bestmodel_xii"]]
+  subject_results_list <- vector("list", n_subjects)
 
-  # Get dimensions
-  working_dims <- dim(as.matrix(working_xii))
-  all_dims <- dim(as.matrix(all_xii))
+  for (i in seq_len(n_subjects)) {
+    if (verbose > 1 && i %% 100 == 0) cat("  Subject", i, "/", n_subjects, "\n")
 
-  # Validate dimensions match
-  if (!identical(working_dims, all_dims)) {
-    stop("Dimension mismatch between workingHRF and allHRF results!\n",
-         "  workingHRF dimensions: ", paste(working_dims, collapse=" x "), "\n",
-         "  allHRF dimensions: ", paste(all_dims, collapse=" x "))
+    # Load RSS from .qs file
+    qs_obj <- qs::qread(result_paths[i])
+    RSS <- rbind(
+      qs_obj$glm_result$mGLM0s$cortexL$RSS,
+      qs_obj$glm_result$mGLM0s$cortexR$RSS
+    )
+    rm(qs_obj)
+
+    # Fstat from fit_workingHRF (canonical HRF activation strength)
+    Fstat <- c(
+      workingHRF_results$subject_results[[i]]$glm_results$mGLM0s$cortexL$Fstat,
+      workingHRF_results$subject_results[[i]]$glm_results$mGLM0s$cortexR$Fstat
+    )
+
+    # Subset Fstat to candidate map voxels only
+    pop_voxels <- candidate_maps[[1]]$voxel
+    fstat_sq <- Fstat[pop_voxels]^2
+    fstat_sq_sum <- sum(fstat_sq, na.rm = TRUE)
+
+    # Compute RSS per candidate
+    rss_per_candidate <- numeric(n_candidates)
+    weighted_rss_per_candidate <- numeric(n_candidates)
+
+    for (j in seq_len(n_candidates)) {
+      voxel_idx <- candidate_maps[[j]]$voxel
+      model_idx <- candidate_maps[[j]]$model_idx
+      voxel_rss <- RSS[cbind(voxel_idx, model_idx)]
+      rss_per_candidate[j] <- sum(voxel_rss, na.rm = TRUE)
+      weighted_rss_per_candidate[j] <- sum(voxel_rss * fstat_sq, na.rm = TRUE) / fstat_sq_sum
+    }
+
+    # Find winner
+    winner <- which.min(weighted_rss_per_candidate)
+
+    # Build row for this subject
+    row <- data.frame(
+      subject = i,
+      winning_candidate_id = winner,
+      winning_a1_offset = candidate_maps[[winner]]$a1_offset[1],
+      winning_b1_offset = candidate_maps[[winner]]$b1_offset[1],
+      winning_weighted_RSS = weighted_rss_per_candidate[winner]
+    )
+
+    # Add all candidate RSS values
+    for (j in seq_len(n_candidates)) {
+      row[[paste0("weighted_RSS_", j)]] <- weighted_rss_per_candidate[j]
+    }
+
+    subject_results_list[[i]] <- row
   }
 
-  cat("Results validation passed - dimensions match:", paste(working_dims, collapse=" x "), "\n")
+  result <- do.call(rbind, subject_results_list)
 
-  # Extract template (following research code pattern)
-  xii <- ciftiTools::convert_xifti(working_xii, "dscalar")
-
-  cat("Brain template extracted successfully\n")
-
-  return(xii)
-}
-
-#' Create xifti Object from Filtered Data with NA Padding
-#'
-#' Takes a dataframe with voxel-wise data and creates an xifti object
-#' by padding missing voxels with NA to match template dimensions.
-#'
-#' @param summary_df Dataframe containing 'voxel' column and data column
-#' @param data_col Name of the column containing the values to extract
-#' @param template_xii Template xifti object to match dimensions and structure
-#' @return New xifti object with data from summary_df and NA padding
-#' @keywords internal
-create_xifti_with_padding <- function(summary_df, data_col, template_xii) {
-  # Create full-length vector with NAs
-  full_vector <- rep(NA, nrow(as.matrix(template_xii)))
-
-  # Fill in available values
-  if (data_col %in% names(summary_df) && "voxel" %in% names(summary_df)) {
-    full_vector[summary_df$voxel] <- summary_df[[data_col]]
-  } else {
-    stop("summary_df must contain 'voxel' column and specified data_col: ", data_col)
+  if (verbose > 0) {
+    winner_counts <- table(result$winning_candidate_id)
+    cat("Winner distribution:\n")
+    print(winner_counts)
   }
 
-  # Create new xifti object
-  new_xii <- ciftiTools::newdata_xifti(template_xii, full_vector)
-
-  return(new_xii)
+  return(result)
 }

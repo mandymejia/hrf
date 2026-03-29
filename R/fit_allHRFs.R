@@ -96,6 +96,7 @@ fit_allHRFs <- function(
     surf_FWHM = 5,
     verbose = 1,
     n_cores = 1,
+    save_rss = FALSE,
     log_dir = "logs", work_dir = NULL, ...
 ) {
   cat("***********Version 1.2222************\n")
@@ -113,13 +114,13 @@ fit_allHRFs <- function(
   if(n_cores > 1) {
     subject_results <- run_parallel_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir
+      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir, save_rss
     )
   } else {
     if(verbose > 0) cat("Using sequential processing\n")
     subject_results <- run_sequential_subjects_allHRFs(
       BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir
+      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir, save_rss
     )
   }
 
@@ -131,6 +132,8 @@ fit_allHRFs <- function(
     if(!is.na(fp) && file.exists(fp)) {
       obj <- load_object(file_path = fp, delete_after_load = FALSE)
       obj$design_3D <- NULL  # Remove the large 3D array from memory
+      obj$glm_result$mGLM0s$cortexL$RSS <- NULL
+      obj$glm_result$mGLM0s$cortexR$RSS <- NULL
       return(obj)
     } else {
       return(NULL)
@@ -159,7 +162,8 @@ fit_allHRFs <- function(
       TR = TR,
       n_cores = n_cores,
       parallel_method = if(n_cores > 1) "parLapply" else "sequential",
-      completion_time = Sys.time()
+      completion_time = Sys.time(),
+      save_rss = save_rss
     ),
     hrf_grid = hrf_grid,
     session_info = list(
@@ -206,7 +210,7 @@ fit_allHRFs <- function(
 #'
 #' @keywords internal
 run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                          hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir) {
+                                          hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir, save_rss) {
 
   if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n")
 
@@ -223,7 +227,8 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
 
   vars_to_export <- c(
     "BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
-    "hpf", "hrf_grid", "onsets", "offsets", "smoothing", "surf_FWHM", "verbose"
+    "hpf", "hrf_grid", "onsets", "offsets", "smoothing", "surf_FWHM", "verbose",
+    "save_rss"
   )
 
   setup_parallel_cluster(cl, verbose, vars_to_export)
@@ -241,7 +246,8 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
         nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
         scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
         TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose
+        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose,
+        save_rss = save_rss
       )
 
 
@@ -295,7 +301,7 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
 #'
 #' @keywords internal
 run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                            hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir) {
+                                            hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir, save_rss) {
 
   lapply(1:length(BOLD), function(i) {
     tryCatch({
@@ -306,7 +312,8 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
         nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
         scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
         TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose
+        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose,
+        save_rss = save_rss
       )
 
       file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
@@ -352,7 +359,7 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
 #' @keywords internal
 process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
                                    TR, brainstructures, resamp_res, hpf,
-                                   hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose) {
+                                   hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, save_rss = FALSE) {
 
   tictoc::tic()
   cat("***STARTING NEW SUBJECT....***\n")
@@ -402,6 +409,39 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     tictoc::toc()
     rss_report("***After GLM fit", subject_idx)
     cat("***glm_result RAM size:", format(object.size(glm_result), units = "MB"), "\n")
+
+    # Extract best (a1, b1, rss) per voxel for EACH unique c value
+    # This reduces storage from ~17 MB/subject to ~0.9 MB/subject
+    unique_c <- unique(hrf_grid$c)
+
+    for (hemi in c("cortexL", "cortexR")) {
+      RSS <- glm_result$mGLM0s[[hemi]]$RSS
+
+      if (!is.null(RSS)) {
+        best_per_c <- list()
+
+        for (c_val in unique_c) {
+          c_idx <- which(hrf_grid$c == c_val)
+          RSS_c <- RSS[, c_idx]
+          best_local <- apply(RSS_c, 1, which.min)
+          best_global <- c_idx[best_local]
+
+          best_per_c[[as.character(c_val)]] <- data.frame(
+            a1 = hrf_grid$a1[best_global],
+            b1 = hrf_grid$b1[best_global],
+            c = c_val,
+            rss = RSS_c[cbind(1:nrow(RSS), best_local)]
+          )
+        }
+
+        glm_result$mGLM0s[[hemi]]$best_per_c <- best_per_c
+        if (!save_rss) {
+          glm_result$mGLM0s[[hemi]]$RSS <- NULL
+        }
+      }
+    }
+
+    cat("***glm_result RAM size after RSS extraction:", format(object.size(glm_result), units = "MB"), "\n")
 
     cat("\n--- MEMORY Z! REPORT for Subject", subject_idx, "---\n")
     cat("Size of BOLD data      :", format(object.size(bold_data), units = "MB"), "\n")
@@ -694,5 +734,3 @@ validate_inputs_allHRFs <- function(BOLD, EVs, nuisance, hrf_grid, n_cores, onse
 
   return(TRUE)
 }
-
-

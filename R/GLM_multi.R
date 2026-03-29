@@ -127,6 +127,7 @@ GLM_multi <- function(y, X, X2, Xc=NULL, verbose=TRUE) {
   list(
     bestmodel = bestmodel,
     Fstat = Fstat,
-    pvalF = pvalF
+    pvalF = pvalF,
+    RSS = RSS
   )
 }

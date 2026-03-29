@@ -50,6 +50,7 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     "create_all_design_matrices",
     "fit_multiGLM_all_designs",
     "extract_hrf_params",
+    "get_taper_start",
     # file handling
     "save_object",
     "load_object",

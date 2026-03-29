@@ -761,10 +761,9 @@ report_design_fit_errors <- function(subject_results, verbose = 1) {
 #'   \item{prop}{Numeric vector of activation proportions across subjects}
 #'   \item{alpha}{The threshold used}
 #'   \item{n_subjects}{Number of successful subjects}
-#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects
+#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects 
 #'     (capped at number of successful subjects if necessary)}
 #'
-#' @importFrom stats p.adjust
 #' @keywords internal
 create_activation_masks <- function(subject_results, alpha = 0.01, min_active_subjects, verbose = 1) {
   successful_subjects <- which(sapply(subject_results, function(x) x$status == "success"))
