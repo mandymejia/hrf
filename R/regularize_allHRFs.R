@@ -70,18 +70,18 @@ regularize_allHRFs <- function(workingHRF_results,
   hrf_grid$FWHM <- metrics$FWHM
 
   # Step 1 (pre): Determine winning c
-  if (verbose > 0) cat("\nStep 1: Determining winning c value...\n")
+  if (verbose > 0) cat("\nDetermining winning c value...\n")
   winning_result <- determine_winning_c(allHRF_results, workingHRF_results, verbose = verbose)
 
   # Step 1-2: Extract best params per subject with t2p/fwhm
-  if (verbose > 0) cat("\nSteps 1-2: Extracting best params and converting to t2p/fwhm...\n")
+  if (verbose > 0) cat("\nExtracting best params and converting to t2p/fwhm...\n")
   best_params_df <- extract_best_params_per_subject(
     allHRF_results, workingHRF_results,
     winning_result$winning_c, hrf_grid, verbose = verbose
   )
 
   # Step 3: Average t2p/fwhm across subjects
-  if (verbose > 0) cat("\nStep 3: Computing population average...\n")
+  if (verbose > 0) cat("\nComputing population average...\n")
   mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
   pop_mask_voxels <- which(!is.na(mask_prop_NA))
 
@@ -95,18 +95,18 @@ regularize_allHRFs <- function(workingHRF_results,
   if (verbose > 0) cat("Population average computed for", nrow(pop_avg), "voxels\n")
 
   # Step 4: Snap back to a1/b1 grid
-  if (verbose > 0) cat("\nStep 4: Snapping t2p/fwhm back to grid...\n")
+  if (verbose > 0) cat("\nSnapping t2p/fwhm back to grid...\n")
   snapped <- snap_to_grid_t2p_fwhm(pop_avg$t2p_mean, pop_avg$fwhm_mean, hrf_grid, winning_result$winning_c)
   pop_avg$a1_snapped <- snapped$a1
   pop_avg$b1_snapped <- snapped$b1
   pop_avg$c_snapped <- snapped$c
 
   # Steps 5-6: Create candidate maps
-  if (verbose > 0) cat("\nSteps 5-6: Creating candidate maps...\n")
+  if (verbose > 0) cat("\nCreating candidate maps...\n")
   cm_result <- create_candidate_maps(pop_avg, hrf_grid, a1_offsets, b1_offsets, verbose = verbose)
 
   # Steps 7-8: Fit candidates and pick winner per subject
-  if (verbose > 0) cat("\nSteps 7-8: Fitting candidates to subjects...\n")
+  if (verbose > 0) cat("\nFitting candidates to subjects...\n")
 
   if (save_rss) {
     subject_results <- fit_candidate_maps_lookup(
