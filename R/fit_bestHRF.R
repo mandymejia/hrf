@@ -1,6 +1,3 @@
-
-
-
 #' Compute OLS Estimates
 #'
 #' @param y Numeric vector. Response (nT x 1).
@@ -101,5 +98,31 @@ build_full_design <- function(task_design, nuisance_block, nT) {
   list(
     X_full = X_full,
     n_task = ncol(task_design)
+  )
+}
+
+
+#' Fit GLM for a Single Voxel
+#'
+#' Runs OLS and extracts task-specific betas and their covariance.
+#'
+#' @param y_v Numeric vector. BOLD timeseries for one voxel (nT x 1).
+#' @param X_full Numeric matrix. Full design matrix (nT x p).
+#' @param n_task Integer. Number of task regressors (first n_task columns of X_full).
+#' @return List with beta_task, sigma2, df, Cov_task.
+#' @keywords internal
+fit_voxel_glm <- function(y_v, X_full, n_task) {
+  ols <- compute_ols(y_v, X_full)
+  df <- length(y_v) - ncol(X_full)
+  sigma2 <- compute_residual_variance(y_v, X_full, ols$beta_hat, df)
+
+  beta_task <- ols$beta_hat[1:n_task]
+  Cov_task <- sigma2 * ols$XtX_inv[1:n_task, 1:n_task, drop = FALSE]
+
+  list(
+    beta_task = beta_task,
+    sigma2 = sigma2,
+    df = df,
+    Cov_task = Cov_task
   )
 }
