@@ -5,8 +5,9 @@
 #'
 #' @param workingHRF_results Results from \code{fit_workingHRF()}.
 #' @param allHRF_results Results from \code{fit_allHRFs()}.
-#' @param session_data List with BOLD_files, EVs_list, nuisance_files.
-#'   Required when \code{save_rss = FALSE} (refit mode).
+#' @param BOLD Character vector of CIFTI file paths. Required for refit mode.
+#' @param EVs List of event data per subject. Required for refit mode.
+#' @param nuisance Character vector of nuisance file paths (or NULL). For refit mode.
 #' @param TR Numeric. Repetition time in seconds. Required for refit mode.
 #' @param a1_offsets Numeric vector of a1 offsets for candidate maps.
 #' @param b1_offsets Numeric vector of b1 offsets for candidate maps.
@@ -29,7 +30,9 @@
 #' @export
 regularize_allHRFs <- function(workingHRF_results,
                                 allHRF_results,
-                                session_data = NULL,
+                                BOLD = NULL,
+                                EVs = NULL,
+                                nuisance = NULL,
                                 TR = NULL,
                                 a1_offsets = c(-2, -1, 0, 1, 2),
                                 b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
@@ -47,9 +50,16 @@ regularize_allHRFs <- function(workingHRF_results,
   if (save_rss) {
     if (verbose > 0) cat("RSS lookup mode: loading pre-computed RSS from .qs files (fast)\n")
   } else {
-    if (verbose > 0) cat("Refit mode: will run multiGLM for each subject (slow, requires session_data)\n")
-    if (is.null(session_data)) stop("session_data is required when save_rss = FALSE (refit mode)")
+    if (verbose > 0) cat("Refit mode: will run multiGLM for each subject (slow, requires BOLD/EVs)\n")
+    if (is.null(BOLD) || is.null(EVs)) stop("BOLD and EVs are required when save_rss = FALSE (refit mode)")
     if (is.null(TR)) stop("TR is required when save_rss = FALSE (refit mode)")
+  }
+
+  # Pack into session_data for internal use
+  session_data <- if (!is.null(BOLD)) {
+    list(BOLD_files = BOLD, EVs_list = EVs, nuisance_files = nuisance)
+  } else {
+    NULL
   }
 
   # Step 0: Precompute metrics on HRF grid
