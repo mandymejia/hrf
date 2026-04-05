@@ -1,3 +1,134 @@
+#' Regularize All HRFs Using POCv2 Algorithm
+#'
+#' Creates a population-averaged HRF map, generates candidate offset maps,
+#' and selects the best candidate per subject based on weighted RSS.
+#'
+#' @param workingHRF_results Results from \code{fit_workingHRF()}.
+#' @param allHRF_results Results from \code{fit_allHRFs()}.
+#' @param session_data List with BOLD_files, EVs_list, nuisance_files.
+#'   Required when \code{save_rss = FALSE} (refit mode).
+#' @param TR Numeric. Repetition time in seconds. Required for refit mode.
+#' @param a1_offsets Numeric vector of a1 offsets for candidate maps.
+#' @param b1_offsets Numeric vector of b1 offsets for candidate maps.
+#' @param onsets Logical. Include onset regressors (refit mode only).
+#' @param offsets Logical. Include offset regressors (refit mode only).
+#' @param verbose Integer verbosity level.
+#'
+#' @return A list with class \code{"regularizeHRFs"} containing:
+#'   \describe{
+#'     \item{pop_avg}{Population average HRF map per voxel}
+#'     \item{best_params_df}{Best HRF per subject per voxel (steps 1-2)}
+#'     \item{candidate_maps}{List of 25 candidate maps}
+#'     \item{subject_results}{Per-subject candidate selection results}
+#'     \item{winning_c}{Winning c value}
+#'     \item{c_votes}{Vote counts per c value}
+#'     \item{hrf_grid}{HRF grid with t2p/fwhm columns}
+#'     \item{mask_prop_NA}{Population activation mask}
+#'   }
+#'
+#' @export
+regularize_allHRFs <- function(workingHRF_results,
+                                allHRF_results,
+                                session_data = NULL,
+                                TR = NULL,
+                                a1_offsets = c(-2, -1, 0, 1, 2),
+                                b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
+                                onsets = FALSE,
+                                offsets = FALSE,
+                                verbose = 1) {
+
+  # Detect RSS mode
+  save_rss <- allHRF_results$call_info$save_rss
+  if (is.null(save_rss)) {
+    if (verbose > 0) cat("No save_rss flag found in allHRF_results (old data). Defaulting to refit mode.\n")
+    save_rss <- FALSE
+  }
+
+  if (save_rss) {
+    if (verbose > 0) cat("RSS lookup mode: loading pre-computed RSS from .qs files (fast)\n")
+  } else {
+    if (verbose > 0) cat("Refit mode: will run multiGLM for each subject (slow, requires session_data)\n")
+    if (is.null(session_data)) stop("session_data is required when save_rss = FALSE (refit mode)")
+    if (is.null(TR)) stop("TR is required when save_rss = FALSE (refit mode)")
+  }
+
+  # Step 0: Precompute metrics on HRF grid
+  hrf_grid <- allHRF_results$hrf_grid
+  if (verbose > 0) cat("\nPrecomputing t2p/fwhm for HRF grid...\n")
+  metrics <- get_hrf_metrics(hrf_grid$a1, hrf_grid$b1, hrf_grid$c)
+  hrf_grid$time_to_peak <- metrics$time_to_peak
+  hrf_grid$FWHM <- metrics$FWHM
+
+  # Step 1 (pre): Determine winning c
+  if (verbose > 0) cat("\nStep 1: Determining winning c value...\n")
+  winning_result <- determine_winning_c(allHRF_results, workingHRF_results, verbose = verbose)
+
+  # Step 1-2: Extract best params per subject with t2p/fwhm
+  if (verbose > 0) cat("\nSteps 1-2: Extracting best params and converting to t2p/fwhm...\n")
+  best_params_df <- extract_best_params_per_subject(
+    allHRF_results, workingHRF_results,
+    winning_result$winning_c, hrf_grid, verbose = verbose
+  )
+
+  # Step 3: Average t2p/fwhm across subjects
+  if (verbose > 0) cat("\nStep 3: Computing population average...\n")
+  mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
+  pop_mask_voxels <- which(!is.na(mask_prop_NA))
+
+  pop_avg <- aggregate(
+    cbind(time_to_peak, FWHM) ~ voxel,
+    data = best_params_df[best_params_df$mask & best_params_df$voxel %in% pop_mask_voxels, ],
+    FUN = mean
+  )
+  names(pop_avg)[2:3] <- c("t2p_mean", "fwhm_mean")
+
+  if (verbose > 0) cat("Population average computed for", nrow(pop_avg), "voxels\n")
+
+  # Step 4: Snap back to a1/b1 grid
+  if (verbose > 0) cat("\nStep 4: Snapping t2p/fwhm back to grid...\n")
+  snapped <- snap_to_grid_t2p_fwhm(pop_avg$t2p_mean, pop_avg$fwhm_mean, hrf_grid, winning_result$winning_c)
+  pop_avg$a1_snapped <- snapped$a1
+  pop_avg$b1_snapped <- snapped$b1
+  pop_avg$c_snapped <- snapped$c
+
+  # Steps 5-6: Create candidate maps
+  if (verbose > 0) cat("\nSteps 5-6: Creating candidate maps...\n")
+  cm_result <- create_candidate_maps(pop_avg, hrf_grid, a1_offsets, b1_offsets, verbose = verbose)
+
+  # Steps 7-8: Fit candidates and pick winner per subject
+  if (verbose > 0) cat("\nSteps 7-8: Fitting candidates to subjects...\n")
+
+  if (save_rss) {
+    subject_results <- fit_candidate_maps_lookup(
+      cm_result$candidate_maps, allHRF_results, workingHRF_results, verbose = verbose
+    )
+  } else {
+    subject_results <- fit_candidate_maps_refit(
+      cm_result$candidate_maps, hrf_grid, session_data,
+      TR = TR, onsets = onsets, offsets = offsets, verbose = verbose
+    )
+  }
+
+  # Build result
+  result <- list(
+    pop_avg = pop_avg,
+    best_params_df = best_params_df,
+    candidate_maps = cm_result$candidate_maps,
+    offset_combos = cm_result$offset_combos,
+    subject_results = subject_results,
+    winning_c = winning_result$winning_c,
+    c_votes = winning_result$c_votes,
+    hrf_grid = hrf_grid,
+    mask_prop_NA = mask_prop_NA
+  )
+
+  class(result) <- "regularizeHRFs"
+
+  if (verbose > 0) cat("\nregularize_allHRFs complete.\n")
+  return(result)
+}
+
+
 #' Compute HRF Metrics (Time-to-Peak and FWHM)
 #'
 #' Converts HRF parameters (a1, b1, c) to interpretable metrics:
@@ -516,6 +647,129 @@ fit_candidate_maps_lookup <- function(candidate_maps, allHRF_results,
     winner_counts <- table(result$winning_candidate_id)
     cat("Winner distribution:\n")
     print(winner_counts)
+  }
+
+  return(result)
+}
+
+
+#' Fit Candidate Maps via Refitting (multiGLM)
+#'
+#' Fits candidate HRF models to each subject's BOLD data via fresh multiGLM.
+#' Used when \code{fit_allHRFs} was run with \code{save_rss = FALSE} and RSS
+#' is not available in .qs files. Slower than lookup but doesn't require
+#' stored RSS.
+#'
+#' @param candidate_maps List of candidate map data.frames from
+#'   \code{create_candidate_maps()}.
+#' @param hrf_grid HRF grid with a1, b1, c, a2, b2 columns.
+#' @param session_data List with BOLD_files, EVs_list, nuisance_files.
+#' @param TR Numeric. Repetition time in seconds.
+#' @param brainstructures Character vector. Brain structures to model.
+#' @param hpf Numeric. High-pass filter cutoff.
+#' @param onsets Logical. Include onset regressors.
+#' @param offsets Logical. Include offset regressors.
+#' @param verbose Integer verbosity level.
+#'
+#' @return A data.frame with same structure as \code{fit_candidate_maps_lookup}.
+#'
+#' @keywords internal
+fit_candidate_maps_refit <- function(candidate_maps, hrf_grid,
+                                     session_data, TR,
+                                     brainstructures = c("left", "right"),
+                                     hpf = 0.01, onsets = FALSE, offsets = FALSE,
+                                     verbose = 1) {
+  n_subjects <- length(session_data$BOLD_files)
+  n_candidates <- length(candidate_maps)
+
+  # Collect unique HRF model indices across all candidate maps
+  all_model_idx <- sort(unique(unlist(lapply(candidate_maps, function(cm) unique(cm$model_idx)))))
+  unique_grid <- hrf_grid[all_model_idx, ]
+  n_models <- nrow(unique_grid)
+  idx_map <- setNames(seq_len(n_models), all_model_idx)
+
+  if (verbose > 0) cat("Refit mode:", n_subjects, "subjects,", n_candidates, "candidates,", n_models, "unique models\n")
+
+  pop_voxels <- candidate_maps[[1]]$voxel
+  subject_results_list <- vector("list", n_subjects)
+
+  for (i in seq_len(n_subjects)) {
+    if (verbose > 0) cat("  Subject", i, "/", n_subjects, "\n")
+
+    # Load BOLD
+    BOLD_xii <- ciftiTools::read_cifti(
+      session_data$BOLD_files[[i]],
+      brainstructures = brainstructures,
+      resamp_res = 10000
+    )
+    nuisance <- as.matrix(utils::read.table(session_data$nuisance_files[[i]], header = FALSE))
+    nT <- ncol(BOLD_xii)
+
+    # Build design matrices
+    design_canonical <- make_design(
+      EVs = session_data$EVs_list[[i]], nTime = nT, TR = TR, dHRF = 0,
+      onset = onsets, offset = offsets
+    )$design
+    nK <- ncol(design_canonical)
+
+    design_3D <- array(NA, dim = c(nT, nK, n_models))
+    for (j in seq_len(n_models)) {
+      taper_start_j <- get_taper_start(
+        a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
+        a2 = unique_grid$a2[j], b2 = unique_grid$b2[j],
+        c = unique_grid$c[j], TR = TR, deriv = 0
+      )
+      design_3D[,,j] <- make_design(
+        EVs = session_data$EVs_list[[i]], nTime = nT, TR = TR, dHRF = 0,
+        onset = onsets, offset = offsets,
+        taper_start = taper_start_j,
+        a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
+        c = unique_grid$c[j],
+        a2 = unique_grid$a2[j], b2 = unique_grid$b2[j]
+      )$design
+    }
+
+    # Fit multiGLM
+    glm_result <- multiGLM(
+      BOLD = BOLD_xii, brainstructures = brainstructures,
+      resamp_res = NULL, design = design_3D,
+      design_canonical = design_canonical,
+      nuisance = nuisance, scrub = NULL, TR = TR, hpf = hpf
+    )
+
+    RSS <- rbind(glm_result$mGLM0s$cortexL$RSS, glm_result$mGLM0s$cortexR$RSS)
+    Fstat <- c(glm_result$mGLM0s$cortexL$Fstat, glm_result$mGLM0s$cortexR$Fstat)
+
+    fstat_sq <- Fstat[pop_voxels]^2
+    fstat_sq_sum <- sum(fstat_sq, na.rm = TRUE)
+
+    # Compute RSS per candidate
+    weighted_rss_per_candidate <- numeric(n_candidates)
+    for (j in seq_len(n_candidates)) {
+      compact_idx <- idx_map[as.character(candidate_maps[[j]]$model_idx)]
+      voxel_rss <- RSS[cbind(pop_voxels, compact_idx)]
+      weighted_rss_per_candidate[j] <- sum(voxel_rss * fstat_sq, na.rm = TRUE) / fstat_sq_sum
+    }
+
+    winner <- which.min(weighted_rss_per_candidate)
+    row <- data.frame(
+      subject = i,
+      winning_candidate_id = winner,
+      winning_a1_offset = candidate_maps[[winner]]$a1_offset[1],
+      winning_b1_offset = candidate_maps[[winner]]$b1_offset[1],
+      winning_weighted_RSS = weighted_rss_per_candidate[winner]
+    )
+    for (j in seq_len(n_candidates)) {
+      row[[paste0("weighted_RSS_", j)]] <- weighted_rss_per_candidate[j]
+    }
+    subject_results_list[[i]] <- row
+  }
+
+  result <- do.call(rbind, subject_results_list)
+
+  if (verbose > 0) {
+    cat("Winner distribution:\n")
+    print(table(result$winning_candidate_id))
   }
 
   return(result)

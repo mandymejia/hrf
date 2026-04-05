@@ -403,7 +403,7 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     tictoc::tic()
     glm_result <- fit_multiGLM_all_designs(
       bold_data$BOLD_xii, design_3D$array, nuisance_file, TR, brainstructures,
-      hpf, scrub, resamp_res, verbose, subject_idx
+      hpf, scrub, resamp_res, verbose, subject_idx, EVs, onsets, offsets
     )
     cat("*****#%#time elapsed for multiGLM: ")
     tictoc::toc()
@@ -596,11 +596,17 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
 #'
 #' @keywords internal
 fit_multiGLM_all_designs <- function(BOLD_xii, design_3D, nuisance_file, TR, brainstructures,
-                                     hpf, scrub, resamp_res, verbose, subject_idx) {
+                                     hpf, scrub, resamp_res, verbose, subject_idx, EVs, onsets, offsets) {
   if(verbose > 1) cat("Subject", subject_idx, ": Fitting multiGLM with", dim(design_3D)[3], "designs...\n")
 
   # Load nuisance regressors
   nuisance <- load_nuisance_regressors(nuisance_file)
+
+  # Build canonical design (dHRF=0, default HRF) for Fstat computation
+  design_canonical <- make_design(
+    EVs = EVs, nTime = nrow(design_3D), TR = TR, dHRF = 0,
+    onset = onsets, offset = offsets
+  )$design
 
   # Fit multiGLM with all designs
   tictoc::tic("Fitting multiGLM:")
@@ -609,6 +615,7 @@ fit_multiGLM_all_designs <- function(BOLD_xii, design_3D, nuisance_file, TR, bra
     brainstructures = brainstructures,
     resamp_res = NULL, # load_bold_data resamples, if asked.
     design = design_3D,  # 3D array with all designs
+    design_canonical = design_canonical,
     nuisance = nuisance, # Can be NULL
     scrub = scrub,
     TR = TR,
