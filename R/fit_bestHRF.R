@@ -355,12 +355,16 @@ fit_bestHRF <- function(regularize_result,
 
   if (verbose > 0) cat("fit_bestHRF complete.\n")
 
-  colnames(beta_mat) <- task_names
+  xii <- bold_data$BOLD_xii
+
   list(
-    betas = beta_mat,
+    betas = ciftiTools::newdata_xifti(xii, beta_mat),
     contrasts = list(
-      est = est_mat, SE = SE_mat, tstat = tstat_mat,
-      pval = pval_mat, pval_adj = pval_adj_mat
+      est = ciftiTools::newdata_xifti(xii, est_mat),
+      SE = ciftiTools::newdata_xifti(xii, SE_mat),
+      tstat = ciftiTools::newdata_xifti(xii, tstat_mat),
+      pval = ciftiTools::newdata_xifti(xii, pval_mat),
+      pval_adj = ciftiTools::newdata_xifti(xii, pval_adj_mat)
     ),
     df = df_val,
     contrast_matrix = A,
