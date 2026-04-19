@@ -36,6 +36,7 @@ regularize_allHRFs <- function(workingHRF_results,
                                 TR = NULL,
                                 a1_offsets = c(-2, -1, 0, 1, 2),
                                 b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
+                                seffects = TRUE,
                                 onsets = FALSE,
                                 offsets = FALSE,
                                 verbose = 1) {
@@ -104,6 +105,25 @@ regularize_allHRFs <- function(workingHRF_results,
   # Steps 5-6: Create candidate maps
   if (verbose > 0) cat("\nCreating candidate maps...\n")
   cm_result <- create_candidate_maps(pop_avg, hrf_grid, a1_offsets, b1_offsets, verbose = verbose)
+
+  # Early return if seffects=FALSE (skip candidate fitting)
+  if (!seffects) {
+    if (verbose > 0) cat("\nseffects=FALSE: returning population average only.\n")
+    result <- list(
+      pop_avg = pop_avg,
+      best_params_df = best_params_df,
+      candidate_maps = cm_result$candidate_maps,
+      offset_combos = cm_result$offset_combos,
+      subject_results = NULL,
+      winning_c = winning_result$winning_c,
+      c_votes = winning_result$c_votes,
+      hrf_grid = hrf_grid,
+      mask_prop_NA = mask_prop_NA
+    )
+    class(result) <- "regularizeHRFs"
+    if (verbose > 0) cat("regularize_allHRFs complete.\n")
+    return(result)
+  }
 
   # Steps 7-8: Fit candidates and pick winner per subject
   if (verbose > 0) cat("\nFitting candidates to subjects...\n")

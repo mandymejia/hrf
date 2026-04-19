@@ -357,7 +357,7 @@ fit_bestHRF <- function(regularize_result,
 
   xii <- bold_data$BOLD_xii
 
-  list(
+  result <- list(
     betas = ciftiTools::newdata_xifti(xii, beta_mat),
     contrasts = list(
       est = ciftiTools::newdata_xifti(xii, est_mat),
@@ -369,7 +369,8 @@ fit_bestHRF <- function(regularize_result,
     df = df_val,
     contrast_matrix = A,
     subject_idx = subject_idx,
-    hrf_map = hrf_map,
-    class = "bestHRF"
+    hrf_map = hrf_map
   )
+  class(result) <- "bestHRF"
+  result
 }
