@@ -20,8 +20,8 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     library(hrf)
     library(ciftiTools)
     library(qs)
-    library(pryr)# debugging remember to remove from DESCRIPTION
-    library(ps) # debugging remember to remove from DESCRIPTION
+    # library(pryr) # removed - was causing stringi/libstdc++ errors on HPC
+    # library(ps) # debugging - removed alongside pryr
     library(tictoc) #debugging remember to remove from DESCRIPTION
   })
 

@@ -368,15 +368,10 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
 
   tryCatch({
     # Debug ------ ------ ------ ------ ------ ------ ------ ------ ------ ------ ------
-    if (!requireNamespace("ps", quietly = TRUE)) stop("Please install the 'ps' package.")
-    if (!requireNamespace("pryr", quietly = TRUE)) stop("Please install the 'pryr' package.")
-
     rss_report <- function(when, subject_idx) {
-      rss <- ps::ps_memory_info(ps::ps_handle())[["rss"]]
-      cat(sprintf("***Subject %d - %s - RSS: %.2f MB\n", subject_idx, when, rss / 1024^2))
+      cat(sprintf("***Subject %d - %s\n", subject_idx, when))
     }
     rss_report("Start", subject_idx)
-    mem_before <- pryr::mem_used()
     #------ ------ ------ ------ ------ ------ ------ ------ ------ ------ ------
 
     # Step 1: Load BOLD data (reuse from fit_workingHRF)
@@ -455,10 +450,6 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
     processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
     if(verbose > 1) cat("Subject", subject_idx, ": Completed in", round(processing_time, 1), "s\n")
 
-
-    mem_after <- pryr::mem_used()
-    cat(sprintf("***Subject %d - Total mem change: %.2f MB\n", subject_idx,
-                as.numeric(mem_after - mem_before) / 1024^2))
 
     cat("^^^***Subject", subject_idx, ": EVERYTHING DONE: ")
     tictoc::toc()
