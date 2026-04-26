@@ -1,30 +1,3 @@
-#' Compute OLS Estimates
-#'
-#' @param y Numeric vector. Response (nT x 1).
-#' @param X Numeric matrix. Design matrix (nT x p).
-#' @return List with beta_hat (p x 1) and XtX_inv (p x p).
-#' @keywords internal
-compute_ols <- function(y, X) {
-  XtX_inv <- solve(crossprod(X))
-  beta_hat <- XtX_inv %*% crossprod(X, y)
-  list(beta_hat = as.numeric(beta_hat), XtX_inv = XtX_inv)
-}
-
-
-#' Compute Residual Variance
-#'
-#' @param y Numeric vector. Response (nT x 1).
-#' @param X Numeric matrix. Design matrix (nT x p).
-#' @param beta_hat Numeric vector. OLS estimates (p x 1).
-#' @param df Integer. Degrees of freedom (nT - p).
-#' @return Scalar residual variance estimate (sigma_hat^2).
-#' @keywords internal
-compute_residual_variance <- function(y, X, beta_hat, df) {
-  resid <- y - X %*% beta_hat
-  sum(resid^2) / df
-}
-
-
 #' Build Task Design Matrix
 #'
 #' Wraps make_design() to build the task portion of the design matrix
@@ -102,31 +75,6 @@ build_full_design <- function(task_design, nuisance_block, nT) {
 }
 
 
-#' Fit GLM for a Single Voxel
-#'
-#' Runs OLS and extracts task-specific betas and their covariance.
-#'
-#' @param y_v Numeric vector. BOLD timeseries for one voxel (nT x 1).
-#' @param X_full Numeric matrix. Full design matrix (nT x p).
-#' @param n_task Integer. Number of task regressors (first n_task columns of X_full).
-#' @return List with beta_task, sigma2, df, Cov_task.
-#' @keywords internal
-fit_voxel_glm <- function(y_v, X_full, n_task) {
-  ols <- compute_ols(y_v, X_full)
-  df <- length(y_v) - ncol(X_full)
-  sigma2 <- compute_residual_variance(y_v, X_full, ols$beta_hat, df)
-
-  beta_task <- ols$beta_hat[1:n_task]
-  Cov_task <- sigma2 * ols$XtX_inv[1:n_task, 1:n_task, drop = FALSE]
-
-  list(
-    beta_task = beta_task,
-    sigma2 = sigma2,
-    df = df,
-    Cov_task = Cov_task
-  )
-}
-
 
 #' Compute Contrasts
 #'
@@ -176,13 +124,46 @@ apply_p_adjustment <- function(pval_mat, method = "BH") {
 #' @param subject_idx Integer subject index (required for seffects mode).
 #' @return data.frame with columns: voxel, a1, b1, c.
 #' @keywords internal
-resolve_hrf_map <- function(regularize_result, subject_idx = NULL) {
+#' Validate fit_bestHRF Inputs
+#'
+#' Checks consistency between regularize result and subject_idx.
+#'
+#' @param regularize_result Output from regularize_allHRFs.
+#' @param subject_idx Subject index or NULL.
+#' @keywords internal
+validate_bestHRF_inputs <- function(regularize_result, subject_idx) {
   has_seffects <- !is.null(regularize_result$subject_results)
 
   if (has_seffects) {
     if (is.null(subject_idx)) {
       stop("subject_idx is required when regularize was run with seffects=TRUE")
     }
+    n_subjects <- nrow(regularize_result$subject_results)
+    if (subject_idx < 1 || subject_idx > n_subjects) {
+      stop("subject_idx = ", subject_idx, " is out of range (1 to ", n_subjects, ")")
+    }
+  } else {
+    if (!is.null(subject_idx)) {
+      stop("subject_idx was provided but regularize was run with seffects=FALSE (population mode only). ",
+           "Re-run regularize_allHRFs with seffects=TRUE to use subject-specific HRFs.")
+    }
+  }
+}
+
+
+#' Resolve HRF Map from Regularize Result
+#'
+#' Determines which HRF map to use based on whether regularize
+#' produced subject-level results (seffects) or population only.
+#'
+#' @param regularize_result Output from regularize_allHRFs.
+#' @param subject_idx Integer subject index (required for seffects mode).
+#' @return data.frame with columns: voxel, a1, b1, c.
+#' @keywords internal
+resolve_hrf_map <- function(regularize_result, subject_idx = NULL) {
+  validate_bestHRF_inputs(regularize_result, subject_idx)
+
+  if (!is.null(regularize_result$subject_results)) {
     winning_id <- regularize_result$subject_results$winning_candidate_id[subject_idx]
     cm <- regularize_result$candidate_maps[[winning_id]]
     data.frame(voxel = cm$voxel, a1 = cm$a1, b1 = cm$b1, c = cm$c)
@@ -266,8 +247,14 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 #' @param p_adjust_method Character. P-value adjustment method.
 #' @param verbose Integer. Verbosity level.
 #'
-#' @return A list with class \code{"bestHRF"} containing betas, contrasts,
-#'   df, contrast_matrix, subject_idx, hrf_map.
+#' @return A list with class \code{"bestHRF"} containing:
+#'   \describe{
+#'     \item{working}{Canonical HRF fit: betas and contrasts (as xifti)}
+#'     \item{population or adapted}{Regularized HRF fit: betas, contrasts,
+#'       hrf_assignments (voxel-to-HRF mapping), and subject_idx (if adapted)}
+#'     \item{df}{Degrees of freedom}
+#'     \item{contrast_matrix}{The contrast matrix A used}
+#'   }
 #'
 #' @export
 fit_bestHRF <- function(regularize_result,
@@ -277,6 +264,7 @@ fit_bestHRF <- function(regularize_result,
                         TR,
                         subject_idx = NULL,
                         contrasts = NULL,
+                        working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
                         brainstructures = c("left", "right"),
                         resamp_res = 10000,
                         hpf = 0.01,
@@ -314,63 +302,88 @@ fit_bestHRF <- function(regularize_result,
   A <- if (is.null(contrasts)) diag(n_task) else contrasts
   if (ncol(A) != n_task) stop("Contrast matrix has ", ncol(A), " columns but there are ", n_task, " task regressors")
 
-  # Allocate output
-  beta_mat <- matrix(NA_real_, nrow = nV, ncol = n_task)
-  est_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-  SE_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-  tstat_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-  pval_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+  # --- Helper: fit all voxels given an HRF map, return raw matrices ---
+  fit_all_voxels <- function(hrf_map_df, label) {
+    beta_mat <- matrix(NA_real_, nrow = nV, ncol = n_task)
+    est_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+    SE_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+    tstat_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+    pval_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
 
-  # Group voxels by shared HRF
-  hrf_map$hrf_key <- paste(hrf_map$a1, hrf_map$b1, hrf_map$c, sep = "_")
-  voxel_groups <- split(hrf_map$voxel, hrf_map$hrf_key)
-  unique_hrfs <- unique(hrf_map[, c("a1", "b1", "c", "hrf_key")])
+    hrf_map_df$hrf_key <- paste(hrf_map_df$a1, hrf_map_df$b1, hrf_map_df$c, sep = "_")
+    voxel_groups <- split(hrf_map_df$voxel, hrf_map_df$hrf_key)
+    unique_hrfs <- unique(hrf_map_df[, c("a1", "b1", "c", "hrf_key")])
 
-  if (verbose > 0) cat("Fitting", nrow(unique_hrfs), "unique HRF groups...\n")
+    if (verbose > 0) cat("Fitting", label, "-", nrow(unique_hrfs), "unique HRF groups...\n")
 
-  # Fit each group
-  df_val <- NA_integer_
-  for (g in seq_len(nrow(unique_hrfs))) {
-    td <- build_task_design(EVs, nT, TR, unique_hrfs$a1[g], unique_hrfs$b1[g], unique_hrfs$c[g], onsets, offsets)
-    fd <- build_full_design(td$design, nuisance_block, nT)
-    XtX_inv <- solve(crossprod(fd$X_full))
-    vox_idx <- voxel_groups[[unique_hrfs$hrf_key[g]]]
+    df_val <- NA_integer_
+    for (g in seq_len(nrow(unique_hrfs))) {
+      td <- build_task_design(EVs, nT, TR, unique_hrfs$a1[g], unique_hrfs$b1[g], unique_hrfs$c[g], onsets, offsets)
+      fd <- build_full_design(td$design, nuisance_block, nT)
+      XtX_inv <- solve(crossprod(fd$X_full))
+      vox_idx <- voxel_groups[[unique_hrfs$hrf_key[g]]]
 
-    grp <- fit_hrf_group(vox_idx, y, fd$X_full, XtX_inv, n_task, A)
+      grp <- fit_hrf_group(vox_idx, y, fd$X_full, XtX_inv, n_task, A)
 
-    beta_mat[vox_idx, ] <- grp$beta
-    est_mat[vox_idx, ] <- grp$est
-    SE_mat[vox_idx, ] <- grp$SE
-    tstat_mat[vox_idx, ] <- grp$tstat
-    pval_mat[vox_idx, ] <- grp$pval
-    df_val <- grp$df
+      beta_mat[vox_idx, ] <- grp$beta
+      est_mat[vox_idx, ] <- grp$est
+      SE_mat[vox_idx, ] <- grp$SE
+      tstat_mat[vox_idx, ] <- grp$tstat
+      pval_mat[vox_idx, ] <- grp$pval
+      df_val <- grp$df
+    }
+
+    valid <- which(!is.na(pval_mat[, 1]))
+    pval_adj_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+    if (length(valid) > 0) {
+      pval_adj_mat[valid, ] <- apply_p_adjustment(pval_mat[valid, , drop = FALSE], p_adjust_method)
+    }
+
+    list(beta_mat = beta_mat, est_mat = est_mat, SE_mat = SE_mat,
+         tstat_mat = tstat_mat, pval_mat = pval_mat, pval_adj_mat = pval_adj_mat, df = df_val)
   }
 
-  # P-value adjustment
-  valid <- which(!is.na(pval_mat[, 1]))
-  pval_adj_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-  if (length(valid) > 0) {
-    pval_adj_mat[valid, ] <- apply_p_adjustment(pval_mat[valid, , drop = FALSE], p_adjust_method)
+  # --- Helper: package raw matrices into xifti list ---
+  package_results <- function(raw, xii) {
+    list(
+      betas = ciftiTools::newdata_xifti(xii, raw$beta_mat),
+      contrasts = list(
+        est = ciftiTools::newdata_xifti(xii, raw$est_mat),
+        SE = ciftiTools::newdata_xifti(xii, raw$SE_mat),
+        tstat = ciftiTools::newdata_xifti(xii, raw$tstat_mat),
+        pval = ciftiTools::newdata_xifti(xii, raw$pval_mat),
+        pval_adj = ciftiTools::newdata_xifti(xii, raw$pval_adj_mat)
+      )
+    )
   }
-
-  if (verbose > 0) cat("fit_bestHRF complete.\n")
 
   xii <- bold_data$BOLD_xii
 
+  # Fit working HRF (same HRF for all voxels)
+  working_map <- data.frame(voxel = 1:nV, a1 = working_hrf$a1, b1 = working_hrf$b1, c = working_hrf$c)
+  raw_working <- fit_all_voxels(working_map, "working HRF")
+
+  # Fit adapted/population HRF
+  mode_label <- if (!is.null(regularize_result$subject_results)) "adapted" else "population"
+  raw_adapted <- fit_all_voxels(hrf_map, mode_label)
+
+  if (verbose > 0) cat("fit_bestHRF complete.\n")
+
+  adapted_section <- package_results(raw_adapted, xii)
+  adapted_section$hrf_assignments <- hrf_map
+  if (!is.null(subject_idx)) adapted_section$subject_idx <- subject_idx
+
+  working_section <- package_results(raw_working, xii)
+  working_section$hrf_assignments <- working_map
+
   result <- list(
-    betas = ciftiTools::newdata_xifti(xii, beta_mat),
-    contrasts = list(
-      est = ciftiTools::newdata_xifti(xii, est_mat),
-      SE = ciftiTools::newdata_xifti(xii, SE_mat),
-      tstat = ciftiTools::newdata_xifti(xii, tstat_mat),
-      pval = ciftiTools::newdata_xifti(xii, pval_mat),
-      pval_adj = ciftiTools::newdata_xifti(xii, pval_adj_mat)
-    ),
-    df = df_val,
-    contrast_matrix = A,
-    subject_idx = subject_idx,
-    hrf_map = hrf_map
+    working = working_section,
+    placeholder = adapted_section,
+    df = raw_working$df,
+    contrast_matrix = A
   )
+  names(result)[2] <- mode_label
+
   class(result) <- "bestHRF"
   result
 }
