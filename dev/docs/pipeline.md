@@ -2,6 +2,8 @@
 
 Four stages, run in order. Outputs feed forward.
 
+Per-function arg docs: [`fit_workingHRF`](fit_workingHRF.md) · [`fit_allHRFs`](fit_allHRFs.md) · [`regularize_allHRFs`](regularize_allHRFs.md) · [`fit_bestHRF`](fit_bestHRF.md)
+
 ```mermaid
 flowchart LR
     I["BOLD + EVs"] --> W["fit_workingHRF()"]
