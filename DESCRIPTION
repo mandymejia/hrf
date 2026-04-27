@@ -53,7 +53,7 @@ Imports:
     Matrix,
     matrixStats,
     stats,
-    qs,
+    qs2,
     Rcpp,
     reshape2,
     dplyr,

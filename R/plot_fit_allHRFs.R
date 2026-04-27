@@ -54,7 +54,7 @@ plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1, ...) {
   file_paths <- attr(x, "result_paths")
 
   # Load the full subject data (including design_3D)
-  full_subject_data <- qs::qread(file_paths[[subject]])
+  full_subject_data <- qs2::qs_read(file_paths[[subject]])
 
   # Extract the specific design matrix for the requested HRF index
   design_dHRFs <- full_subject_data[["design_3D"]][["list"]][[hrf_idx]]

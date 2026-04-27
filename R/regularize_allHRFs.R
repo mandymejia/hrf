@@ -621,7 +621,7 @@ fit_candidate_maps_lookup <- function(candidate_maps, allHRF_results,
     if (verbose > 1 && i %% 100 == 0) cat("  Subject", i, "/", n_subjects, "\n")
 
     # Load RSS from .qs file
-    qs_obj <- qs::qread(result_paths[i])
+    qs_obj <- qs2::qs_read(result_paths[i])
     RSS <- rbind(
       qs_obj$glm_result$mGLM0s$cortexL$RSS,
       qs_obj$glm_result$mGLM0s$cortexR$RSS

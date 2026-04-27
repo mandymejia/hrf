@@ -12,8 +12,8 @@
 #' @return Full file path to the saved object.
 #' @export
 save_object <- function(object, label = NULL, prefix = "qs_obj_", preset = "fast", tmp = TRUE, work_dir = "work") {
-  if (!requireNamespace("qs", quietly = TRUE)) {
-    stop("The 'qs' package is required. Please install it using install.packages('qs').")
+  if (!requireNamespace("qs2", quietly = TRUE)) {
+    stop("The 'qs2' package is required. Please install it using install.packages('qs2').")
   }
 
   # Decide save location
@@ -28,7 +28,7 @@ save_object <- function(object, label = NULL, prefix = "qs_obj_", preset = "fast
   }
 
   # Save object using qs
-  qs::qsave(object, file_path, preset = preset)
+  qs2::qs_save(object, file_path, preset = preset)
   return(file_path)
 }
 
@@ -46,7 +46,7 @@ load_object <- function(label = NULL, file_path = NULL, prefix = "qs_obj_", tmp 
   # Case 1: full path provided
   if (!is.null(file_path)) {
     if (!file.exists(file_path)) stop("File does not exist: ", file_path)
-    obj <- qs::qread(file_path)
+    obj <- qs2::qs_read(file_path)
     if (delete_after_load) unlink(file_path)
     return(obj)
   }
@@ -57,7 +57,7 @@ load_object <- function(label = NULL, file_path = NULL, prefix = "qs_obj_", tmp 
   file_path <- file.path(load_dir, paste0(prefix, label, ".qs"))
 
   if (!file.exists(file_path)) stop("File does not exist: ", file_path)
-  obj <- qs::qread(file_path)
+  obj <- qs2::qs_read(file_path)
   if (delete_after_load) unlink(file_path)
   return(obj)
 }

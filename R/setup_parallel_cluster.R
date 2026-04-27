@@ -19,7 +19,7 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
   parallel::clusterEvalQ(cl, {
     library(hrf)
     library(ciftiTools)
-    library(qs)
+    library(qs2)
     # library(pryr) # removed - was causing stringi/libstdc++ errors on HPC
     # library(ps) # debugging - removed alongside pryr
     library(tictoc) #debugging remember to remove from DESCRIPTION
