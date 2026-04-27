@@ -1,5 +1,5 @@
 library(here)
-library(qs)
+library(qs2)
 library(ciftiTools) # make hrf package load ciftitools
 
 ciftiTools::ciftiTools.setOption('wb_path','/Applications/workbench/bin_macosxub/wb_command')
