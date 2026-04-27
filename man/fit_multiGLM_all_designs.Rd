@@ -14,7 +14,10 @@ fit_multiGLM_all_designs(
   scrub,
   resamp_res,
   verbose,
-  subject_idx
+  subject_idx,
+  EVs,
+  onsets,
+  offsets
 )
 }
 \arguments{

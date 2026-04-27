@@ -19,7 +19,8 @@ process_entire_subject(
   scrub,
   smoothing,
   surf_FWHM,
-  verbose
+  verbose,
+  save_rss = FALSE
 )
 }
 \arguments{

@@ -21,7 +21,8 @@ run_parallel_subjects_allHRFs(
   verbose,
   n_cores,
   log_dir,
-  work_dir
+  work_dir,
+  save_rss
 )
 }
 \arguments{

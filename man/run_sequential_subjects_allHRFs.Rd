@@ -19,7 +19,8 @@ run_sequential_subjects_allHRFs(
   smoothing,
   surf_FWHM,
   verbose,
-  work_dir
+  work_dir,
+  save_rss
 )
 }
 \arguments{

@@ -20,6 +20,7 @@ fit_allHRFs(
   surf_FWHM = 5,
   verbose = 1,
   n_cores = 1,
+  save_rss = FALSE,
   log_dir = "logs",
   work_dir = NULL,
   ...

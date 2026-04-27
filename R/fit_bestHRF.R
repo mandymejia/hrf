@@ -42,7 +42,7 @@ build_task_design <- function(EVs, nT, TR, a1, b1, c, onsets, offsets) {
 #' @param nT Integer. Number of timepoints.
 #' @param TR Numeric. Repetition time.
 #' @param hpf Numeric. High-pass filter cutoff frequency.
-#' @return Numeric matrix: [nuisance | DCT_bases] (or just DCT if nuisance is NULL).
+#' @return Numeric matrix: nuisance columns + DCT bases (or just DCT if nuisance is NULL).
 #' @keywords internal
 build_nuisance_block <- function(nuisance_mat, nT, TR, hpf) {
   n_dct <- round(fMRItools::dct_convert(T_ = nT, TR = TR, f = hpf))
@@ -58,7 +58,7 @@ build_nuisance_block <- function(nuisance_mat, nT, TR, hpf) {
 
 #' Build Full Design Matrix
 #'
-#' Assembles the complete design matrix: [task | intercept | nuisance_block].
+#' Assembles the complete design matrix: task + intercept + nuisance_block.
 #' Matches the column order used in GLM_multi.R.
 #'
 #' @param task_design Matrix. Task regressors (nT x n_task).
