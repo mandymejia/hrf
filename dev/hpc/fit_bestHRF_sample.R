@@ -19,7 +19,7 @@ regularize_path <- file.path(output_root, "regularize_allHRFs",
 session_path    <- file.path("~/Documents/Github/HRF-Adaptation-paper/Code/fixtures",
   paste0("session_data_", sess, ".rds"))
 
-plot_dir <- file.path("~/Documents/Github/HRF-Adaptation-paper/dev_plots", run_name, sess)
+plot_dir <- file.path("~/Documents/Github/hrf-z/dev/hpc/plots", run_name, sess)
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 # ** Load **
