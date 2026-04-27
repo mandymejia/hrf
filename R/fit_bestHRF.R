@@ -115,55 +115,48 @@ apply_p_adjustment <- function(pval_mat, method = "BH") {
 }
 
 
-#' Resolve HRF Map from Regularize Result
-#'
-#' Determines which HRF map to use based on whether regularize
-#' produced subject-level results (seffects) or population only.
-#'
-#' @param regularize_result Output from regularize_allHRFs.
-#' @param subject_idx Integer subject index (required for seffects mode).
-#' @return data.frame with columns: voxel, a1, b1, c.
-#' @keywords internal
 #' Validate fit_bestHRF Inputs
 #'
-#' Checks consistency between regularize result and subject_idx.
+#' Checks consistency between `use`, the regularize result, and subject_idx.
 #'
 #' @param regularize_result Output from regularize_allHRFs.
-#' @param subject_idx Subject index or NULL.
+#' @param use Either "subject" or "population".
+#' @param subject_idx Subject index (required when use = "subject").
 #' @keywords internal
-validate_bestHRF_inputs <- function(regularize_result, subject_idx) {
+validate_bestHRF_inputs <- function(regularize_result, use, subject_idx) {
   has_seffects <- !is.null(regularize_result$subject_results)
 
-  if (has_seffects) {
+  if (use == "subject") {
+    if (!has_seffects) {
+      stop("use = 'subject' requires regularize_allHRFs to have been run with seffects = TRUE. ",
+           "Re-run regularize_allHRFs with seffects = TRUE, or call fit_bestHRF with use = 'population'.")
+    }
     if (is.null(subject_idx)) {
-      stop("subject_idx is required when regularize was run with seffects=TRUE")
+      stop("subject_idx is required when use = 'subject'.")
     }
     n_subjects <- nrow(regularize_result$subject_results)
     if (subject_idx < 1 || subject_idx > n_subjects) {
-      stop("subject_idx = ", subject_idx, " is out of range (1 to ", n_subjects, ")")
-    }
-  } else {
-    if (!is.null(subject_idx)) {
-      stop("subject_idx was provided but regularize was run with seffects=FALSE (population mode only). ",
-           "Re-run regularize_allHRFs with seffects=TRUE to use subject-specific HRFs.")
+      stop("subject_idx = ", subject_idx, " is out of range (1 to ", n_subjects, ").")
     }
   }
+  # use == "population": subject_idx is ignored regardless of seffects
 }
 
 
 #' Resolve HRF Map from Regularize Result
 #'
-#' Determines which HRF map to use based on whether regularize
-#' produced subject-level results (seffects) or population only.
+#' Returns the HRF map specified by `use`: either the subject's adapted map
+#' (winning candidate) or the population average.
 #'
 #' @param regularize_result Output from regularize_allHRFs.
-#' @param subject_idx Integer subject index (required for seffects mode).
+#' @param use Either "subject" or "population".
+#' @param subject_idx Integer subject index (required when use = "subject").
 #' @return data.frame with columns: voxel, a1, b1, c.
 #' @keywords internal
-resolve_hrf_map <- function(regularize_result, subject_idx = NULL) {
-  validate_bestHRF_inputs(regularize_result, subject_idx)
+resolve_hrf_map <- function(regularize_result, use, subject_idx = NULL) {
+  validate_bestHRF_inputs(regularize_result, use, subject_idx)
 
-  if (!is.null(regularize_result$subject_results)) {
+  if (use == "subject") {
     winning_id <- regularize_result$subject_results$winning_candidate_id[subject_idx]
     cm <- regularize_result$candidate_maps[[winning_id]]
     data.frame(voxel = cm$voxel, a1 = cm$a1, b1 = cm$b1, c = cm$c)
@@ -237,7 +230,11 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 #' @param EVs Event data for this subject.
 #' @param nuisance_file Character. Path to nuisance regressor file (or NULL).
 #' @param TR Numeric. Repetition time in seconds.
-#' @param subject_idx Integer. Subject index (required when seffects=TRUE).
+#' @param use Either "subject" (default) for the subject's adapted HRF map, or
+#'   "population" for the population-average map. "subject" requires
+#'   `regularize_result` to have been built with `seffects = TRUE` and a
+#'   non-NULL `subject_idx`.
+#' @param subject_idx Integer. Subject index (required when use = "subject").
 #' @param contrasts Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 #'   Default NULL uses identity (each beta tested individually).
 #' @param brainstructures Character vector. Brain structures to model.
@@ -250,8 +247,9 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 #' @return A list with class \code{"bestHRF"} containing:
 #'   \describe{
 #'     \item{working}{Canonical HRF fit: betas and contrasts (as xifti)}
-#'     \item{population or adapted}{Regularized HRF fit: betas, contrasts,
-#'       hrf_assignments (voxel-to-HRF mapping), and subject_idx (if adapted)}
+#'     \item{adapted (or population)}{Regularized HRF fit: betas, contrasts,
+#'       hrf_assignments (voxel-to-HRF mapping), and subject_idx (when use = "subject").
+#'       Section is named "adapted" when use = "subject", "population" when use = "population".}
 #'     \item{df}{Degrees of freedom}
 #'     \item{contrast_matrix}{The contrast matrix A used}
 #'   }
@@ -262,6 +260,7 @@ fit_bestHRF <- function(regularize_result,
                         EVs,
                         nuisance_file = NULL,
                         TR,
+                        use = c("subject", "population"),
                         subject_idx = NULL,
                         contrasts = NULL,
                         working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
@@ -273,12 +272,11 @@ fit_bestHRF <- function(regularize_result,
                         p_adjust_method = "BH",
                         verbose = 1) {
 
+  use <- match.arg(use)
+
   # Resolve HRF map
-  hrf_map <- resolve_hrf_map(regularize_result, subject_idx)
-  if (verbose > 0) {
-    mode <- if (!is.null(regularize_result$subject_results)) "subject" else "population"
-    cat("fit_bestHRF:", mode, "mode,", nrow(hrf_map), "voxels\n")
-  }
+  hrf_map <- resolve_hrf_map(regularize_result, use, subject_idx)
+  if (verbose > 0) cat("fit_bestHRF:", use, "mode,", nrow(hrf_map), "voxels\n")
 
   # Load BOLD data
   if (verbose > 0) cat("Loading BOLD data...\n")
@@ -364,14 +362,14 @@ fit_bestHRF <- function(regularize_result,
   raw_working <- fit_all_voxels(working_map, "working HRF")
 
   # Fit adapted/population HRF
-  mode_label <- if (!is.null(regularize_result$subject_results)) "adapted" else "population"
+  mode_label <- if (use == "subject") "adapted" else "population"
   raw_adapted <- fit_all_voxels(hrf_map, mode_label)
 
   if (verbose > 0) cat("fit_bestHRF complete.\n")
 
   adapted_section <- package_results(raw_adapted, xii)
   adapted_section$hrf_assignments <- hrf_map
-  if (!is.null(subject_idx)) adapted_section$subject_idx <- subject_idx
+  if (use == "subject") adapted_section$subject_idx <- subject_idx
 
   working_section <- package_results(raw_working, xii)
   working_section$hrf_assignments <- working_map

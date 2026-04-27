@@ -2,30 +2,18 @@
 % Please edit documentation in R/fit_bestHRF.R
 \name{validate_bestHRF_inputs}
 \alias{validate_bestHRF_inputs}
-\title{Resolve HRF Map from Regularize Result}
+\title{Validate fit_bestHRF Inputs}
 \usage{
-validate_bestHRF_inputs(regularize_result, subject_idx)
+validate_bestHRF_inputs(regularize_result, use, subject_idx)
 }
 \arguments{
 \item{regularize_result}{Output from regularize_allHRFs.}
 
-\item{subject_idx}{Subject index or NULL.}
-}
-\value{
-data.frame with columns: voxel, a1, b1, c.
+\item{use}{Either "subject" or "population".}
+
+\item{subject_idx}{Subject index (required when use = "subject").}
 }
 \description{
-Determines which HRF map to use based on whether regularize
-produced subject-level results (seffects) or population only.
+Checks consistency between \code{use}, the regularize result, and subject_idx.
 }
-\keyword{Checks}
-\keyword{Inputs}
-\keyword{Validate}
-\keyword{and}
-\keyword{between}
-\keyword{consistency}
-\keyword{fit_bestHRF}
 \keyword{internal}
-\keyword{regularize}
-\keyword{result}
-\keyword{subject_idx.}

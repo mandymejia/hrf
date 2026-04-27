@@ -4,18 +4,20 @@
 \alias{resolve_hrf_map}
 \title{Resolve HRF Map from Regularize Result}
 \usage{
-resolve_hrf_map(regularize_result, subject_idx = NULL)
+resolve_hrf_map(regularize_result, use, subject_idx = NULL)
 }
 \arguments{
 \item{regularize_result}{Output from regularize_allHRFs.}
 
-\item{subject_idx}{Integer subject index (required for seffects mode).}
+\item{use}{Either "subject" or "population".}
+
+\item{subject_idx}{Integer subject index (required when use = "subject").}
 }
 \value{
 data.frame with columns: voxel, a1, b1, c.
 }
 \description{
-Determines which HRF map to use based on whether regularize
-produced subject-level results (seffects) or population only.
+Returns the HRF map specified by \code{use}: either the subject's adapted map
+(winning candidate) or the population average.
 }
 \keyword{internal}
