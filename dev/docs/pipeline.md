@@ -2,10 +2,21 @@
 
 Four stages, run in order. Outputs feed forward.
 
-```
-BOLD + EVs ──┬──→ fit_workingHRF ──→ activation masks ────┐
-             │                                             ├──→ regularize_allHRFs ──→ HRF map ──→ fit_bestHRF ──→ betas, t-stats, p-values
-             └──→ fit_allHRFs    ──→ best HRF per voxel ──┘
+```mermaid
+flowchart LR
+    I["BOLD + EVs"] --> W["fit_workingHRF()"]
+    I --> A["fit_allHRFs()"]
+    W -- "activation masks" --> R["regularize_allHRFs()"]
+    A -- "best HRF per voxel" --> R
+    R -- "HRF map" --> B["fit_bestHRF()"]
+    B --> O["betas · t-stats · p-values"]
+
+    style W fill:#e3f2fd,stroke:#1976d2
+    style A fill:#e3f2fd,stroke:#1976d2
+    style R fill:#fff3e0,stroke:#f57c00
+    style B fill:#e8f5e9,stroke:#388e3c
+    style I fill:#f5f5f5,stroke:#616161
+    style O fill:#f5f5f5,stroke:#616161
 ```
 
 ## `fit_workingHRF`
