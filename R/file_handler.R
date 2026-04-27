@@ -11,7 +11,7 @@
 #'
 #' @return Full file path to the saved object.
 #' @export
-save_object <- function(object, label = NULL, prefix = "qs_obj_", compress_level = 1, tmp = TRUE, work_dir = "work") {
+save_object <- function(object, label = NULL, prefix = "qs_obj_", compress_level = 3, tmp = TRUE, work_dir = "work") {
   if (!requireNamespace("qs2", quietly = TRUE)) {
     stop("The 'qs2' package is required. Please install it using install.packages('qs2').")
   }
