@@ -11,6 +11,7 @@ fit_bestHRF(
   EVs,
   nuisance_file = NULL,
   TR,
+  use = c("subject", "population"),
   subject_idx = NULL,
   contrasts = NULL,
   working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
@@ -32,7 +33,8 @@ fit_bestHRF(
 | `EVs` | event table for that subject |
 | `nuisance_file` | optional path to nuisance regressors for that subject |
 | `TR` | repetition time (must match upstream stages) |
-| `subject_idx` | required when `regularize_result` was made with `seffects = TRUE`. Picks which subject's adapted HRF map to use |
+| `use` | `"subject"` (default) → use that subject's adapted HRF map; `"population"` → use the population-average map. `"subject"` errors out if regularize was run with `seffects = FALSE` |
+| `subject_idx` | required when `use = "subject"`. Picks which subject's adapted HRF map to use |
 | `contrasts` | optional contrast matrix `A` (rows = contrasts, cols = task regressors). `NULL` = identity (each beta tested individually) |
 | `working_hrf` | the canonical HRF used for the `working` baseline section |
 | `brainstructures`, `resamp_res`, `hpf` | must match upstream stages |
@@ -64,6 +66,7 @@ result <- fit_bestHRF(
   EVs = session_data$EVs_list[[1]],
   nuisance_file = session_data$nuisance_files[1],
   TR = 0.72,
+  use = "subject",
   subject_idx = 1,
   contrasts = A,
   brainstructures = c("left", "right"),

@@ -79,7 +79,7 @@ Modes:
 - adapted HRF per subject = the **WINNING** candidate map (only if `seffects=TRUE`)
 
 ## `fit_bestHRF`
-Final per-subject GLM using the **adapted HRF** (or population HRF, if `seffects=FALSE`) at each voxel. Computes contrasts, t-stats, and adjusted p-values.
+Final per-subject GLM using the **adapted HRF** (`use = "subject"`) or the population HRF (`use = "population"`) at each voxel. Computes contrasts, t-stats, and adjusted p-values.
 
 **In:**
 - `regularize_allHRFs` result
@@ -106,12 +106,12 @@ result (class: "bestHRF")
 │   ├── betas              # xifti — task betas, now per-voxel HRF
 │   ├── contrasts          # same five xiftis as above (est, SE, tstat, pval, pval_adj)
 │   ├── hrf_assignments    # data.frame — actual (a1, b1, c) used per voxel
-│   └── subject_idx        # which subject (only if seffects=TRUE / adapted mode)
+│   └── subject_idx        # which subject (only when use = "subject")
 ├── df                  # integer — residual degrees of freedom (same across voxels)
 └── contrast_matrix     # matrix A — the contrasts you requested (defaults to identity)
 ```
 
-**Section name:** `adapted` when `regularize_result` has per-subject results (`seffects=TRUE`); `population` when it only has the population avg.
+**Section name:** `adapted` when `use = "subject"`; `population` when `use = "population"`. `use = "subject"` errors out if `regularize_result` was built with `seffects = FALSE`.
 
 **`xifti`:** a `ciftiTools` object holding cortex-surface data — pass to `ciftiTools::view_xifti()` or `plot()` directly.
 

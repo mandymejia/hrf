@@ -1,6 +1,15 @@
 # Running `hrf` on HPC
 
-Sample: `fit_bestHRF_sample.R` runs `fit_bestHRF()` on one subject and saves working + population beta plots.
+Samples in this folder:
+- `fit_bestHRF_sample.R` — basic run with `use = "population"`, saves working + population beta plots
+- `fit_bestHRF_sample_contrast.R` — same but with a custom `hands - feet` contrast, saves t-stat plots
+
+## `use` argument (fit_bestHRF)
+
+- `use = "subject"` — uses that subject's adapted HRF map (the winning candidate from `regularize_allHRFs`). Requires `subject_idx` and the regularize result must have been built with `seffects = TRUE`.
+- `use = "population"` — uses the population-average HRF map for everyone. Doesn't need `subject_idx`. Works on any regularize result.
+
+Both samples here use `"population"` because it's the simplest sanity check and runs against any regularize output. Switch to `"subject"` + `subject_idx = N` once you want per-subject adapted fits. See [`../docs/fit_bestHRF.md`](../docs/fit_bestHRF.md) for the full arg breakdown.
 
 ## 1. Launch RStudio
 
@@ -40,4 +49,6 @@ This pulls in every CRAN dep automatically. **Use `install`, not `load_all`** �
 
 ```r
 source("~/Documents/Github/hrf-z/dev/hpc/fit_bestHRF_sample.R")
+# or:
+source("~/Documents/Github/hrf-z/dev/hpc/fit_bestHRF_sample_contrast.R")
 ```

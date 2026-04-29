@@ -38,8 +38,9 @@ fit_allHRFs_result <- fit_allHRFs(
   onsets = if(t == 3) FALSE else TRUE,    # No onsets for gambling
   offsets = if(t == 3) FALSE else TRUE,   # No offsets for gambling
   scrub = NULL,
+  save_rss = TRUE,
   verbose = 2,
-  n_cores = 2,
+  n_cores = 1,
   log_dir = "dev/logs",
   work_dir = "dev/work/"
 )
@@ -79,5 +80,5 @@ plot(fit_allHRFs_result, type = "multiple_hrf", hrf_idx = c(1, 5, 40),
 #                                   DEBUG AREA
 # ------------------------------------------------------------------------------
 file_paths <- attr(fit_allHRFs_result, "result_paths")
-work1 <- qs::qread(file_paths[[1]])
+work1 <- qs2::qs_read(file_paths[[1]])
 
