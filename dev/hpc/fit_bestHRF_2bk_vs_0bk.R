@@ -32,20 +32,9 @@ cat("Loading session_data...\n")
 session_data <- readRDS(session_path)
 
 # ** Build the contrast matrix **
-# WM EV order (HCP convention): four 0bk tasks first, then four 2bk tasks.
-ev_names <- names(session_data$EVs_list[[1]])
-cat("EV names:", paste(ev_names, collapse = ", "), "\n")
-
-n_main <- length(ev_names)
-n_task <- n_main + 2  # main EVs + 1 shared onset + 1 shared offset
-A <- matrix(0, nrow = 1, ncol = n_task)
-colnames(A) <- c(ev_names, "onset", "offset")
-rownames(A) <- "2bk_minus_0bk"
-
-A[1, grep("^0bk", ev_names, value = TRUE)] <- -0.25
-A[1, grep("^2bk", ev_names, value = TRUE)] <-  0.25
-
-cat("Contrast matrix:\n"); print(A)
+# EVs (HCP order): 0bk_body, 0bk_faces, 0bk_places, 0bk_tools, 2bk_body, 2bk_faces, 2bk_places, 2bk_tools, then shared onset, offset
+cat("EV names:", paste(names(session_data$EVs_list[[1]]), collapse = ", "), "\n")
+A <- rbind(c(-0.25, -0.25, -0.25, -0.25,  0.25, 0.25, 0.25, 0.25,  0, 0))
 
 # ** Run on held-out subjects (not in the 500-subject population) **
 subjects <- c(501, 550)
