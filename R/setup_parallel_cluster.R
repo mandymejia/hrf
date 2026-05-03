@@ -51,6 +51,8 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     "fit_multiGLM_all_designs",
     "extract_hrf_params",
     "get_taper_start",
+    # regularize_allHRFs
+    "process_candidate_subject_refit",
     # file handling
     "save_object",
     "load_object",

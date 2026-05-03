@@ -13,6 +13,7 @@ regularize_allHRFs(
   b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
   seffects = TRUE,
   onsets = FALSE, offsets = FALSE,
+  n_cores = 1, log_dir = "logs",
   verbose = 1
 )
 ```
@@ -28,6 +29,8 @@ regularize_allHRFs(
 | `b1_offsets` | shifts in `b1` (width) used to build candidate maps |
 | `seffects` | if `TRUE`, fit all 25 candidate maps to each subject and pick the winner per subject (= the **adapted HRF**). If `FALSE`, only the population avg is returned |
 | `onsets`, `offsets` | only used in refit mode (must match the values used during `fit_allHRFs`) |
+| `n_cores` | number of parallel workers for refit mode (1 = sequential). Ignored in lookup mode |
+| `log_dir` | directory for cluster log files (refit + parallel only) |
 | `verbose` | 0 = silent, 1 = step messages, 2 = detailed |
 
 ## Mode auto-detection

@@ -92,7 +92,7 @@ compute_contrasts <- function(beta_task, Cov_task, df, A) {
   var_contrasts <- diag(A %*% Cov_task %*% t(A))
   SE <- sqrt(var_contrasts)
   tstat <- est / SE
-  pval <- 2 * pt(-abs(tstat), df = df)
+  pval <- 2 * stats::pt(-abs(tstat), df = df)
 
   list(est = est, SE = SE, tstat = tstat, pval = pval)
 }
@@ -109,7 +109,7 @@ compute_contrasts <- function(beta_task, Cov_task, df, A) {
 apply_p_adjustment <- function(pval_mat, method = "BH") {
   pval_adj <- pval_mat
   for (k in seq_len(ncol(pval_mat))) {
-    pval_adj[, k] <- p.adjust(pval_mat[, k], method = method)
+    pval_adj[, k] <- stats::p.adjust(pval_mat[, k], method = method)
   }
   pval_adj
 }
@@ -237,6 +237,10 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 #' @param subject_idx Integer. Subject index (required when use = "subject").
 #' @param contrasts Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 #'   Default NULL uses identity (each beta tested individually).
+#' @param working_hrf List with elements \code{a1}, \code{b1}, \code{c}
+#'   parameterizing the canonical "working" HRF that produces the
+#'   \code{$working} section of the result. Defaults to the SPM canonical
+#'   shape (\code{a1 = 6, b1 = 1, c = 1/6}).
 #' @param brainstructures Character vector. Brain structures to model.
 #' @param resamp_res Integer. Resampling resolution.
 #' @param hpf Numeric. High-pass filter cutoff.

@@ -13,6 +13,8 @@ fit_candidate_maps_refit(
   hpf = 0.01,
   onsets = FALSE,
   offsets = FALSE,
+  n_cores = 1,
+  log_dir = "logs",
   verbose = 1
 )
 }
@@ -33,6 +35,10 @@ fit_candidate_maps_refit(
 \item{onsets}{Logical. Include onset regressors.}
 
 \item{offsets}{Logical. Include offset regressors.}
+
+\item{n_cores}{Integer. Number of parallel worker processes (1 = sequential).}
+
+\item{log_dir}{Directory for cluster log files (parallel mode only).}
 
 \item{verbose}{Integer verbosity level.}
 }

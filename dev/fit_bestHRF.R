@@ -12,16 +12,19 @@ result <- fit_bestHRF(
   EVs = session_data$EVs_list[[1]],
   nuisance_file = session_data$nuisance_files[1],
   TR = 0.72,
+  use = "population",
   onsets = TRUE, offsets = TRUE,
-  verbose = 1,
+  verbose = 1
 )
+
+saveRDS(result, "dev/fixtures/fit_bestHRF_result_motorlr_4s_pop.rds")
 
 names(result)
 result$df
 
-plot(result$betas, idx = 1, title = "cue betas")
-plot(result$contrasts$tstat, idx = 1, title = "cue t-stat")
-plot(result$contrasts$pval_adj, idx = 1, title = "cue p-val (BH adjusted)")
+plot(result$population$betas, idx = 1, title = "cue betas")
+plot(result$population$contrasts$tstat, idx = 1, title = "cue t-stat")
+plot(result$population$contrasts$pval_adj, idx = 1, title = "cue p-val (BH adjusted)")
 
 
 # AVG on 1000 subjects

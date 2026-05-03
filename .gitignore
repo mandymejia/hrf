@@ -12,6 +12,9 @@
 /Meta/
 Agents.MD
 
+# AI tooling state
+.claude/
+
 # Debug folders
 debug/
 /debug/

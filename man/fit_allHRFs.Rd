@@ -93,6 +93,10 @@ for parallel processing. If \code{n_cores > 1}, subjects are processed
 in parallel using \code{parLapplyLB()}. Each core may spawn multiple
 workers to mask I/O latency.}
 
+\item{save_rss}{Logical. If \code{TRUE}, store per-voxel RSS for every HRF
+model in each subject's saved \code{.qs} so \code{regularize_allHRFs()}
+can use lookup mode. If \code{FALSE} (default), regularize must refit.}
+
 \item{log_dir}{Character or NULL. Directory path for saving log files
 and temporary outputs during processing. If NULL, uses current working
 directory or system temp directory.}

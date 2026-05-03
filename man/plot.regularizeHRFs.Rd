@@ -4,39 +4,25 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(
-  x,
-  type = c("variance", "mean_all", "mean", "wls_weights", "param_heatmap"),
-  ...
-)
+\method{plot}{regularizeHRFs}(x, type = c("pop_avg", "param_heatmap"), ...)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from
 \code{\link{regularize_allHRFs}}.}
 
-\item{type}{Character. Type of plot to generate. Options:
-\itemize{
-\item \code{"variance"}
-\item \code{"precision"}
-\item \code{"mean_all"} - population mean over all subjects
-\item \code{"mean"} - population mean over subjects with activation only
-\item \code{"param_heatmap"} - frequency heatmap of parameter combinations
-}}
+\item{type}{Character. Plot type to generate.}
 
-\item{...}{Additional arguments passed to internal plotting functions
-(e.g., \code{param}, \code{model}, \code{method}, \code{fname}).}
+\item{...}{Additional arguments passed to the type-specific helper
+(e.g. \code{param}, \code{mask}, \code{fname}).}
 }
 \value{
-Invisibly returns the result of the plotting call.
+Invisibly returns the plot object.
 }
 \description{
-Creates diagnostic plots for HRF regularization results.
-Supports visualization of:
+Diagnostic plots for the offset-based regularize output.
 \itemize{
-\item \code{"variance"} - residual variance maps for model fits
-\item \code{"wls_weights"} - inverse variance (WLS weights) maps
-\item \code{"mean_all"} - population mean parameter maps
-\item \code{"mean"} - population mean over subjects with activation only
-\item \code{"param_heatmap"} - heatmap of parameter frequency distributions
+\item \code{"pop_avg"} – population-average HRF parameter map (brain surface).
+\item \code{"param_heatmap"} – frequency heatmap of per-subject best HRF
+parameters on the underlying HRF grid.
 }
 }

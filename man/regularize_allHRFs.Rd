@@ -16,6 +16,8 @@ regularize_allHRFs(
   seffects = TRUE,
   onsets = FALSE,
   offsets = FALSE,
+  n_cores = 1,
+  log_dir = "logs",
   verbose = 1
 )
 }
@@ -36,9 +38,19 @@ regularize_allHRFs(
 
 \item{b1_offsets}{Numeric vector of b1 offsets for candidate maps.}
 
+\item{seffects}{Logical. If \code{TRUE} (default), fit all candidate maps
+per subject and pick a winning candidate per subject (the adapted-HRF
+workflow). If \code{FALSE}, return only the population average and skip
+per-subject candidate selection.}
+
 \item{onsets}{Logical. Include onset regressors (refit mode only).}
 
 \item{offsets}{Logical. Include offset regressors (refit mode only).}
+
+\item{n_cores}{Integer. Number of parallel worker processes for refit mode
+(1 = sequential). Ignored in lookup mode (\code{save_rss = TRUE}).}
+
+\item{log_dir}{Directory for cluster log files (refit + parallel only).}
 
 \item{verbose}{Integer verbosity level.}
 }

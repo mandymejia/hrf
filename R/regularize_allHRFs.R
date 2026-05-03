@@ -11,8 +11,15 @@
 #' @param TR Numeric. Repetition time in seconds. Required for refit mode.
 #' @param a1_offsets Numeric vector of a1 offsets for candidate maps.
 #' @param b1_offsets Numeric vector of b1 offsets for candidate maps.
+#' @param seffects Logical. If \code{TRUE} (default), fit all candidate maps
+#'   per subject and pick a winning candidate per subject (the adapted-HRF
+#'   workflow). If \code{FALSE}, return only the population average and skip
+#'   per-subject candidate selection.
 #' @param onsets Logical. Include onset regressors (refit mode only).
 #' @param offsets Logical. Include offset regressors (refit mode only).
+#' @param n_cores Integer. Number of parallel worker processes for refit mode
+#'   (1 = sequential). Ignored in lookup mode (\code{save_rss = TRUE}).
+#' @param log_dir Directory for cluster log files (refit + parallel only).
 #' @param verbose Integer verbosity level.
 #'
 #' @return A list with class \code{"regularizeHRFs"} containing:
@@ -39,6 +46,8 @@ regularize_allHRFs <- function(workingHRF_results,
                                 seffects = TRUE,
                                 onsets = FALSE,
                                 offsets = FALSE,
+                                n_cores = 1,
+                                log_dir = "logs",
                                 verbose = 1) {
 
   # Detect RSS mode
@@ -86,7 +95,7 @@ regularize_allHRFs <- function(workingHRF_results,
   mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
   pop_mask_voxels <- which(!is.na(mask_prop_NA))
 
-  pop_avg <- aggregate(
+  pop_avg <- stats::aggregate(
     cbind(time_to_peak, FWHM) ~ voxel,
     data = best_params_df[best_params_df$mask & best_params_df$voxel %in% pop_mask_voxels, ],
     FUN = mean
@@ -135,7 +144,8 @@ regularize_allHRFs <- function(workingHRF_results,
   } else {
     subject_results <- fit_candidate_maps_refit(
       cm_result$candidate_maps, hrf_grid, session_data,
-      TR = TR, onsets = onsets, offsets = offsets, verbose = verbose
+      TR = TR, onsets = onsets, offsets = offsets,
+      n_cores = n_cores, log_dir = log_dir, verbose = verbose
     )
   }
 
@@ -151,6 +161,10 @@ regularize_allHRFs <- function(workingHRF_results,
     hrf_grid = hrf_grid,
     mask_prop_NA = mask_prop_NA
   )
+
+  # Attach a xifti geometry template (from any successful workingHRF subject)
+  # so plot.regularizeHRFs methods don't need the user to pass one.
+  attr(result, "xii") <- extract_xii_template(workingHRF_results)
 
   class(result) <- "regularizeHRFs"
 
@@ -699,6 +713,8 @@ fit_candidate_maps_lookup <- function(candidate_maps, allHRF_results,
 #' @param hpf Numeric. High-pass filter cutoff.
 #' @param onsets Logical. Include onset regressors.
 #' @param offsets Logical. Include offset regressors.
+#' @param n_cores Integer. Number of parallel worker processes (1 = sequential).
+#' @param log_dir Directory for cluster log files (parallel mode only).
 #' @param verbose Integer verbosity level.
 #'
 #' @return A data.frame with same structure as \code{fit_candidate_maps_lookup}.
@@ -708,6 +724,7 @@ fit_candidate_maps_refit <- function(candidate_maps, hrf_grid,
                                      session_data, TR,
                                      brainstructures = c("left", "right"),
                                      hpf = 0.01, onsets = FALSE, offsets = FALSE,
+                                     n_cores = 1, log_dir = "logs",
                                      verbose = 1) {
   n_subjects <- length(session_data$BOLD_files)
   n_candidates <- length(candidate_maps)
@@ -717,85 +734,28 @@ fit_candidate_maps_refit <- function(candidate_maps, hrf_grid,
   unique_grid <- hrf_grid[all_model_idx, ]
   n_models <- nrow(unique_grid)
   idx_map <- setNames(seq_len(n_models), all_model_idx)
-
-  if (verbose > 0) cat("Refit mode:", n_subjects, "subjects,", n_candidates, "candidates,", n_models, "unique models\n")
-
   pop_voxels <- candidate_maps[[1]]$voxel
-  subject_results_list <- vector("list", n_subjects)
 
-  for (i in seq_len(n_subjects)) {
-    if (verbose > 0) cat("  Subject", i, "/", n_subjects, "\n")
+  if (verbose > 0) cat("Refit mode:", n_subjects, "subjects,", n_candidates, "candidates,", n_models, "unique models using", n_cores, "cores\n")
 
-    # Load BOLD
-    BOLD_xii <- ciftiTools::read_cifti(
-      session_data$BOLD_files[[i]],
-      brainstructures = brainstructures,
-      resamp_res = 10000
+  if (n_cores > 1) {
+    subject_rows <- run_parallel_subjects_refit(
+      candidate_maps, hrf_grid, session_data, TR,
+      brainstructures, hpf, onsets, offsets,
+      unique_grid, idx_map, pop_voxels, n_candidates,
+      verbose, n_cores, log_dir
     )
-    nuisance <- as.matrix(utils::read.table(session_data$nuisance_files[[i]], header = FALSE))
-    nT <- ncol(BOLD_xii)
-
-    # Build design matrices
-    design_canonical <- make_design(
-      EVs = session_data$EVs_list[[i]], nTime = nT, TR = TR, dHRF = 0,
-      onset = onsets, offset = offsets
-    )$design
-    nK <- ncol(design_canonical)
-
-    design_3D <- array(NA, dim = c(nT, nK, n_models))
-    for (j in seq_len(n_models)) {
-      taper_start_j <- get_taper_start(
-        a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
-        a2 = unique_grid$a2[j], b2 = unique_grid$b2[j],
-        c = unique_grid$c[j], TR = TR, deriv = 0
-      )
-      design_3D[,,j] <- make_design(
-        EVs = session_data$EVs_list[[i]], nTime = nT, TR = TR, dHRF = 0,
-        onset = onsets, offset = offsets,
-        taper_start = taper_start_j,
-        a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
-        c = unique_grid$c[j],
-        a2 = unique_grid$a2[j], b2 = unique_grid$b2[j]
-      )$design
-    }
-
-    # Fit multiGLM
-    glm_result <- multiGLM(
-      BOLD = BOLD_xii, brainstructures = brainstructures,
-      resamp_res = NULL, design = design_3D,
-      design_canonical = design_canonical,
-      nuisance = nuisance, scrub = NULL, TR = TR, hpf = hpf
+  } else {
+    if (verbose > 0) cat("Using sequential processing\n")
+    subject_rows <- run_sequential_subjects_refit(
+      candidate_maps, hrf_grid, session_data, TR,
+      brainstructures, hpf, onsets, offsets,
+      unique_grid, idx_map, pop_voxels, n_candidates,
+      verbose
     )
-
-    RSS <- rbind(glm_result$mGLM0s$cortexL$RSS, glm_result$mGLM0s$cortexR$RSS)
-    Fstat <- c(glm_result$mGLM0s$cortexL$Fstat, glm_result$mGLM0s$cortexR$Fstat)
-
-    fstat_sq <- Fstat[pop_voxels]^2
-    fstat_sq_sum <- sum(fstat_sq, na.rm = TRUE)
-
-    # Compute RSS per candidate
-    weighted_rss_per_candidate <- numeric(n_candidates)
-    for (j in seq_len(n_candidates)) {
-      compact_idx <- idx_map[as.character(candidate_maps[[j]]$model_idx)]
-      voxel_rss <- RSS[cbind(pop_voxels, compact_idx)]
-      weighted_rss_per_candidate[j] <- sum(voxel_rss * fstat_sq, na.rm = TRUE) / fstat_sq_sum
-    }
-
-    winner <- which.min(weighted_rss_per_candidate)
-    row <- data.frame(
-      subject = i,
-      winning_candidate_id = winner,
-      winning_a1_offset = candidate_maps[[winner]]$a1_offset[1],
-      winning_b1_offset = candidate_maps[[winner]]$b1_offset[1],
-      winning_weighted_RSS = weighted_rss_per_candidate[winner]
-    )
-    for (j in seq_len(n_candidates)) {
-      row[[paste0("weighted_RSS_", j)]] <- weighted_rss_per_candidate[j]
-    }
-    subject_results_list[[i]] <- row
   }
 
-  result <- do.call(rbind, subject_results_list)
+  result <- do.call(rbind, subject_rows)
 
   if (verbose > 0) {
     cat("Winner distribution:\n")
@@ -803,4 +763,207 @@ fit_candidate_maps_refit <- function(candidate_maps, hrf_grid,
   }
 
   return(result)
+}
+
+
+#' Process candidate subjects in parallel using cluster workers
+#'
+#' Sets up a parallel cluster and processes all subjects simultaneously using
+#' load-balanced \code{parLapplyLB()}. Each worker calls
+#' \code{process_candidate_subject_refit()} for one subject.
+#'
+#' @inheritParams fit_candidate_maps_refit
+#' @param unique_grid Compact HRF grid restricted to model indices referenced by
+#'   candidate maps.
+#' @param idx_map Named integer vector mapping global model_idx (character key)
+#'   to compact unique_grid row index.
+#' @param pop_voxels Integer vector of population-mask voxels (rows of RSS that
+#'   contribute to the weighted RSS sum).
+#' @param n_candidates Integer. Number of candidate maps.
+#'
+#' @return List of single-row data.frames, one per subject.
+#'
+#' @keywords internal
+run_parallel_subjects_refit <- function(candidate_maps, hrf_grid, session_data, TR,
+                                        brainstructures, hpf, onsets, offsets,
+                                        unique_grid, idx_map, pop_voxels, n_candidates,
+                                        verbose, n_cores, log_dir) {
+
+  if (verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores.\n")
+
+  n_workers <- n_cores
+
+  if (!dir.exists(log_dir)) { dir.create(log_dir, recursive = TRUE) }
+  log_file <- file.path(log_dir, sprintf("regularize_refit_log_%s.txt", format(Sys.time(), "%Y%m%d_%H%M%S")))
+  message("Cluster logs will be saved to: ", normalizePath(log_file, mustWork = FALSE))
+
+  cl <- parallel::makeCluster(n_workers, outfile = log_file)
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+
+  vars_to_export <- c(
+    "candidate_maps", "hrf_grid", "session_data", "TR",
+    "brainstructures", "hpf", "onsets", "offsets",
+    "unique_grid", "idx_map", "pop_voxels", "n_candidates", "verbose"
+  )
+  setup_parallel_cluster(cl, verbose, vars_to_export)
+
+  if (verbose > 0) cat("Processing subjects in parallel\n")
+
+  subject_rows <- parallel::parLapplyLB(cl, seq_len(length(session_data$BOLD_files)), function(i) {
+    process_candidate_subject_refit(
+      subject_idx = i,
+      candidate_maps = candidate_maps, hrf_grid = hrf_grid, session_data = session_data,
+      TR = TR, brainstructures = brainstructures, hpf = hpf,
+      onsets = onsets, offsets = offsets,
+      unique_grid = unique_grid, idx_map = idx_map,
+      pop_voxels = pop_voxels, n_candidates = n_candidates
+    )
+  })
+
+  if (verbose > 0) cat("Parallel processing completed\n")
+  return(subject_rows)
+}
+
+
+#' Process candidate subjects sequentially (single-threaded)
+#'
+#' Iterates over subjects with \code{lapply()} and calls
+#' \code{process_candidate_subject_refit()} for each. Identical math to the
+#' parallel path.
+#'
+#' @inheritParams run_parallel_subjects_refit
+#'
+#' @return List of single-row data.frames, one per subject.
+#'
+#' @keywords internal
+run_sequential_subjects_refit <- function(candidate_maps, hrf_grid, session_data, TR,
+                                          brainstructures, hpf, onsets, offsets,
+                                          unique_grid, idx_map, pop_voxels, n_candidates,
+                                          verbose) {
+  n_subjects <- length(session_data$BOLD_files)
+  lapply(seq_len(n_subjects), function(i) {
+    if (verbose > 0) cat("  Subject", i, "/", n_subjects, "\n")
+    process_candidate_subject_refit(
+      subject_idx = i,
+      candidate_maps = candidate_maps, hrf_grid = hrf_grid, session_data = session_data,
+      TR = TR, brainstructures = brainstructures, hpf = hpf,
+      onsets = onsets, offsets = offsets,
+      unique_grid = unique_grid, idx_map = idx_map,
+      pop_voxels = pop_voxels, n_candidates = n_candidates
+    )
+  })
+}
+
+
+#' Process one subject through refit-mode candidate selection
+#'
+#' Loads BOLD + nuisance for one subject, builds the design tensor across the
+#' compact set of unique HRF models, fits multiGLM, computes weighted RSS per
+#' candidate map, and returns the winner row. Called by both parallel and
+#' sequential refit drivers.
+#'
+#' @param subject_idx Integer subject index.
+#' @inheritParams run_parallel_subjects_refit
+#'
+#' @return A single-row data.frame with columns subject, winning_candidate_id,
+#'   winning_a1_offset, winning_b1_offset, winning_weighted_RSS, and
+#'   weighted_RSS_1..n_candidates.
+#'
+#' @keywords internal
+process_candidate_subject_refit <- function(subject_idx,
+                                            candidate_maps, hrf_grid, session_data, TR,
+                                            brainstructures, hpf, onsets, offsets,
+                                            unique_grid, idx_map, pop_voxels, n_candidates) {
+  i <- subject_idx
+  n_models <- nrow(unique_grid)
+
+  # Load BOLD + nuisance
+  BOLD_xii <- ciftiTools::read_cifti(
+    session_data$BOLD_files[[i]],
+    brainstructures = brainstructures,
+    resamp_res = 10000
+  )
+  nuisance <- as.matrix(utils::read.table(session_data$nuisance_files[[i]], header = FALSE))
+  nT <- ncol(BOLD_xii)
+
+  # Build canonical + per-model design matrices
+  design_canonical <- make_design(
+    EVs = session_data$EVs_list[[i]], nTime = nT, TR = TR, dHRF = 0,
+    onset = onsets, offset = offsets
+  )$design
+  nK <- ncol(design_canonical)
+
+  design_3D <- array(NA, dim = c(nT, nK, n_models))
+  for (j in seq_len(n_models)) {
+    taper_start_j <- get_taper_start(
+      a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
+      a2 = unique_grid$a2[j], b2 = unique_grid$b2[j],
+      c = unique_grid$c[j], TR = TR, deriv = 0
+    )
+    design_3D[,,j] <- make_design(
+      EVs = session_data$EVs_list[[i]], nTime = nT, TR = TR, dHRF = 0,
+      onset = onsets, offset = offsets,
+      taper_start = taper_start_j,
+      a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
+      c = unique_grid$c[j],
+      a2 = unique_grid$a2[j], b2 = unique_grid$b2[j]
+    )$design
+  }
+
+  # Fit multiGLM
+  glm_result <- multiGLM(
+    BOLD = BOLD_xii, brainstructures = brainstructures,
+    resamp_res = NULL, design = design_3D,
+    design_canonical = design_canonical,
+    nuisance = nuisance, scrub = NULL, TR = TR, hpf = hpf
+  )
+
+  RSS <- rbind(glm_result$mGLM0s$cortexL$RSS, glm_result$mGLM0s$cortexR$RSS)
+  Fstat <- c(glm_result$mGLM0s$cortexL$Fstat, glm_result$mGLM0s$cortexR$Fstat)
+
+  fstat_sq <- Fstat[pop_voxels]^2
+  fstat_sq_sum <- sum(fstat_sq, na.rm = TRUE)
+
+  # Weighted RSS per candidate
+  weighted_rss_per_candidate <- numeric(n_candidates)
+  for (j in seq_len(n_candidates)) {
+    compact_idx <- idx_map[as.character(candidate_maps[[j]]$model_idx)]
+    voxel_rss <- RSS[cbind(pop_voxels, compact_idx)]
+    weighted_rss_per_candidate[j] <- sum(voxel_rss * fstat_sq, na.rm = TRUE) / fstat_sq_sum
+  }
+
+  winner <- which.min(weighted_rss_per_candidate)
+  row <- data.frame(
+    subject = i,
+    winning_candidate_id = winner,
+    winning_a1_offset = candidate_maps[[winner]]$a1_offset[1],
+    winning_b1_offset = candidate_maps[[winner]]$b1_offset[1],
+    winning_weighted_RSS = weighted_rss_per_candidate[winner]
+  )
+  for (j in seq_len(n_candidates)) {
+    row[[paste0("weighted_RSS_", j)]] <- weighted_rss_per_candidate[j]
+  }
+  row
+}
+
+
+#' Extract a xifti geometry template from a workingHRF result
+#'
+#' Pulls the first successful subject's \code{pvalF_xii} so it can be reused as
+#' a geometry template by \code{plot.regularizeHRFs} helpers without requiring
+#' the caller to load a CIFTI separately. Called once at the end of
+#' \code{regularize_allHRFs()} and stashed via \code{attr(result, "xii")}.
+#'
+#' @param workingHRF_results Output of \code{fit_workingHRF()}.
+#' @return A \code{xifti} object, or \code{NULL} if no usable template is found.
+#' @keywords internal
+extract_xii_template <- function(workingHRF_results) {
+  if (is.null(workingHRF_results$subject_results)) return(NULL)
+  for (sr in workingHRF_results$subject_results) {
+    if (!is.null(sr$status) && sr$status == "success") {
+      xii <- sr$glm_results$pvalF_xii
+      if (!is.null(xii)) return(xii)
+    }
+  }
+  NULL
 }

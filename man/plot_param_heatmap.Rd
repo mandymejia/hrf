@@ -2,75 +2,26 @@
 % Please edit documentation in R/plot_regularize_allHRFs.R
 \name{plot_param_heatmap}
 \alias{plot_param_heatmap}
-\title{Plot parameter frequency heatmap}
+\title{Plot best-per-subject HRF parameter frequency on the HRF grid}
 \usage{
-plot_param_heatmap(
-  x,
-  model = c("intercept_only", "intercept_slope", "best_params", "average"),
-  scale = NULL,
-  title = NULL,
-  mask = FALSE,
-  ...
-)
+plot_param_heatmap(x, mask = FALSE, title = NULL, ...)
 }
 \arguments{
-\item{x}{A \code{regularizeHRFs} object from
-\code{\link{regularize_allHRFs}}.}
+\item{x}{A \code{regularizeHRFs} object.}
 
-\item{model}{Character. Which model to use for plotting parameter frequencies:
-\code{"intercept_only"}, \code{"intercept_slope"}, \code{"best_params"},
-or \code{"average"}.}
+\item{mask}{Logical. If \code{TRUE}, restrict to voxel-subject pairs where
+the working-HRF activation mask is \code{TRUE}.}
 
-\item{scale}{Character vector or \code{NULL}. Model types to use for
-determining the color scale range. Can be any combination of
-\code{"intercept_only"}, \code{"intercept_slope"}, \code{"best_params"},
-or \code{"average"}. If \code{NULL} (default), uses
-\code{c("best_params", "intercept_only", "intercept_slope")} for all
-models except \code{"average"}, which uses only \code{"average"}.}
+\item{title}{Optional custom title.}
 
-\item{title}{Character or \code{NULL}. Custom plot title. If \code{NULL}
-(default), a descriptive title is generated automatically based on
-\code{model}.}
-
-\item{mask}{Logical. If \code{TRUE}, filters \code{best_params_df} to only
-include voxel-subject pairs where the subject activation mask is \code{TRUE}.
-Only applies when \code{model = "best_params"}. Default is \code{FALSE}.}
-
-\item{...}{Any additional arguments to pass into ggplot formation via list(...).}
+\item{...}{Additional ggplot \code{theme()} args (passed through via
+\code{list(...)}).}
 }
 \value{
-A \code{ggplot} object showing the parameter frequency heatmap.
+A \code{ggplot} object.
 }
 \description{
-Generates a heatmap showing the frequency of HRF parameter combinations
-across the fitted grid for a given model type. The color scale can be
-standardized across multiple model types for comparison. Optionally adds
-a custom plot title; if not provided, an informative default title is
-generated based on the selected model.
+Heatmap of how often each \code{(a1, b1, c)} grid combination is the
+per-voxel per-subject best HRF, faceted by \code{c}.
 }
-\details{
-This plot visualizes how often each combination of HRF parameters
-(\code{a1}, \code{b1}, \code{c}) occurs in the regularized results, with
-relative frequency encoded by fill intensity. Facets indicate whether
-the model includes an undershoot component (\code{c = 1/6}) or not
-(\code{c = 0}).
-
-The \code{scale} argument controls the color scale range to enable fair
-comparisons across different model types. By default, the three regularized
-models share a common scale, while the population average uses its own scale.
-
-When \code{mask = TRUE} and \code{model = "best_params"}, only voxels where
-subjects showed significant activation (based on the working HRF analysis) are
-included in the frequency calculations. This can reduce pile-ups at grid boundaries
-caused by noise-driven parameter estimates.
-}
-\examples{
-\dontrun{
-plot_param_heatmap(result, model = "intercept_slope")
-plot_param_heatmap(result, model = "best_params", title = "Custom Heatmap Title")
-# Filter by subject activation masks
-plot_param_heatmap(result, model = "best_params", mask = TRUE)
-# Use common scale for average and best_params
-plot_param_heatmap(result, model = "average", scale = c("average", "best_params"))
-}
-}
+\keyword{internal}

@@ -36,6 +36,9 @@
 #' @inheritParams n_cores_Param
 #' @inheritParams log_dir_Param
 #' @inheritParams work_dir_Param
+#' @param save_rss Logical. If \code{TRUE}, store per-voxel RSS for every HRF
+#'   model in each subject's saved \code{.qs} so \code{regularize_allHRFs()}
+#'   can use lookup mode. If \code{FALSE} (default), regularize must refit.
 #' @param ... Additional arguments passed to \code{hrf_grid} if it's a function.
 #'
 #' @return Object of class \code{"allHRFs"}; a named list with elements:

@@ -5,7 +5,8 @@
 #' @param object R object to save.
 #' @param label Optional deterministic label for reproducible filename.
 #' @param prefix Optional filename prefix (default: "qs_obj_").
-#' @param preset Compression level: "fast", "balanced", "high", etc.
+#' @param compress_level Integer compression level for `qs2::qs_save()`
+#'   (default 3; higher = smaller files, slower).
 #' @param tmp Logical; TRUE = save to `tempdir()`, FALSE = save to `./work/`
 #' @inheritParams work_dir_Param
 #'

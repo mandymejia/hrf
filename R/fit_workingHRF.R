@@ -784,7 +784,7 @@ create_activation_masks <- function(subject_results, alpha = 0.01, min_active_su
   for(i in seq_along(successful_subjects)) {
     subj_idx <- successful_subjects[i]
     pvals <- as.vector(as.matrix(subject_results[[subj_idx]]$glm_results$pvalF_xii))
-    pvals_matrix[, i] <- p.adjust(pvals, method = "bonferroni")
+    pvals_matrix[, i] <- stats::p.adjust(pvals, method = "bonferroni")
   }
 
   # Create masks and proportions

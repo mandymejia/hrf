@@ -44,6 +44,11 @@ non-NULL \code{subject_idx}.}
 \item{contrasts}{Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 Default NULL uses identity (each beta tested individually).}
 
+\item{working_hrf}{List with elements \code{a1}, \code{b1}, \code{c}
+parameterizing the canonical "working" HRF that produces the
+\code{$working} section of the result. Defaults to the SPM canonical
+shape (\code{a1 = 6, b1 = 1, c = 1/6}).}
+
 \item{brainstructures}{Character vector. Brain structures to model.}
 
 \item{resamp_res}{Integer. Resampling resolution.}
