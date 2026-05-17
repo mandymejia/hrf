@@ -1,0 +1,1140 @@
+starting worker pid=60393 on localhost:11591 at 19:36:50.785
+starting worker pid=60395 on localhost:11591 at 19:36:50.785
+starting worker pid=60394 on localhost:11591 at 19:36:50.785
+starting worker pid=60392 on localhost:11591 at 19:36:50.785
+qs2 0.2.0
+qs2 0.2.0
+qs2 0.2.0
+qs2 0.2.0
+Maximum corr.:  0.827 
+Maximum VIF:    5.566 
+Min. time btwn onset/offset (s):  3.127 
+Maximum corr.:  0.827 
+
+Maximum VIF:    5.566 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.632 
+Maximum VIF:    2.512 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.632 
+Maximum VIF:    2.513 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.827 
+Maximum VIF:    5.573 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.827 
+Maximum VIF:    5.572 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.692 
+Maximum VIF:    3.073 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.692 
+Maximum VIF:    3.074 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.633 
+Maximum VIF:    2.513 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.633 
+Maximum VIF:    2.513 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.733 
+Maximum VIF:    3.597 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.733 
+Maximum VIF:    3.597 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.764 
+Maximum VIF:    4.065 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.692 
+Maximum VIF:    3.075 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.764 
+Maximum VIF:    4.065 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.787 
+Maximum corr.:  0.787 
+Maximum corr.:  0.733 
+Maximum VIF:    4.478 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.479 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    3.599 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.805 
+Maximum corr.:  0.805 
+Maximum corr.:  0.764 
+Maximum VIF:    4.843 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.843 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.068 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.819 
+Maximum VIF:    5.167 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.787 
+Maximum VIF:    4.482 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.819 
+Maximum VIF:    5.168 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.692 
+Maximum VIF:    3.075 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.831 
+Maximum corr.:  0.831 
+Maximum corr.: Maximum VIF:     0.8055.46  
+
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.459 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.847 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.733 
+Maximum VIF:    3.6 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.819 
+Maximum corr.:  0.841 
+Maximum corr.:  0.841 
+Maximum VIF:    5.728 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.727 
+Maximum VIF:    5.172 
+Min. time btwn onset/offset (s):  3.127 
+
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.764 
+Maximum VIF:    4.069 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.849 
+Maximum VIF:    5.982 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.831 
+Maximum corr.:  0.849 
+Maximum VIF:    5.465 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.983 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.787 
+Maximum VIF:    4.483 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.682 
+Maximum VIF:    2.887 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.841 
+Maximum corr.:  0.682 
+Maximum VIF:    2.886 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.733 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.805 
+Maximum VIF:    4.849 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.74 
+Maximum corr.:  0.849 
+Maximum corr.:  0.74 
+Maximum VIF:    3.607 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.988 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    3.607 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.819 
+Maximum VIF:    5.174 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.682 
+Maximum corr.:  0.779 
+Maximum VIF:    2.888 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.248 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.779 
+Maximum VIF:    4.248 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.831 
+Maximum VIF:    5.467 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.806 
+Maximum corr.:  0.74 
+Maximum VIF:    4.792 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    3.609 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.806 
+Maximum VIF:    4.792 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.841 
+Maximum VIF:    5.736 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.826 
+Maximum corr.:  0.779 
+Maximum VIF:    5.254 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.251 
+Maximum corr.:  0.826 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.254 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.849 
+Maximum VIF:    5.992 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.806 
+Maximum corr.:  0.841 
+Maximum VIF:    4.796 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.651 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.841 
+Maximum VIF:    5.652 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.682 
+Maximum VIF:    2.889 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    6 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    6.001 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.826 
+Maximum VIF:    5.259 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.74 
+Maximum VIF:    3.61 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.863 
+Maximum VIF:    6.315 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.841 
+Maximum VIF:    5.657 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.863 
+Maximum VIF:    6.316 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.779 
+Maximum VIF:    4.252 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.871 
+Maximum VIF:    6.613 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    6.006 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.871 
+Maximum VIF:    6.614 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.806 
+Maximum VIF:    4.798 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.878 
+Maximum corr.:  0.863 
+Maximum corr.:  0.878 
+Maximum VIF:    6.909 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.322 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.907 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.826 
+Maximum VIF:    5.261 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.707 
+Maximum VIF:    3.074 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.707 
+Maximum VIF:    3.074 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.871 
+Maximum VIF:    6.62 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.841 
+Maximum VIF:    5.66 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.878 
+Maximum corr.:  0.764 
+Maximum corr.:  0.764 
+Maximum VIF:    6.915 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    3.884 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    3.885 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    6.01 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.802 
+Maximum VIF:    4.607 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.707 
+Maximum VIF:    3.075 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.802 
+Maximum VIF:    4.607 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.863 
+Maximum VIF:    6.327 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.827 
+Maximum VIF:    5.209 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.764 
+Maximum corr.:  0.827 
+Maximum VIF:    3.887 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.208 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.871 
+Maximum VIF:    6.625 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.802 
+Maximum corr.:  0.846 
+Maximum VIF:    4.611 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.713 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.846 
+Maximum VIF:    5.712 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.878 
+Maximum VIF:    6.921 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.828 
+Maximum VIF:    5.213 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.86 
+Maximum VIF:    6.148 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.86 
+Maximum VIF:    6.147 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.872 
+Maximum corr.:  0.707 
+Maximum corr.:  0.846 
+Maximum VIF:    6.539 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    3.074 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.718 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.872 
+Maximum VIF:    6.538 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.86 
+Maximum corr.:  0.764 
+Maximum VIF:    3.889 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.153 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.881 
+Maximum VIF:    6.91 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.872 
+Maximum VIF:    6.545 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.802 Maximum corr.: 
+ 0.89 
+Maximum VIF:    4.612 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    7.284 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.897 
+Maximum corr.:  0.828 
+Maximum VIF:    7.746 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.216 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.881 
+Maximum VIF:    6.918 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.89 
+Maximum corr.:  0.846 
+Maximum VIF:    7.292 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.721 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.776 
+Maximum VIF:    3.999 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.881 
+Maximum VIF:    6.911 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.897 
+Maximum VIF:    7.756 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.86 
+Maximum corr.:  0.814 
+Maximum VIF:    6.157 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.778 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.89 
+Maximum VIF:    7.285 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.84 
+Maximum corr.:  0.776 
+Maximum VIF:    5.438 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.002 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.872 
+Maximum VIF:    6.55 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.897 
+Maximum VIF:    7.747 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.859 
+Maximum VIF:    5.996 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.814 
+Maximum VIF:    4.782 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.881 
+Maximum VIF:    6.924 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.776 
+Maximum VIF:    3.999 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.84 
+Maximum VIF:    5.443 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.873 
+Maximum VIF:    6.491 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.89 
+Maximum VIF:    7.299 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.814 
+Maximum VIF:    4.778 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.897 
+Maximum corr.:  0.859 
+Maximum corr.:  0.885 
+Maximum VIF:    7.762 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.002 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.959 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.84 
+Maximum VIF:    5.438 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.895 
+Maximum VIF:    7.502 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.873 
+Maximum corr.:  0.776 
+Maximum VIF:    4.003 
+Maximum VIF:    6.498 
+Min. time btwn onset/offset (s):  3.127 
+
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.859 
+Maximum VIF:    5.996 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.814 
+Maximum VIF:    4.784 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.885 
+Maximum VIF:    6.966 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.873 
+Maximum VIF:    6.492 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.84 
+Maximum VIF:    5.446 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.895 
+Maximum VIF:    7.512 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.885 
+Maximum VIF:    6.96 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.859 
+Maximum VIF:    6.006 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.903 
+Maximum VIF:    8.251 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.895 
+Maximum VIF:    7.503 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.873 
+Maximum VIF:    6.503 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.911 
+Maximum VIF:    9.074 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.903 
+Maximum VIF:    8.241 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.903 
+Maximum VIF:    8.242 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.885 
+Maximum VIF:    6.973 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.782 
+Maximum corr.:  0.911 
+Maximum VIF:    3.992 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    9.064 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.911 
+Maximum VIF:    9.065 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.895 
+Maximum VIF:    7.518 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.821 
+Maximum VIF:    4.833 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.782 
+Maximum VIF:    3.99 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.782 
+Maximum VIF:    3.989 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.903 
+Maximum VIF:    8.259 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.848 
+Maximum VIF:    5.552 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.821 
+Maximum VIF:    4.829 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.821 
+Maximum VIF:    4.829 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.911 
+Maximum VIF:    9.085 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.868 
+Maximum VIF:    6.181 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.848 
+Maximum VIF:    5.547 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.848 
+Maximum VIF:    5.547 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.782 
+Maximum VIF:    3.99 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.882 
+Maximum VIF:    6.76 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.867 
+Maximum VIF:    6.175 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.867 
+Maximum VIF:    6.175 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.821 
+Maximum VIF:    4.836 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.895 
+Maximum VIF:    7.46 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.882 
+Maximum VIF:    6.753 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.882 
+Maximum VIF:    6.754 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.848 
+Maximum VIF:    5.556 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.905 
+Maximum VIF:    8.345 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.894 
+Maximum VIF:    7.451 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.894 
+Maximum VIF:    7.452 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.868 
+Maximum VIF:    6.186 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.914 
+Maximum VIF:    9.339 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.905 
+Maximum VIF:    8.335 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.905 
+Maximum VIF:    8.336 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.882 
+Maximum VIF:    6.766 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum VIF:    10.482 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.914 
+Maximum VIF:    9.329 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.914 
+Maximum VIF:    9.33 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.895 
+Maximum VIF:    7.466 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.781 
+Maximum VIF:    3.869 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum VIF:    10.472 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum VIF:    10.471 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.905 
+Maximum VIF:    8.353 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.825 
+Maximum VIF:    4.801 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.781 
+Maximum VIF:    3.867 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.781 
+Maximum VIF:    3.866 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    5.58 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.914 
+Maximum VIF:    9.35 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.824 
+Maximum VIF:    4.797 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.824 
+Maximum VIF:    4.797 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum corr.: Maximum VIF:     0.87310.497  
+
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.285 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    5.575 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.853 
+Maximum VIF:    5.575 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.889 
+Maximum VIF:    7.035 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.78 
+Maximum VIF:    3.858 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.873 
+Maximum VIF:    6.279 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.873 
+Maximum VIF:    6.28 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.902 
+Maximum corr.:  0.825 
+Maximum VIF:    8.023 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.802 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.889 
+Maximum VIF:    7.026 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.889 
+Maximum VIF:    7.027 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.913 
+Maximum corr.:  0.853 
+Maximum VIF:    5.584 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    9.132 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.902 
+Maximum VIF:    8.014 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.902 
+Maximum VIF:    8.015 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum corr.:  0.873 
+Maximum VIF:    10.411 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    6.291 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.913 
+Maximum VIF:    9.123 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.913 
+Maximum VIF:    9.123 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.889 
+Maximum VIF:    7.04 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.931 
+Maximum VIF:    11.912 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum VIF:    10.401 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum VIF:    10.401 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.774 
+Maximum corr.:  0.902 
+Maximum VIF:    3.651 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    8.031 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.931 
+Maximum VIF:    11.902 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.931 
+Maximum VIF:    11.901 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.913 
+Maximum VIF:    9.143 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.825 
+Maximum VIF:    4.695 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.773 
+Maximum VIF:    3.65 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.922 
+Maximum VIF:    10.426 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.855 
+Maximum VIF:    5.547 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.773 
+Maximum VIF:    3.648 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.825 
+Maximum VIF:    4.692 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.931 
+Maximum VIF:    11.934 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.877 
+Maximum corr.:  0.825 
+Maximum VIF:    6.329 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    4.691 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.855 
+Maximum VIF:    5.542 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.772 
+Maximum VIF:    3.633 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.894 
+Maximum corr.:  0.855 
+Maximum VIF:    7.334 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    5.543 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.877 
+Maximum VIF:    6.323 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.825 
+Maximum corr.:  0.908 
+Maximum VIF:    4.692 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum VIF:    8.501 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.877 
+Maximum VIF:    6.323 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.894 
+Maximum VIF:    7.326 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.855 
+Maximum VIF:    5.551 
+Maximum corr.:  0.919Min. time btwn onset/offset (s):   
+3.127 
+
+Maximum VIF:    9.839 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.894 
+Maximum VIF:    7.327 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.907 
+Maximum VIF:    8.493 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.929 
+Maximum corr.:  0.877 
+Maximum VIF:    11.408 
+Maximum VIF:    6.335 
+Min. time btwn onset/offset (s):  3.127 
+
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.907 
+Maximum VIF:    8.493 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.919 
+Maximum VIF:    9.83 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.937 
+Maximum corr.:  0.894 
+Maximum VIF:    13.273 
+Maximum VIF:    Min. time btwn onset/offset (s): 7.34  3.127
+ 
+
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.919 
+Maximum VIF:    9.83 
+Min. time btwn onset/offset (s):  3.127 
+
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284 
+Number of fields:         8 
+Brain structures:         left, right 
+Field names:              field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Including 4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+Maximum corr.:  0.929 
+Maximum VIF:    11.399 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.908 
+Maximum VIF:    8.51 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.929 
+Maximum VIF:    11.398 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.937 
+Maximum VIF:    13.265 
+Min. time btwn onset/offset (s):  3.127 
+
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284 
+Number of fields:         8 
+Brain structures:         left, right 
+Field names:              field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Including 4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+Maximum corr.:  0.919 
+Maximum VIF:    9.852 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.937 
+Maximum VIF:    13.262 
+Min. time btwn onset/offset (s):  3.127 
+
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284 
+Number of fields:         8 
+Brain structures:         left, right 
+Field names:              field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Including 4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+Maximum corr.:  0.929 
+Maximum VIF:    11.427 
+Min. time btwn onset/offset (s):  3.127 
+
+Maximum corr.:  0.937 
+Maximum VIF:    13.303 
+Min. time btwn onset/offset (s):  3.127 
+
+Setting field names to 'field_1', 'field_2', and so on.
+
+Number of timepoints:     284 
+Number of fields:         8 
+Brain structures:         left, right 
+Field names:              field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8 
+Including 4 DCT bases in `nuisance` for highpass filtering.
+
+Left cortex analysis:
+	Fitting models: Model 1	2	3		Fitting models: Model 1	2	3		Fitting models: Model 1	4	2	5	3	4	4	5	6	7		Fitting models: Model 1	8	9	2	10	11	3	6	12	7	5	13	8	6	7	9	14	10	8	15	9	10	11	12	16	11	13	12	17	14	15	13	14	4	16	18	17	15	5	16	18	19	6	7	19	20	8	9	21	20	10	11	12	22	21	13	14	17	22	15	18	23	16	19	24	17	20	18	21	22	19	23	20	24	25	21	26	23	22	24	23	27	25	24	26	28	25	25	27	29	28	30	26	26	29	31	30	32	27	27	31	33	34	32	28	33	28	35	34	29	35	30	29	31	36	36	37	32	30	33	38	37	34	39	35	40	31	36	38	32	33	39	37	41	40	42	41	38	43	42	44	43	39	45	44	46	45	47	40	46	48	47	49	41	48	50	49	51	50	42	52	43	53	44	51	54	45	34	55	46	52	35	56	47	53	57	36	54	48	58	49	55	37	50	59	56	51	57	38	58	52	59	39	60	40	60	53	41	61	61	54	42	43	62	62	55	44	63	64	56	45	63	65	57	46	64	66	47	58	48	65	
+59	66	
+60	49	61	50	51	62	52	63	53	64	
+Right cortex analysis:
+
+Right cortex analysis:
+54	65	55	66	56	57	
+58	59	60	61	62	63	64	65	
+Right cortex analysis:
+66	
+
+Right cortex analysis:
+	Fitting models: Model 1	2		Fitting models: Model 1	3	2	4	5	3	4	6	5	7	6	8		Fitting models: Model 1	2	7	9	8	3	10	9		Fitting models: Model 1	10	2	11	11	12	3	12	13	4	14	5	13	15	6	14	16	15	7	17	8	18	19	9	4	20	5	21	10	6	22	23	24	11	7	12	25	16	13	26	8	17	27	14	9	28	10	29	18	15	11	30	12	31	19	13	32	16	14	33	15	34	17	20	16	35	17	36	21	18	18	22	37	19	19	38	23	20	39	20	21	40	24	21	25	41	22	26	42	43	27	22	23	44	28	24	23	29	25	30	26	45	24	31	27	32	46	25	28	33	29	34	47	30	35	26	31	48	36	32	49	27	33	28	50	37	29	51	34	30	38	31	35	32	39	36	33	40	34	41	35	52	36	42	53	37	38	43	54	44	55	45	37	39	56	38	46	57	40	39	47	41	58	40	42	59	48	60	41	61	43	42	62	43	49	63	44	44	64	45	45	50	46	51	65	47	52	46	48	53	66	49	54	47	55	
+50	56	51	48	52	57	53	58	59	54	49	50	60	55	56	61	51	57	62	52	Formatting results.
+58	53	63	54	59	64	55	60	65	56	61	66	57	62	
+58	63	59	64	60	61	62	63	64	65	66	
+Formatting results.
+Formatting results.
+65	66	
+Formatting results.
+There were 18 warnings (use warnings() to see them)There were 18 warnings (use warnings() to see them)
+
+There were 18 warnings (use warnings() to see them)
+There were 18 warnings (use warnings() to see them)

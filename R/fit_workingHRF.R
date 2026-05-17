@@ -636,6 +636,10 @@ convert_design_to_array <- function(design_matrix) {
 #' @inheritParams resamp_res_Param
 #' @inheritParams smoothing_Param
 #' @inheritParams surf_FWHM_Param
+#' @param scale Logical. If \code{TRUE}, convert BOLD to percent signal change
+#'   per voxel: \code{(BOLD - mu) / mu * 100} where \code{mu} is the voxel's
+#'   temporal mean. Errors out if any voxel has \code{|mu| < 1e-6} (PSC undefined).
+#'   Default \code{FALSE} for backwards compatibility with existing pipelines.
 #'
 #' @return List with elements:
 #'   \item{BOLD_xii}{Loaded xifti object containing BOLD time-series}
@@ -643,14 +647,24 @@ convert_design_to_array <- function(design_matrix) {
 #'   \item{n_locations}{Total number of brain locations}
 #'
 #' @keywords internal
-load_bold_data <- function(BOLD_file, brainstructures, resamp_res, smoothing = TRUE, surf_FWHM = 5) {
+load_bold_data <- function(BOLD_file, brainstructures, resamp_res, smoothing = TRUE, surf_FWHM = 5, scale = FALSE) {
   BOLD_xii <- ciftiTools::read_cifti(BOLD_file,
                                      brainstructures = brainstructures,
                                      resamp_res = resamp_res)
   if (isTRUE(smoothing)) {
     cat("Smoothing...\n")
     BOLD_xii <- ciftiTools::smooth_xifti(BOLD_xii, surf_FWHM = surf_FWHM, vol_FWHM = 3)
-  } 
+  }
+
+  if (isTRUE(scale)) {
+    mat <- as.matrix(BOLD_xii)        # n_voxels x nT
+    mu  <- rowMeans(mat, na.rm = TRUE)
+    if (any(!is.finite(mu) | abs(mu) < 1e-6)) {
+      stop("Near-zero or non-finite voxel mean detected; PSC scaling invalid.")
+    }
+    mat <- ((mat - mu) / mu) * 100    # percent signal change
+    BOLD_xii <- ciftiTools::newdata_xifti(BOLD_xii, mat)
+  }
 
   nT <- ncol(BOLD_xii)
   n_locations <- nrow(as.matrix(BOLD_xii))
