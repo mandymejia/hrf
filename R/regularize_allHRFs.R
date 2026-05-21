@@ -104,6 +104,9 @@ regularize_allHRFs <- function(workingHRF_results,
 
   if (verbose > 0) cat("Population average computed for", nrow(pop_avg), "voxels\n")
 
+  # Step 3.5: Unmask (fill + smooth) t2p_mean / fwhm_mean before snapping
+  pop_avg <- unmask_pop_avg(pop_avg, workingHRF_results, mask_prop_NA, verbose = verbose)
+
   # Step 4: Snap back to a1/b1 grid
   if (verbose > 0) cat("\nSnapping t2p/fwhm back to grid...\n")
   snapped <- snap_to_grid_t2p_fwhm(pop_avg$t2p_mean, pop_avg$fwhm_mean, hrf_grid, winning_result$winning_c)
@@ -962,8 +965,105 @@ extract_xii_template <- function(workingHRF_results) {
   for (sr in workingHRF_results$subject_results) {
     if (!is.null(sr$status) && sr$status == "success") {
       xii <- sr$glm_results$pvalF_xii
-      if (!is.null(xii)) return(xii)
+      if (!is.null(xii)) return(sanitize_template_meta(xii))
     }
   }
   NULL
+}
+
+
+# TODO(remove-once-multiGLM-fixed): pvalF_xii (and Fstat_xii) in fit_workingHRF
+# inherit `field_names` (length 8) and have empty intent because
+# multiGLM.R:323 sets them unconditionally. Structurally they're 1-col
+# dscalar-shaped, so we patch the column-level meta here to keep downstream
+# consumers like smooth_cifti happy. When multiGLM is fixed, delete this
+# helper and the call in extract_xii_template.
+sanitize_template_meta <- function(xii) {
+  xii$meta$cifti$names  <- "param"
+  xii$meta$cifti$intent <- 3006L  # dscalar
+  xii
+}
+
+
+#' Unmask pop_avg (fill + smooth t2p_mean / fwhm_mean) before grid snapping
+#'
+#' Builds full-cortex xifti maps from \code{pop_avg$t2p_mean} and
+#' \code{pop_avg$fwhm_mean}, fills and smooths them via \code{unmask_xifti},
+#' then returns an expanded \code{pop_avg} with one row per non-\code{NA}
+#' cortex voxel.
+#'
+#' @param pop_avg The data.frame produced by Step 3 of
+#'   \code{regularize_allHRFs} (cols: voxel, t2p_mean, fwhm_mean).
+#' @param workingHRF_results Used to extract a xifti template.
+#' @param mask_prop_NA Population mask vector from
+#'   \code{workingHRF_results$activation_masks$mask_prop_NA}.
+#' @param method,surf_FWHM,impute_FUN,impute_mask See \code{unmask_xifti}.
+#' @param verbose Print step info.
+#' @return The expanded \code{pop_avg} data.frame.
+#' @keywords internal
+unmask_pop_avg <- function(pop_avg, workingHRF_results, mask_prop_NA,
+                            method = "median", surf_FWHM = 5,
+                            impute_FUN = function(x) mean(x, na.rm = TRUE),
+                            impute_mask = NULL,
+                            verbose = 1) {
+  if (verbose > 0) cat("\nUnmasking pop_avg (method=", method,
+                       ", surf_FWHM=", surf_FWHM, "mm)...\n", sep = "")
+  xii_template <- extract_xii_template(workingHRF_results)
+  if (is.null(xii_template)) {
+    stop("No xifti template available from workingHRF_results; cannot unmask.")
+  }
+  N <- length(mask_prop_NA)
+  out <- data.frame(voxel = seq_len(N))
+  for (col in c("t2p_mean", "fwhm_mean")) {
+    v <- rep(NA, N); v[pop_avg$voxel] <- pop_avg[[col]]
+    xii <- ciftiTools::newdata_xifti(xii_template, v)
+    xii <- unmask_xifti(xii, method = method, surf_FWHM = surf_FWHM,
+                        impute_FUN = impute_FUN, impute_mask = impute_mask)
+    out[[col]] <- as.matrix(xii)[, 1]
+  }
+  out <- out[stats::complete.cases(out), ]
+  if (verbose > 0) cat("Unmasked pop_avg covers", nrow(out), "voxels (was ",
+                       nrow(pop_avg), ")\n", sep = "")
+  out
+}
+
+
+#' Fill missing values in a xifti and smooth
+#'
+#' Method \code{"median"} replaces all \code{NA}s with the global median of
+#' the in-mask values (one scalar sprayed everywhere). Method \code{"impute"}
+#' uses \code{ciftiTools::impute_xifti} to fill from face-sharing surface
+#' neighbors. After filling, the map is smoothed with
+#' \code{ciftiTools::smooth_cifti}.
+#'
+#' @param xii A \code{xifti} object with \code{NA} values to fill.
+#' @param method One of \code{"median"} (default), \code{"impute"}.
+#' @param surf_FWHM Cortex smoothing FWHM in mm. \code{0} skips smoothing.
+#' @param impute_FUN For \code{method="impute"}: function applied to neighbor
+#'   values. Default is mean (ignoring \code{NA}).
+#' @param impute_mask For \code{method="impute"}: optional logical mask of
+#'   voxels to impute. Default \code{NULL} = impute every \code{NA} location.
+#' @return The filled, smoothed \code{xifti}.
+#' @keywords internal
+unmask_xifti <- function(xii,
+                          method = c("median", "impute"),
+                          surf_FWHM = 5,
+                          impute_FUN = function(x) mean(x, na.rm = TRUE),
+                          impute_mask = NULL) {
+  method <- match.arg(method)
+  if (method == "median") {
+    m   <- as.matrix(xii)
+    med <- stats::median(m, na.rm = TRUE)
+    m[is.na(m)] <- med
+    xii <- ciftiTools::newdata_xifti(xii, m)
+  } else if (method == "impute") {
+    if (is.null(xii$surf$cortex_left) || is.null(xii$surf$cortex_right)) {
+      xii <- ciftiTools::add_surf(xii, surfL = "inflated", surfR = "inflated")
+    }
+    xii <- ciftiTools::impute_xifti(xii, mask = impute_mask, impute_FUN = impute_FUN)
+  }
+  if (surf_FWHM > 0) {
+    xii <- ciftiTools::smooth_cifti(xii, surf_FWHM = surf_FWHM)
+  }
+  xii
 }

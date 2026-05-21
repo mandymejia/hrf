@@ -2,7 +2,12 @@
 #'
 #' Diagnostic plots for the offset-based regularize output.
 #' \itemize{
-#'   \item \code{"pop_avg"} – population-average HRF parameter map (brain surface).
+#'   \item \code{"pop_avg"} – population-average HRF parameter map (brain
+#'     surface, grid-snapped values from \code{x$pop_avg}).
+#'   \item \code{"mean_all"} – mean of raw per-subject best a1/b1/c across ALL
+#'     subjects (no activation filter), from \code{x$best_params_df}.
+#'   \item \code{"mean"} – mean of raw per-subject best a1/b1/c, restricted to
+#'     subjects activated at each voxel (\code{best_params_df$mask == TRUE}).
 #'   \item \code{"param_heatmap"} – frequency heatmap of per-subject best HRF
 #'     parameters on the underlying HRF grid.
 #' }
@@ -15,13 +20,140 @@
 #'
 #' @return Invisibly returns the plot object.
 #' @export
-plot.regularizeHRFs <- function(x, type = c("pop_avg", "param_heatmap"), ...) {
+plot.regularizeHRFs <- function(x, type = c("pop_avg", "mean_all", "mean", "param_heatmap"), ...) {
   type <- match.arg(type)
 
   switch(type,
     pop_avg       = plot_pop_avg(x, ...),
+    mean_all      = plot_mean_param(x, ...),
+    mean          = plot_mean_param_filtered(x, ...),
     param_heatmap = plot_param_heatmap(x, ...)
   )
+}
+
+
+#' Plot Population Mean Parameter Maps (raw, all subjects)
+#'
+#' Brain-surface mean of raw per-subject best a1/b1/c from
+#' \code{x$best_params_df}, averaged over all subjects with non-\code{NA} mask.
+#'
+#' @param x A \code{regularizeHRFs} object.
+#' @param param One of \code{"a1"}, \code{"b1"}, \code{"c"}.
+#' @param fname Optional path to save the rendered PNG.
+#' @param title Optional plot title.
+#' @param shadows,material,NA_color Standard \code{plot.xifti} aesthetics.
+#' @param ... Additional args passed to \code{plot.xifti}.
+#'
+#' @return Invisibly returns the plot result.
+#' @keywords internal
+#' @importFrom ciftiTools newdata_xifti
+#' @importFrom dplyr filter group_by summarize
+plot_mean_param <- function(x,
+                            param = c("a1", "b1", "c"),
+                            fname = NULL,
+                            title = NULL,
+                            shadows = 1,
+                            material = list(lit = TRUE, smooth = FALSE),
+                            NA_color = "#505560",
+                            ...) {
+  param <- match.arg(param)
+
+  xii_template <- attr(x, "xii")
+  if (is.null(xii_template)) {
+    stop("attr(x, \"xii\") is missing. Re-run regularize_allHRFs to attach it.")
+  }
+
+  best_params_df <- x$best_params_df
+  mask_prop_NA   <- x$mask_prop_NA
+
+  bp_avg <- best_params_df %>%
+    dplyr::filter(!is.na(.data$mask)) %>%
+    dplyr::group_by(.data$voxel) %>%
+    dplyr::summarize(param_mean = mean(.data[[param]], na.rm = TRUE), .groups = "drop")
+
+  full_vector <- rep(NA, length(mask_prop_NA))
+  full_vector[bp_avg$voxel] <- bp_avg$param_mean * mask_prop_NA[bp_avg$voxel]
+
+  zlim       <- list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17))[[param]]
+  color_mode <- if (param == "c") "sequential" else "diverging"
+
+  if (is.null(title)) {
+    title <- paste0("Mean of ", param, " (over all subjects)")
+  }
+
+  new_xifti <- ciftiTools::newdata_xifti(xii_template, full_vector)
+  plot_result <- plot(
+    new_xifti,
+    zlim = zlim,
+    color_mode = color_mode,
+    fname = fname,
+    title = title,
+    shadows = shadows,
+    material = material,
+    NA_color = NA_color,
+    ...
+  )
+  invisible(plot_result)
+}
+
+
+#' Plot Population Mean Parameter Maps (raw, activated subjects only)
+#'
+#' Brain-surface mean of raw per-subject best a1/b1/c from
+#' \code{x$best_params_df}, restricted to subjects with
+#' \code{mask == TRUE} at each voxel.
+#'
+#' @inheritParams plot_mean_param
+#' @return Invisibly returns the plot result.
+#' @keywords internal
+#' @importFrom ciftiTools newdata_xifti
+#' @importFrom dplyr filter group_by summarize
+plot_mean_param_filtered <- function(x,
+                                     param = c("a1", "b1", "c"),
+                                     fname = NULL,
+                                     title = NULL,
+                                     shadows = 1,
+                                     material = list(lit = TRUE, smooth = FALSE),
+                                     NA_color = "#505560",
+                                     ...) {
+  param <- match.arg(param)
+
+  xii_template <- attr(x, "xii")
+  if (is.null(xii_template)) {
+    stop("attr(x, \"xii\") is missing. Re-run regularize_allHRFs to attach it.")
+  }
+
+  best_params_df <- x$best_params_df
+  mask_prop_NA   <- x$mask_prop_NA
+
+  bp_avg <- best_params_df %>%
+    dplyr::filter(.data$mask == TRUE) %>%
+    dplyr::group_by(.data$voxel) %>%
+    dplyr::summarize(param_mean = mean(.data[[param]], na.rm = TRUE), .groups = "drop")
+
+  full_vector <- rep(NA, length(mask_prop_NA))
+  full_vector[bp_avg$voxel] <- bp_avg$param_mean * mask_prop_NA[bp_avg$voxel]
+
+  zlim       <- list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17))[[param]]
+  color_mode <- if (param == "c") "sequential" else "diverging"
+
+  if (is.null(title)) {
+    title <- paste0("Mean of ", param, " (over subjects with activation)")
+  }
+
+  new_xifti <- ciftiTools::newdata_xifti(xii_template, full_vector)
+  plot_result <- plot(
+    new_xifti,
+    zlim = zlim,
+    color_mode = color_mode,
+    fname = fname,
+    title = title,
+    shadows = shadows,
+    material = material,
+    NA_color = NA_color,
+    ...
+  )
+  invisible(plot_result)
 }
 
 
