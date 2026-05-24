@@ -6,12 +6,13 @@
 \usage{
 plot_mean_param_filtered(
   x,
-  param = c("a1", "b1", "c"),
+  param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
   fname = NULL,
   title = NULL,
   shadows = 1,
   material = list(lit = TRUE, smooth = FALSE),
   NA_color = "#505560",
+  zlim = NULL,
   ...
 )
 }

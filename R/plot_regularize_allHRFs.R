@@ -49,12 +49,13 @@ plot.regularizeHRFs <- function(x, type = c("pop_avg", "mean_all", "mean", "para
 #' @importFrom ciftiTools newdata_xifti
 #' @importFrom dplyr filter group_by summarize
 plot_mean_param <- function(x,
-                            param = c("a1", "b1", "c"),
+                            param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
                             fname = NULL,
                             title = NULL,
                             shadows = 1,
                             material = list(lit = TRUE, smooth = FALSE),
                             NA_color = "#505560",
+                            zlim = NULL,
                             ...) {
   param <- match.arg(param)
 
@@ -74,7 +75,12 @@ plot_mean_param <- function(x,
   full_vector <- rep(NA, length(mask_prop_NA))
   full_vector[bp_avg$voxel] <- bp_avg$param_mean * mask_prop_NA[bp_avg$voxel]
 
-  zlim       <- list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17))[[param]]
+  # Defaults tuned for the standard HRF grid (a1 in {3..12}, b1 in {0.5..2},
+  # c in {0, 1/6}). Pass `zlim` to override for any other grid.
+  if (is.null(zlim)) {
+    zlim <- list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17),
+                 time_to_peak = c(2.5, 8), FWHM = c(3.5, 8))[[param]]
+  }
   color_mode <- if (param == "c") "sequential" else "diverging"
 
   if (is.null(title)) {
@@ -109,12 +115,13 @@ plot_mean_param <- function(x,
 #' @importFrom ciftiTools newdata_xifti
 #' @importFrom dplyr filter group_by summarize
 plot_mean_param_filtered <- function(x,
-                                     param = c("a1", "b1", "c"),
+                                     param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
                                      fname = NULL,
                                      title = NULL,
                                      shadows = 1,
                                      material = list(lit = TRUE, smooth = FALSE),
                                      NA_color = "#505560",
+                                     zlim = NULL,
                                      ...) {
   param <- match.arg(param)
 
@@ -134,7 +141,12 @@ plot_mean_param_filtered <- function(x,
   full_vector <- rep(NA, length(mask_prop_NA))
   full_vector[bp_avg$voxel] <- bp_avg$param_mean * mask_prop_NA[bp_avg$voxel]
 
-  zlim       <- list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17))[[param]]
+  # Defaults tuned for the standard HRF grid (a1 in {3..12}, b1 in {0.5..2},
+  # c in {0, 1/6}). Pass `zlim` to override for any other grid.
+  if (is.null(zlim)) {
+    zlim <- list(a1 = c(4, 8), b1 = c(0.5, 1.5), c = c(0, 0.17),
+                 time_to_peak = c(2.5, 8), FWHM = c(3.5, 8))[[param]]
+  }
   color_mode <- if (param == "c") "sequential" else "diverging"
 
   if (is.null(title)) {
