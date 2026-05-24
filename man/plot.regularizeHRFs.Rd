@@ -4,7 +4,7 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(x, type = c("pop_avg", "param_heatmap"), ...)
+\method{plot}{regularizeHRFs}(x, type = c("pop_avg", "mean_all", "mean", "param_heatmap"), ...)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from
@@ -21,7 +21,12 @@ Invisibly returns the plot object.
 \description{
 Diagnostic plots for the offset-based regularize output.
 \itemize{
-\item \code{"pop_avg"} – population-average HRF parameter map (brain surface).
+\item \code{"pop_avg"} – population-average HRF parameter map (brain
+surface, grid-snapped values from \code{x$pop_avg}).
+\item \code{"mean_all"} – mean of raw per-subject best a1/b1/c across ALL
+subjects (no activation filter), from \code{x$best_params_df}.
+\item \code{"mean"} – mean of raw per-subject best a1/b1/c, restricted to
+subjects activated at each voxel (\code{best_params_df$mask == TRUE}).
 \item \code{"param_heatmap"} – frequency heatmap of per-subject best HRF
 parameters on the underlying HRF grid.
 }

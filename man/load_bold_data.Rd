@@ -9,7 +9,8 @@ load_bold_data(
   brainstructures,
   resamp_res,
   smoothing = TRUE,
-  surf_FWHM = 5
+  surf_FWHM = 5,
+  scale = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,11 @@ after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.}
 Gaussian surface smoothing kernel in millimeters. Only used if
 \code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
 \code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.}
+
+\item{scale}{Logical. If \code{TRUE}, convert BOLD to percent signal change
+per voxel: \code{(BOLD - mu) / mu * 100} where \code{mu} is the voxel's
+temporal mean. Errors out if any voxel has \code{|mu| < 1e-6} (PSC undefined).
+Default \code{FALSE} for backwards compatibility with existing pipelines.}
 }
 \value{
 List with elements:

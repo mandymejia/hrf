@@ -1002,7 +1002,7 @@ sanitize_template_meta <- function(xii) {
 #' @return The expanded \code{pop_avg} data.frame.
 #' @keywords internal
 unmask_pop_avg <- function(pop_avg, workingHRF_results, mask_prop_NA,
-                            method = "median", surf_FWHM = 5,
+                            method = "median", surf_FWHM = 4,
                             impute_FUN = function(x) mean(x, na.rm = TRUE),
                             impute_mask = NULL,
                             verbose = 1) {
@@ -1038,7 +1038,9 @@ unmask_pop_avg <- function(pop_avg, workingHRF_results, mask_prop_NA,
 #'
 #' @param xii A \code{xifti} object with \code{NA} values to fill.
 #' @param method One of \code{"median"} (default), \code{"impute"}.
-#' @param surf_FWHM Cortex smoothing FWHM in mm. \code{0} skips smoothing.
+#' @param surf_FWHM Cortex smoothing FWHM in mm (required, no default — caller
+#'   sets policy; \code{unmask_pop_avg} is the canonical entry point).
+#'   \code{0} skips smoothing.
 #' @param impute_FUN For \code{method="impute"}: function applied to neighbor
 #'   values. Default is mean (ignoring \code{NA}).
 #' @param impute_mask For \code{method="impute"}: optional logical mask of
@@ -1047,7 +1049,7 @@ unmask_pop_avg <- function(pop_avg, workingHRF_results, mask_prop_NA,
 #' @keywords internal
 unmask_xifti <- function(xii,
                           method = c("median", "impute"),
-                          surf_FWHM = 5,
+                          surf_FWHM,
                           impute_FUN = function(x) mean(x, na.rm = TRUE),
                           impute_mask = NULL) {
   method <- match.arg(method)
