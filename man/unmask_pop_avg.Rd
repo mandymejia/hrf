@@ -9,7 +9,7 @@ unmask_pop_avg(
   workingHRF_results,
   mask_prop_NA,
   method = "median",
-  surf_FWHM = 5,
+  surf_FWHM = 4,
   impute_FUN = function(x) mean(x, na.rm = TRUE),
   impute_mask = NULL,
   verbose = 1

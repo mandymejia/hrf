@@ -1002,7 +1002,7 @@ sanitize_template_meta <- function(xii) {
 #' @return The expanded \code{pop_avg} data.frame.
 #' @keywords internal
 unmask_pop_avg <- function(pop_avg, workingHRF_results, mask_prop_NA,
-                            method = "median", surf_FWHM = 5,
+                            method = "median", surf_FWHM = 4,
                             impute_FUN = function(x) mean(x, na.rm = TRUE),
                             impute_mask = NULL,
                             verbose = 1) {
