@@ -10,6 +10,7 @@
   hrf_idx = 1,
   tapered = TRUE,
   colors = NULL,
+  show_t2p_limits = TRUE,
   ...
 )
 }
@@ -32,6 +33,10 @@ Single value for \code{type = "single_hrf"}, vector for \code{type = "multiple_h
 
 \item{colors}{Character vector. Colors for each HRF (required for \code{type = "multiple_hrf"}).
 Must have same length as \code{hrf_idx}.}
+
+\item{show_t2p_limits}{Logical. For \code{type = "hrfs"}, whether to draw the
+dashed vertical lines at 2 s and 10 s marking the physiologically plausible
+time-to-peak range. Default is \code{TRUE}.}
 
 \item{...}{Additional arguments passed to the specific plotting function.}
 }

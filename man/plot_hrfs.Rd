@@ -4,13 +4,17 @@
 \alias{plot_hrfs}
 \title{Plot all HRFs from parameter grid - wrapper (internal)}
 \usage{
-plot_hrfs(hrf_grid, tapered = TRUE)
+plot_hrfs(hrf_grid, tapered = TRUE, show_t2p_limits = TRUE)
 }
 \arguments{
 \item{hrf_grid}{Data frame with HRF parameters and call_params attributes}
 
 \item{tapered}{Logical. If TRUE, plots tapered HRFs; if FALSE, plots raw HRFs.
 Default is TRUE.}
+
+\item{show_t2p_limits}{Logical. Whether to draw dashed vertical lines at 2 s
+and 10 s marking the physiologically plausible time-to-peak range. Default
+is TRUE.}
 }
 \value{
 A ggplot object

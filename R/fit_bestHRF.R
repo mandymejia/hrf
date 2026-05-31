@@ -284,7 +284,7 @@ fit_bestHRF <- function(regularize_result,
 
   # Load BOLD data
   if (verbose > 0) cat("Loading BOLD data...\n")
-  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res, smoothing = FALSE, scale = TRUE)
+  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res, smoothing = TRUE, scale = TRUE)
   y <- t(as.matrix(bold_data$BOLD_xii))  # nT x nV
   nT <- nrow(y)
   nV <- ncol(y)

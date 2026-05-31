@@ -30,3 +30,7 @@ debug/
 
 # Git LFS metadata (must NOT be ignored)
 !.gitattributes
+
+
+.lintr
+/dev/scratch

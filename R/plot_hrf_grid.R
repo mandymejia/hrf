@@ -47,11 +47,16 @@
 #' }
 #'
 #' @export
+#' @param show_t2p_limits Logical. For \code{type = "hrfs"}, whether to draw the
+#'   dashed vertical lines at 2 s and 10 s marking the physiologically plausible
+#'   time-to-peak range. Default is \code{TRUE}.
+#'
 plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf"), 
-                          hrf_idx = 1, tapered = TRUE, colors = NULL, ...) {
+                          hrf_idx = 1, tapered = TRUE, colors = NULL,
+                          show_t2p_limits = TRUE, ...) {
   type <- match.arg(type)
   switch(type,
-         hrfs         = plot_hrfs(x, tapered = tapered, ...),
+         hrfs         = plot_hrfs(x, tapered = tapered, show_t2p_limits = show_t2p_limits, ...),
          param_grid   = plot_param_grid_metrics(x, ...),
          single_hrf   = plot_hrf_single(x, hrf_idx = hrf_idx, tapered = tapered, ...),
          multiple_hrf = plot_hrf_multiple(x, hrf_idx = hrf_idx, colors = colors, tapered = tapered, ...)
@@ -66,15 +71,18 @@ plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multi
 #' @param hrf_grid Data frame with HRF parameters and call_params attributes
 #' @param tapered Logical. If TRUE, plots tapered HRFs; if FALSE, plots raw HRFs.
 #'   Default is TRUE.
+#' @param show_t2p_limits Logical. Whether to draw dashed vertical lines at 2 s
+#'   and 10 s marking the physiologically plausible time-to-peak range. Default
+#'   is TRUE.
 #'
 #' @return A ggplot object
 #'
 #' @keywords internal
-plot_hrfs <- function(hrf_grid, tapered = TRUE) {
+plot_hrfs <- function(hrf_grid, tapered = TRUE, show_t2p_limits = TRUE) {
   if (tapered) {
-    plot_hrfs_all_tapered(hrf_grid)
+    plot_hrfs_all_tapered(hrf_grid, show_t2p_limits = show_t2p_limits)
   } else {
-    plot_hrfs_all(hrf_grid)
+    plot_hrfs_all(hrf_grid, show_t2p_limits = show_t2p_limits)
   }
 }
 
@@ -463,24 +471,37 @@ compute_hrf_metrics <- function(hrf_grid) {
 #' @return A \code{ggplot} object.
 #'
 #' @keywords internal
-plot_hrfs_all <- function(hrf_grid) {
+plot_hrfs_all <- function(hrf_grid, show_t2p_limits = TRUE) {
 
   # Compute HRF metrics
   hrf_results <- compute_hrf_metrics(hrf_grid)
   hrf_df <- hrf_results$hrf_df
   hrf_params <- hrf_results$hrf_params
 
-  # Create the plot
+  n_c <- length(unique(hrf_df$c))
+
   p <- ggplot(hrf_df, aes(x = .data$sec, y = .data$HRF, color = .data$a1, group = .data$a1)) +
-    geom_vline(xintercept = c(2, 10), linetype = 2, color = 'gray') +  # limits on time to peak
     geom_hline(yintercept = 0, color = 'gray') +
     geom_line() +
     xlim(0, 30) +
     scale_color_viridis_c(breaks = seq(3, 12, 3)) +
     scale_y_continuous(breaks = c(0, 0.5, 1)) +
-    facet_grid(b1 ~ c) +
+    labs(y = "HRF", x = "Time (s)") +
     theme_few() +
-    theme(legend.position = 'bottom')
+    theme(legend.position = 'bottom',
+          panel.border = element_blank(),
+          axis.line    = element_line(color = "black"))
+
+  if (show_t2p_limits) {
+    p <- p + geom_vline(xintercept = c(2, 10), linetype = 2, color = 'gray')
+  }
+
+  # Single c value → drop the c facet entirely; multiple c → keep both.
+  p <- p + if (n_c == 1) {
+    facet_wrap(~ b1, ncol = 1, strip.position = "right")
+  } else {
+    facet_grid(b1 ~ c)
+  }
 
   return(p)
 }
@@ -564,24 +585,37 @@ plot_param_grid_metrics <- function(hrf_grid) {
 #' @return A \code{ggplot} object.
 #'
 #' @keywords internal
-plot_hrfs_all_tapered <- function(hrf_grid) {
+plot_hrfs_all_tapered <- function(hrf_grid, show_t2p_limits = TRUE) {
 
   # Compute HRF metrics
   hrf_results <- compute_hrf_metrics(hrf_grid)
   hrf_df <- hrf_results$hrf_df
   hrf_params <- hrf_results$hrf_params
 
-  # Create the plot
+  n_c <- length(unique(hrf_df$c))
+
   p <- ggplot(hrf_df, aes(x = .data$sec, y = .data$HRF_tapered, color = .data$a1, group = .data$a1)) +
-    geom_vline(xintercept = c(2, 10), linetype = 2, color = 'gray') +  # limits on time to peak
     geom_hline(yintercept = 0, color = 'gray') +
     geom_line() +
     xlim(0, 30) +
     scale_color_viridis_c(breaks = seq(3, 12, 3)) +
     scale_y_continuous(breaks = c(0, 0.5, 1)) +
-    facet_grid(b1 ~ c) +
+    labs(y = "HRF", x = "Time (s)") +
     theme_few() +
-    theme(legend.position = 'bottom')
+    theme(legend.position = 'bottom',
+          panel.border = element_blank(),
+          axis.line    = element_line(color = "black"))
+
+  if (show_t2p_limits) {
+    p <- p + geom_vline(xintercept = c(2, 10), linetype = 2, color = 'gray')
+  }
+
+  # Single c value → drop the c facet entirely; multiple c → keep both.
+  p <- p + if (n_c == 1) {
+    facet_wrap(~ b1, ncol = 1, strip.position = "right")
+  } else {
+    facet_grid(b1 ~ c)
+  }
 
   return(p)
 }
