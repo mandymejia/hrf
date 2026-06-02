@@ -2,13 +2,22 @@
 % Please edit documentation in R/plot_hrf_grid.R
 \name{plot_hrfs_all_tapered}
 \alias{plot_hrfs_all_tapered}
-\title{Plot tapered HRFs from parameter grid (internal)}
+\title{Plot all tapered HRFs from parameter grid (internal)}
 \usage{
-plot_hrfs_all_tapered(hrf_grid, show_t2p_limits = TRUE)
+plot_hrfs_all_tapered(
+  hrf_grid,
+  show_t2p_limits = TRUE,
+  canonical_a1 = 6,
+  canonical_b1 = 1,
+  dashed_a1 = c(3, 5, 7, 9, 11)
+)
 }
 \arguments{
 \item{hrf_grid}{A data frame of HRF parameters with \code{call_params}
 attributes, typically created by \code{generate_hrf_grid()}.}
+
+\item{show_t2p_limits}{Logical. Whether to draw dashed vertical lines at 2 s
+and 10 s marking the physiologically plausible time-to-peak range.}
 }
 \value{
 A \code{ggplot} object.

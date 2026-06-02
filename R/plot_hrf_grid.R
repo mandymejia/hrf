@@ -11,6 +11,8 @@
 #'     \item \code{"param_grid"} – plot parameter grid heatmaps of time-to-peak and FWHM.
 #'     \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 #'     \item \code{"multiple_hrf"} – plot multiple overlapping HRFs specified by \code{hrf_idx} vector.
+#'     \item \code{"slices"} – two-panel didactic view: vary a1 (with b1 fixed at canonical),
+#'       and vary b1 (with a1 fixed at canonical). Canonical HRF drawn thick + black.
 #'   }
 #' @param hrf_idx Integer or integer vector. Row index(es) for plotting HRF(s).
 #'   Single value for \code{type = "single_hrf"}, vector for \code{type = "multiple_hrf"}.
@@ -51,7 +53,7 @@
 #'   dashed vertical lines at 2 s and 10 s marking the physiologically plausible
 #'   time-to-peak range. Default is \code{TRUE}.
 #'
-plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf"), 
+plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf", "slices"),
                           hrf_idx = 1, tapered = TRUE, colors = NULL,
                           show_t2p_limits = TRUE, ...) {
   type <- match.arg(type)
@@ -59,7 +61,8 @@ plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multi
          hrfs         = plot_hrfs(x, tapered = tapered, show_t2p_limits = show_t2p_limits, ...),
          param_grid   = plot_param_grid_metrics(x, ...),
          single_hrf   = plot_hrf_single(x, hrf_idx = hrf_idx, tapered = tapered, ...),
-         multiple_hrf = plot_hrf_multiple(x, hrf_idx = hrf_idx, colors = colors, tapered = tapered, ...)
+         multiple_hrf = plot_hrf_multiple(x, hrf_idx = hrf_idx, colors = colors, tapered = tapered, ...),
+         slices       = plot_hrfs_slices(x, ...)
   )
 }
 
@@ -78,11 +81,11 @@ plot.hrf_grid <- function(x, type = c("hrfs", "param_grid", "single_hrf", "multi
 #' @return A ggplot object
 #'
 #' @keywords internal
-plot_hrfs <- function(hrf_grid, tapered = TRUE, show_t2p_limits = TRUE) {
+plot_hrfs <- function(hrf_grid, tapered = TRUE, show_t2p_limits = TRUE, ...) {
   if (tapered) {
-    plot_hrfs_all_tapered(hrf_grid, show_t2p_limits = show_t2p_limits)
+    plot_hrfs_all_tapered(hrf_grid, show_t2p_limits = show_t2p_limits, ...)
   } else {
-    plot_hrfs_all(hrf_grid, show_t2p_limits = show_t2p_limits)
+    plot_hrfs_all(hrf_grid, show_t2p_limits = show_t2p_limits, ...)
   }
 }
 
@@ -471,32 +474,57 @@ compute_hrf_metrics <- function(hrf_grid) {
 #' @return A \code{ggplot} object.
 #'
 #' @keywords internal
-plot_hrfs_all <- function(hrf_grid, show_t2p_limits = TRUE) {
+plot_hrfs_all <- function(hrf_grid, show_t2p_limits = TRUE,
+                           canonical_a1 = 6, canonical_b1 = 1,
+                           dashed_a1 = c(3, 5, 7, 9, 11)) {
 
-  # Compute HRF metrics
   hrf_results <- compute_hrf_metrics(hrf_grid)
   hrf_df <- hrf_results$hrf_df
-  hrf_params <- hrf_results$hrf_params
 
   n_c <- length(unique(hrf_df$c))
 
-  p <- ggplot(hrf_df, aes(x = .data$sec, y = .data$HRF, color = .data$a1, group = .data$a1)) +
+  a1_vals  <- sort(unique(hrf_df$a1))
+  roy      <- ciftiTools::ROY_BIG_BL(min(a1_vals), max(a1_vals), mid = canonical_a1)
+  roy      <- roy[order(roy$value), ]
+  swatches <- grDevices::colorRampPalette(roy$col)(length(a1_vals))
+  ltypes   <- ifelse(a1_vals %in% dashed_a1, "dashed", "solid")
+  names(swatches) <- as.character(a1_vals)
+  names(ltypes)   <- as.character(a1_vals)
+
+  canonical_grid <- hrf_grid[hrf_grid$a1 == canonical_a1 &
+                             hrf_grid$b1 == canonical_b1, ]
+  class(canonical_grid) <- c("hrf_grid", "data.frame")
+  canonical_df <- if (nrow(canonical_grid) > 0) {
+    compute_hrf_metrics(canonical_grid)$hrf_df
+  } else NULL
+
+  p <- ggplot(hrf_df, aes(x = .data$sec, y = .data$HRF,
+                          color    = factor(.data$a1),
+                          linetype = factor(.data$a1),
+                          group    = factor(.data$a1))) +
     geom_hline(yintercept = 0, color = 'gray') +
-    geom_line() +
+    geom_line(linewidth = 0.8) +
     xlim(0, 30) +
-    scale_color_viridis_c(breaks = seq(3, 12, 3)) +
+    scale_color_manual(values = swatches, name = "a1") +
+    scale_linetype_manual(values = ltypes, guide = "none") +
     scale_y_continuous(breaks = c(0, 0.5, 1)) +
     labs(y = "HRF", x = "Time (s)") +
     theme_few() +
-    theme(legend.position = 'bottom',
+    theme(legend.position = 'right',
           panel.border = element_blank(),
           axis.line    = element_line(color = "black"))
+
+  if (!is.null(canonical_df)) {
+    p <- p + geom_line(data = canonical_df, color = "black",
+                       linewidth = 1.4, linetype = "solid",
+                       inherit.aes = FALSE,
+                       mapping = aes(x = .data$sec, y = .data$HRF))
+  }
 
   if (show_t2p_limits) {
     p <- p + geom_vline(xintercept = c(2, 10), linetype = 2, color = 'gray')
   }
 
-  # Single c value → drop the c facet entirely; multiple c → keep both.
   p <- p + if (n_c == 1) {
     facet_wrap(~ b1, ncol = 1, strip.position = "right")
   } else {
@@ -525,10 +553,12 @@ plot_param_grid_metrics <- function(hrf_grid) {
   hrf_results <- compute_hrf_metrics(hrf_grid)
   hrf_params <- hrf_results$hrf_params
 
-  # Create c_label for faceting
+  # Create c_label for faceting (used only when multiple c values present)
   hrf_params$c_label <- ifelse(hrf_params$c == 0,
                                'No Undershoot (c=0)',
                                paste0('With Undershoot (c=', round(hrf_params$c, 3), ')'))
+
+  n_c <- length(unique(hrf_params$c))
 
   # Get unique a1 and b1 values for grid lines
   a1_vals <- sort(unique(hrf_params$a1))
@@ -538,39 +568,139 @@ plot_param_grid_metrics <- function(hrf_grid) {
   a1_grid <- c(min(a1_vals) - 0.5, a1_vals + 0.5)
   b1_grid <- c(min(b1_vals) - 0.125, b1_vals + 0.125)
 
-  # Create time-to-peak plot
+  # SPM canonical marker: white hollow square at (a1=6, b1=1) when present.
+  # geom_rect (not geom_tile) so the fill scale doesn't paint an NA ghost.
+  step_a1 <- if (length(a1_vals) > 1) min(diff(a1_vals)) else 1
+  step_b1 <- if (length(b1_vals) > 1) min(diff(b1_vals)) else 0.25
+  show_canonical <- 6 %in% a1_vals && 1 %in% b1_vals
+  canonical_layer <- if (show_canonical) {
+    geom_rect(data = data.frame(a1 = 6, b1 = 1),
+              aes(xmin = a1 - step_a1 / 2, xmax = a1 + step_a1 / 2,
+                  ymin = b1 - step_b1 / 2, ymax = b1 + step_b1 / 2),
+              fill = NA, color = "white", linewidth = 1.2, inherit.aes = FALSE)
+  } else NULL
+
+  base_theme <- theme_few() +
+    theme(panel.spacing = unit(1.5, "lines"),
+          legend.position = "right",
+          plot.margin = margin(5, 0, 5, 0))
+
+  # Conditional facet: drop facet when only one c value present.
+  facet_layer <- if (n_c == 1) NULL else facet_grid(. ~ c_label)
+
+  # Time-to-peak heatmap
   p1 <- ggplot(hrf_params, aes(x = .data$a1, y = .data$b1, fill = time_to_peak)) +
     geom_hline(yintercept = b1_grid, alpha = 0.1) +
     geom_vline(xintercept = a1_grid, alpha = 0.1) +
     geom_tile(alpha = 0.8) +
     geom_text(aes(label = round(time_to_peak, 1))) +
+    canonical_layer +
     scale_fill_viridis_c('Time to Peak  ', option = 'C') +
-    scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) + # Expand removes padding
+    scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
     scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
-    facet_grid(. ~ c_label) +
-    theme_few() +
-    theme(panel.spacing = unit(1.5, "lines"))
+    facet_layer +
+    base_theme
 
-  # Create FWHM plot
+  # FWHM heatmap
   p2 <- ggplot(hrf_params, aes(x = .data$a1, y = .data$b1, fill = .data$FWHM)) +
     geom_hline(yintercept = b1_grid, alpha = 0.1) +
     geom_vline(xintercept = a1_grid, alpha = 0.1) +
     geom_tile(alpha = 0.8) +
     geom_text(aes(label = round(.data$FWHM, 1))) +
+    canonical_layer +
     scale_fill_viridis_c('Width (FWHM)', option = 'D') +
     scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
     scale_y_continuous(breaks = b1_vals, expand = c(0, 0)) +
-    facet_grid(. ~ c_label) +
-    theme_few()  + 
-    theme(panel.spacing = unit(1.5, "lines"))
+    facet_layer +
+    base_theme
 
-  # Combine plots
-  combined_plot <- gridExtra::grid.arrange(p1, p2, nrow = 2)
+  # Side-by-side layout
+  combined_plot <- gridExtra::grid.arrange(p1, p2, ncol = 2)
 
   return(combined_plot)
 }
 
 #' Plot tapered HRFs from parameter grid (internal)
+#'
+#' Two-panel "slices" view of the HRF parameter grid (internal)
+#'
+#' Vary a1 with b1 fixed at canonical, then vary b1 with a1 fixed at canonical.
+#' Canonical HRF drawn thick + black in both panels. Discrete diverging
+#' (ROY_BIG_BL) palette centered at the canonical value.
+#'
+#' @param hrf_grid Data frame with HRF parameters from \code{generate_hrf_grid}.
+#' @param canonical_a1,canonical_b1 The fixed canonical parameter values.
+#'   Defaults: SPM canonical (\code{a1 = 6}, \code{b1 = 1}).
+#' @param c_val Single c value to use. If \code{hrf_grid} has multiple c values,
+#'   the grid is filtered to this one. Default \code{1/6}.
+#' @param dashed_a1,dashed_b1 Values to draw as dashed (alternating to help
+#'   distinguish neighboring swatches in the discrete palette).
+#'
+#' @keywords internal
+#' @return A \code{grid.arrange} grob with two stacked panels.
+plot_hrfs_slices <- function(hrf_grid, canonical_a1 = 6, canonical_b1 = 1,
+                              c_val = 1/6,
+                              dashed_a1 = c(3, 5, 7, 9, 11),
+                              dashed_b1 = c(0.75, 1.25, 1.75)) {
+
+  c_vals <- unique(hrf_grid$c)
+  if (length(c_vals) > 1) {
+    if (!(c_val %in% c_vals)) {
+      stop(sprintf("c_val=%s not in grid (c values: %s). Pass a valid c_val.",
+                   c_val, paste(c_vals, collapse = ", ")))
+    }
+    hrf_grid <- hrf_grid[hrf_grid$c == c_val, ]
+    class(hrf_grid) <- c("hrf_grid", "data.frame")
+  }
+
+  hrf_df <- compute_hrf_metrics(hrf_grid)$hrf_df
+  # plot_hrfs_all_tapered re-prefixes b1 strip values with "b1 = "; we use the
+  # numeric value here.
+  if (is.character(hrf_df$b1)) {
+    hrf_df$b1 <- as.numeric(sub("b1 = ", "", hrf_df$b1))
+  }
+
+  make_panel <- function(df, color_var, fixed_label, mid_val, dashed_vals) {
+    vals <- sort(unique(df[[color_var]]))
+    roy  <- ciftiTools::ROY_BIG_BL(min(vals), max(vals), mid = mid_val)
+    roy  <- roy[order(roy$value), ]
+    swatches <- grDevices::colorRampPalette(roy$col)(length(vals))
+
+    ltypes <- ifelse(vals %in% dashed_vals, "dashed", "solid")
+    names(ltypes) <- as.character(vals)
+
+    canonical <- subset(df, a1 == canonical_a1 & b1 == canonical_b1)
+
+    ggplot(df, aes(x = .data$sec, y = .data$HRF_tapered,
+                   color    = factor(.data[[color_var]]),
+                   linetype = factor(.data[[color_var]]),
+                   group    = factor(.data[[color_var]]))) +
+      geom_hline(yintercept = 0, color = 'gray') +
+      geom_line(linewidth = 0.8) +
+      geom_line(data = canonical, color = "black", linewidth = 1.4,
+                linetype = "solid", inherit.aes = FALSE,
+                mapping = aes(x = .data$sec, y = .data$HRF_tapered)) +
+      scale_color_manual(values = swatches, name = color_var) +
+      scale_linetype_manual(values = ltypes, guide = "none") +
+      scale_y_continuous(breaks = c(0, 0.5, 1)) +
+      xlim(0, 30) +
+      labs(x = "Time (s)", y = "HRF",
+           title = sprintf("Effect of varying %s (%s)", color_var, fixed_label)) +
+      theme_few(base_size = 11) +
+      theme(legend.position = "right",
+            panel.border = element_blank(),
+            axis.line    = element_line(color = "black"))
+  }
+
+  pA <- make_panel(subset(hrf_df, b1 == canonical_b1), "a1",
+                   sprintf("b1 = %g", canonical_b1), canonical_a1, dashed_a1)
+  pB <- make_panel(subset(hrf_df, a1 == canonical_a1), "b1",
+                   sprintf("a1 = %g", canonical_a1), canonical_b1, dashed_b1)
+
+  gridExtra::grid.arrange(pA, pB, nrow = 2)
+}
+
+#' Plot all tapered HRFs from parameter grid (internal)
 #'
 #' Internal helper for \code{plot.hrf_grid}. Generates a faceted plot of all
 #' tapered hemodynamic response functions (HRFs) from the parameter grid.
@@ -579,38 +709,70 @@ plot_param_grid_metrics <- function(hrf_grid) {
 #'
 #' @param hrf_grid A data frame of HRF parameters with \code{call_params}
 #'   attributes, typically created by \code{generate_hrf_grid()}.
+#' @param show_t2p_limits Logical. Whether to draw dashed vertical lines at 2 s
+#'   and 10 s marking the physiologically plausible time-to-peak range.
 #'
 #' @importFrom ggthemes theme_few
 #'
 #' @return A \code{ggplot} object.
 #'
 #' @keywords internal
-plot_hrfs_all_tapered <- function(hrf_grid, show_t2p_limits = TRUE) {
+plot_hrfs_all_tapered <- function(hrf_grid, show_t2p_limits = TRUE,
+                                   canonical_a1 = 6, canonical_b1 = 1,
+                                   dashed_a1 = c(3, 5, 7, 9, 11)) {
 
-  # Compute HRF metrics
   hrf_results <- compute_hrf_metrics(hrf_grid)
   hrf_df <- hrf_results$hrf_df
-  hrf_params <- hrf_results$hrf_params
 
   n_c <- length(unique(hrf_df$c))
 
-  p <- ggplot(hrf_df, aes(x = .data$sec, y = .data$HRF_tapered, color = .data$a1, group = .data$a1)) +
+  # Discrete a1 scale: one ROY_BIG_BL swatch per integer a1, centered at
+  # canonical. Odd-valued a1 drawn dashed so neighboring swatches are easier
+  # to distinguish.
+  a1_vals  <- sort(unique(hrf_df$a1))
+  roy      <- ciftiTools::ROY_BIG_BL(min(a1_vals), max(a1_vals), mid = canonical_a1)
+  roy      <- roy[order(roy$value), ]
+  swatches <- grDevices::colorRampPalette(roy$col)(length(a1_vals))
+  ltypes   <- ifelse(a1_vals %in% dashed_a1, "dashed", "solid")
+  names(swatches) <- as.character(a1_vals)
+  names(ltypes)   <- as.character(a1_vals)
+
+  # Canonical HRF (a1==canonical_a1, b1==canonical_b1) for thick-black overlay.
+  canonical_grid <- hrf_grid[hrf_grid$a1 == canonical_a1 &
+                             hrf_grid$b1 == canonical_b1, ]
+  class(canonical_grid) <- c("hrf_grid", "data.frame")
+  canonical_df <- if (nrow(canonical_grid) > 0) {
+    compute_hrf_metrics(canonical_grid)$hrf_df
+  } else NULL
+
+  p <- ggplot(hrf_df, aes(x = .data$sec, y = .data$HRF_tapered,
+                          color    = factor(.data$a1),
+                          linetype = factor(.data$a1),
+                          group    = factor(.data$a1))) +
     geom_hline(yintercept = 0, color = 'gray') +
-    geom_line() +
+    geom_line(linewidth = 0.8) +
     xlim(0, 30) +
-    scale_color_viridis_c(breaks = seq(3, 12, 3)) +
+    scale_color_manual(values = swatches, name = "a1") +
+    scale_linetype_manual(values = ltypes, guide = "none") +
     scale_y_continuous(breaks = c(0, 0.5, 1)) +
     labs(y = "HRF", x = "Time (s)") +
     theme_few() +
-    theme(legend.position = 'bottom',
+    theme(legend.position = 'right',
           panel.border = element_blank(),
           axis.line    = element_line(color = "black"))
+
+  if (!is.null(canonical_df)) {
+    p <- p + geom_line(data = canonical_df, color = "black",
+                       linewidth = 1.4, linetype = "solid",
+                       inherit.aes = FALSE,
+                       mapping = aes(x = .data$sec, y = .data$HRF_tapered))
+  }
 
   if (show_t2p_limits) {
     p <- p + geom_vline(xintercept = c(2, 10), linetype = 2, color = 'gray')
   }
 
-  # Single c value → drop the c facet entirely; multiple c → keep both.
+  # Single c value → drop the c facet; multiple c → keep both.
   p <- p + if (n_c == 1) {
     facet_wrap(~ b1, ncol = 1, strip.position = "right")
   } else {

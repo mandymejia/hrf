@@ -4,7 +4,7 @@
 \alias{plot_hrfs}
 \title{Plot all HRFs from parameter grid - wrapper (internal)}
 \usage{
-plot_hrfs(hrf_grid, tapered = TRUE, show_t2p_limits = TRUE)
+plot_hrfs(hrf_grid, tapered = TRUE, show_t2p_limits = TRUE, ...)
 }
 \arguments{
 \item{hrf_grid}{Data frame with HRF parameters and call_params attributes}

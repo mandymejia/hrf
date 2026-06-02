@@ -6,7 +6,7 @@
 \usage{
 \method{plot}{hrf_grid}(
   x,
-  type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf"),
+  type = c("hrfs", "param_grid", "single_hrf", "multiple_hrf", "slices"),
   hrf_idx = 1,
   tapered = TRUE,
   colors = NULL,
@@ -23,6 +23,8 @@
 \item \code{"param_grid"} – plot parameter grid heatmaps of time-to-peak and FWHM.
 \item \code{"single_hrf"} – plot a single HRF specified by \code{hrf_idx}.
 \item \code{"multiple_hrf"} – plot multiple overlapping HRFs specified by \code{hrf_idx} vector.
+\item \code{"slices"} – two-panel didactic view: vary a1 (with b1 fixed at canonical),
+and vary b1 (with a1 fixed at canonical). Canonical HRF drawn thick + black.
 }}
 
 \item{hrf_idx}{Integer or integer vector. Row index(es) for plotting HRF(s).
