@@ -2,26 +2,36 @@
 % Please edit documentation in R/plot_regularize_allHRFs.R
 \name{plot_param_heatmap}
 \alias{plot_param_heatmap}
-\title{Plot best-per-subject HRF parameter frequency on the HRF grid}
+\title{Plot HRF parameter frequency on the HRF grid}
 \usage{
-plot_param_heatmap(x, mask = FALSE, title = NULL, ...)
+plot_param_heatmap(
+  x,
+  source = c("subjects", "pop_avg"),
+  mask = FALSE,
+  title = NULL
+)
 }
 \arguments{
 \item{x}{A \code{regularizeHRFs} object.}
 
-\item{mask}{Logical. If \code{TRUE}, restrict to voxel-subject pairs where
-the working-HRF activation mask is \code{TRUE}.}
+\item{source}{Character. \code{"subjects"} (default) counts per-voxel
+per-subject best HRFs from \code{x$best_params_df} (one count per
+(voxel, subject) pair). \code{"pop_avg"} counts per-voxel regularized
+population HRFs from \code{x$pop_avg} (one count per voxel; the
+"averaged" view used in Fig 3).}
+
+\item{mask}{Logical. Only relevant when \code{source = "subjects"}.
+If \code{TRUE}, restrict to voxel-subject pairs where the working-HRF
+activation mask is \code{TRUE}.}
 
 \item{title}{Optional custom title.}
-
-\item{...}{Additional ggplot \code{theme()} args (passed through via
-\code{list(...)}).}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object. Compose additional ggplot layers at the
+call site (e.g. \code{plot(x, type = "param_heatmap") + theme(...)}).
 }
 \description{
-Heatmap of how often each \code{(a1, b1, c)} grid combination is the
-per-voxel per-subject best HRF, faceted by \code{c}.
+Heatmap of how often each \code{(a1, b1, c)} grid combination appears,
+faceted by \code{c}.
 }
 \keyword{internal}

@@ -4,7 +4,11 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(x, type = c("pop_avg", "mean_all", "mean", "param_heatmap"), ...)
+\method{plot}{regularizeHRFs}(
+  x,
+  type = c("pop_avg", "pop_avg_continuous", "mean_all", "mean", "param_heatmap"),
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from

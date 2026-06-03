@@ -6,7 +6,7 @@
 \usage{
 plot_pop_avg(
   x,
-  param = c("a1", "b1", "c"),
+  param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
   fname = NULL,
   title = NULL,
   shadows = 1,
@@ -28,8 +28,9 @@ working OpenGL).}
 
 \item{shadows, material, NA_color}{Standard \code{plot.xifti} aesthetics.}
 
-\item{zlim}{Optional length-2 numeric. If \code{NULL}, sensible per-param
-defaults are used (\code{a1: c(4,8)}, \code{b1: c(0.5,1.5)}, \code{c: c(0,0.17)}).}
+\item{zlim}{Optional length-2 numeric. If \code{NULL}, dynamically derived
+from \code{range(x$hrf_grid[[param]])} so the colorbar always spans the
+actual grid the user picked.}
 
 \item{...}{Additional args passed to \code{plot.xifti}.}
 }
