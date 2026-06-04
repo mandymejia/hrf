@@ -59,10 +59,13 @@ regularize_allHRFs <- function(workingHRF_results,
 
   if (save_rss) {
     if (verbose > 0) cat("RSS lookup mode: loading pre-computed RSS from .qs files (fast)\n")
-  } else {
+  } else if (seffects) {
+    # Refit mode only actually needs BOLD/EVs in the candidate-fitting step
+    # (Steps 7-8). When seffects = FALSE we early-return after pop_avg, so
+    # no need to require them.
     if (verbose > 0) cat("Refit mode: will run multiGLM for each subject (slow, requires BOLD/EVs)\n")
-    if (is.null(BOLD) || is.null(EVs)) stop("BOLD and EVs are required when save_rss = FALSE (refit mode)")
-    if (is.null(TR)) stop("TR is required when save_rss = FALSE (refit mode)")
+    if (is.null(BOLD) || is.null(EVs)) stop("BOLD and EVs are required when save_rss = FALSE and seffects = TRUE (refit mode)")
+    if (is.null(TR)) stop("TR is required when save_rss = FALSE and seffects = TRUE (refit mode)")
   }
 
   # Pack into session_data for internal use
