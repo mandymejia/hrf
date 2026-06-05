@@ -41,28 +41,36 @@ plot.workingHRF <- function(x, type = c("design", "proportion", "binary", "mask"
 
 #' Plot HRF design matrix for a single subject
 #'
-#' This function generates line plots of the HRF regressors for a single subject's
-#' design matrix, as estimated by \code{\link{fit_workingHRF}}. It distinguishes between:
-#' \itemize{
-#'   \item \strong{Main HRF}: Canonical regressors (no suffix)
-#'   \item \strong{dHRF}: Temporal derivatives (columns ending in \code{_dHRF})
-#'   \item \strong{ddHRF}: Dispersion derivatives (columns ending in \code{_ddHRF})
+#' Visualizes the design matrix from a \code{\link{fit_workingHRF}} fit for one
+#' subject. Dispatches to one of two layouts:
+#' \describe{
+#'   \item{\code{style = "default"}}{Faceted panels via \code{\link{plot_design_unlapped}}:
+#'     one ggplot per HRF type (main / dHRF / ddHRF), each faceted by task.}
+#'   \item{\code{style = "overlapping"}}{Single-panel overlay via
+#'     \code{\link{plot_design}} (\code{method = "lineplot"}, \code{style = "overlapping"}):
+#'     all regressors plotted together, with color/linetype per field.}
 #' }
-#' Each type is plotted separately using \pkg{ggplot2}, with lines grouped by task.
 #'
 #' @param x A \code{workingHRF} object as returned by \code{\link{fit_workingHRF}}.
 #' @param subject Integer. Index of the subject whose design matrix should be plotted.
-#' @param ... Additional arguments (currently unused).
+#' @param style \code{"default"} (faceted) or \code{"overlapping"} (single overlay).
+#' @param ... Additional arguments forwarded to the underlying plot function
+#'   (\code{\link{plot_design_unlapped}} or \code{\link{plot_design}}). Typical
+#'   args for \code{"overlapping"}: \code{drop_derivatives}, \code{drop_onset_offset},
+#'   \code{colors}, \code{linetype}.
 #'
-#' @return A named list of \code{ggplot2} objects for each HRF type that was found.
-#'         Also prints the plots to the graphics device. Components may include:
-#'         \code{main}, \code{dhrf}, \code{ddhrf}.
+#' @return Whatever the dispatched plot function returns (invisibly).
 #'
 #' @import ggplot2
 #' @keywords internal
-plot_design_fit <- function(x, subject = 1, ...) {
+plot_design_fit <- function(x, subject = 1, style = c("default", "overlapping"), ...) {
+  style <- match.arg(style)
   design_dHRFs <- x[["subject_results"]][[subject]][["design_matrix"]]
-  plot_design_fit_core(design_dHRFs, ...)
+  if (style == "overlapping") {
+    plot_design(design_dHRFs, method = "lineplot", style = "overlapping", ...)
+  } else {
+    plot_design_unlapped(design_dHRFs, ...)
+  }
 }
 
 #' Plot cross-subject activation proportion map
@@ -267,110 +275,6 @@ recalculate_proportions <- function(x, alpha) {
   prop <- rowSums(masks, na.rm = TRUE) / rowSums(!is.na(masks))
 
   return(prop)
-}
-
-#' Core Plotting Function for HRF Design Matrix
-#'
-#' Internal function to visualize the design matrix containing main HRF, dHRF, and ddHRF
-#' regressors across timepoints and tasks. This function is typically used by higher-level
-#' preview or diagnostic plotting tools, and is not intended for direct use by end-users.
-#'
-#' @param design_dHRFs A data frame or matrix containing the full design matrix, including
-#'   HRF regressors. Column names must follow the convention: task names, optionally
-#'   suffixed with \code{"_dHRF"} or \code{"_ddHRF"}.
-#' @param title_prefix Title for the plot (default: \code{"Main HRF"}).
-#' @param ... Additional arguments passed to internal \code{\link[ggplot2]{ggplot}} calls
-#'   such as \code{theme()} or \code{facet_grid()} for further plot customization.
-#'
-#' @return Invisibly returns a named list of \code{ggplot2} objects: \code{main},
-#'   \code{dhrf}, and \code{ddhrf}, if those regressors are present in the design.
-#'   Plots are also rendered to the current device.
-#'
-#' @import ggplot2
-#' @keywords internal
-plot_design_fit_core <- function(design_dHRFs, title_prefix = "Main HRF", ...) {
-  volume <- 1:nrow(design_dHRFs)
-
-  # Define which HRF types to include and their suffixes
-  hrf_types <- list(
-    main = "",           # main regressors: no suffix
-    dhrf = "_dHRF",      # dhrf regressors: ends with _dHRF
-    ddhrf = "_ddHRF"
-  )
-
-  # Collect long-format rows for all HRF types
-  df_list <- list()
-
-  for (hrf_name in names(hrf_types)) {
-    suffix <- hrf_types[[hrf_name]]
-
-    # Get columns that match the suffix ("" means exclude _dHRF/_ddHRF)
-    if (suffix == "") {
-      regs <- colnames(design_dHRFs)[!grepl("_dHRF|_ddHRF", colnames(design_dHRFs))]
-    } else {
-      pattern <- paste0(suffix, "$")
-      regs <- grep(pattern, colnames(design_dHRFs), value = TRUE)
-    }
-
-    df_list[[hrf_name]] <- do.call(rbind, lapply(regs, function(reg) {
-      base_task <- sub(paste0(suffix, "$"), "", reg)  # Strip suffix if present
-      data.frame(
-        Volume = volume,
-        Task = base_task,
-        HRF = hrf_name,
-        Value = design_dHRFs[, reg]
-      )
-    }))
-  }
-
-  df_long <- do.call(rbind, df_list)
-  df_long$Task <- factor(df_long$Task, levels = unique(df_long$Task))
-
-  plot_main <- ggplot(data = df_long[df_long$HRF == "main",]) +
-    geom_line(aes(x = .data$Volume, y = .data$Value, color = .data$Task), linetype = "solid") +
-    ylim(range(df_long$Value, na.rm = TRUE)) +
-    labs(title = title_prefix, x = "Volume", y = "Value") +
-    theme_minimal(base_size = 15) +
-    theme(plot.background = element_rect(fill = "white"),
-          panel.background = element_rect(fill = "white")) +
-    theme(legend.position = "right",
-          strip.placement = "outside") +
-    list(...) + 
-    facet_grid(Task ~ .)
-
-  plot_dhrf <- ggplot(data = df_long[df_long$HRF == "dhrf",]) +
-    geom_line(aes(x = .data$Volume, y = .data$Value, color = .data$Task), linetype = "dashed") +
-    ylim(range(df_long$Value, na.rm = TRUE)) +
-    labs(title = "dHRF", x = "Volume", y = "Value") +
-    theme_minimal(base_size = 15) +
-    theme(plot.background = element_rect(fill = "white"),
-          panel.background = element_rect(fill = "white")) +
-    theme(legend.position = "right",
-          strip.placement = "outside") +
-    list(...) +
-    facet_grid(Task ~ .)
-
-  plot_ddhrf <- ggplot(data = df_long[df_long$HRF == "ddhrf",]) +
-    geom_line(aes(x = .data$Volume, y = .data$Value, color = .data$Task), linetype = "twodash") +
-    ylim(range(df_long$Value, na.rm = TRUE)) +
-    labs(title = "ddHRF", x = "Volume", y = "Value") +
-    theme_minimal(base_size = 15) +
-    theme(plot.background = element_rect(fill = "white"),
-          panel.background = element_rect(fill = "white")) +
-    theme(legend.position = "right",
-          strip.placement = "outside") +
-    list(...) +
-    facet_grid(Task ~ .)
-
-  if ("main" %in% names(df_list)) print(plot_main)
-  if ("dhrf" %in% names(df_list)) print(plot_dhrf)
-  if ("ddhrf" %in% names(df_list)) print(plot_ddhrf)
-
-  invisible(Filter(Negate(is.null), list(
-    main = if ("main" %in% names(df_list)) plot_main else NULL,
-    dhrf = if ("dhrf" %in% names(df_list)) plot_dhrf else NULL,
-    ddhrf = if ("ddhrf" %in% names(df_list)) plot_ddhrf else NULL
-  )))
 }
 
 #' Plot mask_prop_NA (population activation mask)

@@ -4,7 +4,13 @@
 \alias{plot_design_fit_all}
 \title{Plot design matrix for specific HRF parameter combination}
 \usage{
-plot_design_fit_all(x, hrf_idx = 1, subject = 1, ...)
+plot_design_fit_all(
+  x,
+  hrf_idx = 1,
+  subject = 1,
+  style = c("default", "overlapping"),
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"allHRFs"} from \code{\link{fit_allHRFs}}.}
@@ -13,14 +19,24 @@ plot_design_fit_all(x, hrf_idx = 1, subject = 1, ...)
 
 \item{subject}{Integer. Index of the subject to plot.}
 
-\item{...}{Additional arguments passed to \code{\link{plot_design_fit_core}}.}
+\item{style}{\code{"default"} (faceted) or \code{"overlapping"} (single overlay).}
+
+\item{...}{Forwarded to the underlying plot function (typical for
+\code{"overlapping"}: \code{drop_derivatives}, \code{drop_onset_offset},
+\code{colors}, \code{linetype}).}
 }
 \value{
-Result from \code{\link{plot_design_fit_core}}.
+Result from the dispatched plot function.
 }
 \description{
 Internal function to visualize the design matrix for a specific subject and
 HRF parameter combination from allHRFs results. Loads the saved design data
-and renders it using the core plotting infrastructure.
+and dispatches to one of two layouts (same pattern as
+\code{\link{plot_design_fit}}):
+\describe{
+\item{\code{style = "default"}}{Faceted panels via \code{\link{plot_design_unlapped}}.}
+\item{\code{style = "overlapping"}}{Single-panel overlay via
+\code{\link{plot_design}} (\code{method = "lineplot"}, \code{style = "overlapping"}).}
+}
 }
 \keyword{internal}

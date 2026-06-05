@@ -39,31 +39,42 @@ plot.allHRFs <- function(x, type = c("design", "hrfs", "param_grid", "single_hrf
 #'
 #' Internal function to visualize the design matrix for a specific subject and
 #' HRF parameter combination from allHRFs results. Loads the saved design data
-#' and renders it using the core plotting infrastructure.
+#' and dispatches to one of two layouts (same pattern as
+#' \code{\link{plot_design_fit}}):
+#' \describe{
+#'   \item{\code{style = "default"}}{Faceted panels via \code{\link{plot_design_unlapped}}.}
+#'   \item{\code{style = "overlapping"}}{Single-panel overlay via
+#'     \code{\link{plot_design}} (\code{method = "lineplot"}, \code{style = "overlapping"}).}
+#' }
 #'
 #' @param x An object of class \code{"allHRFs"} from \code{\link{fit_allHRFs}}.
 #' @param hrf_idx Integer. Index of the HRF parameter combination to plot.
 #' @param subject Integer. Index of the subject to plot.
-#' @param ... Additional arguments passed to \code{\link{plot_design_fit_core}}.
+#' @param style \code{"default"} (faceted) or \code{"overlapping"} (single overlay).
+#' @param ... Forwarded to the underlying plot function (typical for
+#'   \code{"overlapping"}: \code{drop_derivatives}, \code{drop_onset_offset},
+#'   \code{colors}, \code{linetype}).
 #'
-#' @return Result from \code{\link{plot_design_fit_core}}.
+#' @return Result from the dispatched plot function.
 #'
 #' @keywords internal
-plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1, ...) {
-  # Get file paths from the allHRFs result
+plot_design_fit_all <- function (x, hrf_idx = 1, subject = 1,
+                                 style = c("default", "overlapping"), ...) {
+  style <- match.arg(style)
   file_paths <- attr(x, "result_paths")
-
-  # Load the full subject data (including design_3D)
   full_subject_data <- qs2::qs_read(file_paths[[subject]])
-
-  # Extract the specific design matrix for the requested HRF index
   design_dHRFs <- full_subject_data[["design_3D"]][["list"]][[hrf_idx]]
 
   hrf_params <- x$hrf_grid[hrf_idx, ]
-  title <- sprintf("HRF #%d (a1=%.2f, b1=%.2f, c=%.2f)", 
+  title <- sprintf("HRF #%d (a1=%.2f, b1=%.2f, c=%.2f)",
                    hrf_idx, hrf_params$a1, hrf_params$b1, hrf_params$c)
 
-  plot_design_fit_core(design_dHRFs, title_prefix = title, ...)
+  if (style == "overlapping") {
+    plot_design(design_dHRFs, method = "lineplot", style = "overlapping", ...) +
+      ggplot2::labs(title = title)
+  } else {
+    plot_design_unlapped(design_dHRFs, title_prefix = title)
+  }
 }
 
 
@@ -100,5 +111,5 @@ plot_hrf_preview <- function(hrf_grid, EVs, nT, TR, hrf_idx = 1, onsets = TRUE, 
     c = hrf_grid$c[hrf_idx],
   )$design
 
-  plot_design_fit_core(design_dHRFs, ...)
+  plot_design_unlapped(design_dHRFs, ...)
 }

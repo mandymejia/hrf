@@ -3,6 +3,7 @@
 \name{plot_design}
 \alias{plot_design}
 \alias{plot_design_line}
+\alias{plot_design_unlapped}
 \alias{plot_design_image}
 \title{Plot design matrix}
 \usage{
@@ -13,8 +14,13 @@ plot_design_line(
   colors = "Set1",
   linetype = "solid",
   linewidth = 0.7,
-  alpha = 0.8
+  alpha = 0.8,
+  style = c("default", "overlapping"),
+  drop_derivatives = FALSE,
+  drop_onset_offset = FALSE
 )
+
+plot_design_unlapped(design, title_prefix = "Main HRF")
 
 plot_design_image(design)
 }
@@ -29,24 +35,50 @@ plot_design_image(design)
 \item{colors}{The name of a ColorBrewer palette (see
 RColorBrewer::brewer.pal.info and colorbrewer2.org), the name of a
 viridisLite palette, or a character vector of colors. Default:
-\code{"Set1"}.}
+\code{"Set1"}. A length-\code{nK} vector picks per-field colors.}
 
 \item{linetype, linewidth, alpha}{Parameters for \code{ggplot2::geom_line}.
 Defaults: \code{"solid"} linetype, \code{0.7} linewidth and \code{0.8}
 alpha. \code{linetype} can also be a vector of options with length matching
 the number of fields in \code{design}.}
+
+\item{style}{\code{"default"} (themed via \code{theme_bw}, legend right,
+grid on) or \code{"overlapping"} (themed via \code{theme_minimal}, legend
+at bottom, no grid, no legend title -- for the design-matrix overlap
+appendix figures where multiple task regressors are plotted on one panel
+using custom color/linetype per field).}
+
+\item{drop_derivatives}{If \code{TRUE}, drop columns whose names match
+\code{_dHRF$} or \code{_ddHRF$} (the HRF derivative columns produced by
+\code{make_HRFs}). Default \code{FALSE}.}
+
+\item{drop_onset_offset}{If \code{TRUE}, drop columns named \code{"onset"}
+and \code{"offset"} (the shared stimulus-onset and -offset regressors that
+\code{make_design} adds when \code{onset = TRUE} / \code{offset = TRUE}).
+Default \code{FALSE}.}
+
+\item{title_prefix}{Title for the main-HRF plot (default \code{"Main HRF"}).}
 }
 \value{
 A ggplot
 
 A ggplot
 
+Invisibly, a named list of \code{ggplot} objects (\code{main},
+\code{dhrf}, \code{ddhrf}) for whichever HRF types are present.
+Plots are also printed to the current device.
+
 A ggplot
 }
 \description{
-Plot design matrix
-
-Plot design with lineplot
-
-Plot design with imageplot
+Renders the design matrix as up to three faceted ggplots -- one each for
+the main HRF, dHRF, and ddHRF regressors -- where each plot is faceted by
+task (one row per task). Intended for inspecting individual HRF components
+in detail. Contrast with \code{plot_design_line(style = "overlapping")},
+which overlays all regressors on a single panel.
+}
+\details{
+Column-name convention: task name with optional \code{_dHRF} or
+\code{_ddHRF} suffix to flag derivative regressors. Onset/offset columns
+are included as their own tasks.
 }

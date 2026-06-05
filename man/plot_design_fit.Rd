@@ -4,28 +4,32 @@
 \alias{plot_design_fit}
 \title{Plot HRF design matrix for a single subject}
 \usage{
-plot_design_fit(x, subject = 1, ...)
+plot_design_fit(x, subject = 1, style = c("default", "overlapping"), ...)
 }
 \arguments{
 \item{x}{A \code{workingHRF} object as returned by \code{\link{fit_workingHRF}}.}
 
 \item{subject}{Integer. Index of the subject whose design matrix should be plotted.}
 
-\item{...}{Additional arguments (currently unused).}
+\item{style}{\code{"default"} (faceted) or \code{"overlapping"} (single overlay).}
+
+\item{...}{Additional arguments forwarded to the underlying plot function
+(\code{\link{plot_design_unlapped}} or \code{\link{plot_design}}). Typical
+args for \code{"overlapping"}: \code{drop_derivatives}, \code{drop_onset_offset},
+\code{colors}, \code{linetype}.}
 }
 \value{
-A named list of \code{ggplot2} objects for each HRF type that was found.
-Also prints the plots to the graphics device. Components may include:
-\code{main}, \code{dhrf}, \code{ddhrf}.
+Whatever the dispatched plot function returns (invisibly).
 }
 \description{
-This function generates line plots of the HRF regressors for a single subject's
-design matrix, as estimated by \code{\link{fit_workingHRF}}. It distinguishes between:
-\itemize{
-\item \strong{Main HRF}: Canonical regressors (no suffix)
-\item \strong{dHRF}: Temporal derivatives (columns ending in \code{_dHRF})
-\item \strong{ddHRF}: Dispersion derivatives (columns ending in \code{_ddHRF})
+Visualizes the design matrix from a \code{\link{fit_workingHRF}} fit for one
+subject. Dispatches to one of two layouts:
+\describe{
+\item{\code{style = "default"}}{Faceted panels via \code{\link{plot_design_unlapped}}:
+one ggplot per HRF type (main / dHRF / ddHRF), each faceted by task.}
+\item{\code{style = "overlapping"}}{Single-panel overlay via
+\code{\link{plot_design}} (\code{method = "lineplot"}, \code{style = "overlapping"}):
+all regressors plotted together, with color/linetype per field.}
 }
-Each type is plotted separately using \pkg{ggplot2}, with lines grouped by task.
 }
 \keyword{internal}
