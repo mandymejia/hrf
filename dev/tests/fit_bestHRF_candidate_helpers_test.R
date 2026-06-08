@@ -1,9 +1,16 @@
 # Test: candidate-fitting helpers ported into fit_bestHRF.R produce numerics
 # identical to regularize_allHRFs's saved output.
 #
-# Locks (against dev/fixtures/regularize_allHRFs_result_motorlr_4s_norss.rds):
+# Locks:
 #   - build_candidate_maps(pop_avg, hrf_grid) -> $candidate_maps, $offset_combos
-#   - pick_winning_candidate(scores) -> which.min behavior + ties
+#       vs regularize_allHRFs_result_motorlr_4s_norss.rds (refit-mode fixture;
+#       candidate_maps geometry doesn't depend on save_rss).
+#   - pick_winning_candidate(scores) -> which.min + saved winners (refit
+#       fixture's subject_results).
+#   - score_candidates_lookup(candidate_maps, RSS, fstat) -> matches
+#       regularize_allHRFs_result_motorlr_4s.rds (save_rss=TRUE / lookup mode)
+#       subject_results$weighted_RSS_1..25 columns. Exercised under FOUR
+#       conditions: {qs vs in-memory RSS} x {sequential vs parallel}.
 #
 # These helpers live in BOTH fit_bestHRF.R and regularize_allHRFs.R during the
 # migration window. The test only exercises the fit_bestHRF copies; regularize
@@ -52,6 +59,81 @@ check("matches regularize subject_results winning_candidate_id",
         scores <- as.numeric(expected$subject_results[i, paste0("weighted_RSS_", seq_along(expected$candidate_maps))])
         pick_winning_candidate(scores) == expected$subject_results$winning_candidate_id[i]
       }, logical(1))))
+
+# === score_candidates_lookup ===
+# Pull the lookup-mode regularize fixture, plus the inputs it was built from.
+cat("\n--- score_candidates_lookup vs lookup-mode regularize ---\n")
+expected_lookup <- readRDS("dev/fixtures/regularize_allHRFs_result_motorlr_4s.rds")
+allHRF_res      <- readRDS("dev/fixtures/fit_allHRFs_result_motorlr_4s.rds")
+working_res     <- readRDS("dev/fixtures/fit_workingHRF_result_motorlr_4s.rds")
+cands           <- expected_lookup$candidate_maps
+n_subjects      <- nrow(expected_lookup$subject_results)
+expected_scores <- as.matrix(expected_lookup$subject_results[, paste0("weighted_RSS_", seq_along(cands))])
+
+# Helper: load one subject's RSS + Fstat (qs read + workingHRF Fstat).
+load_subject_data <- function(i) {
+  qs_path <- attr(allHRF_res, "result_paths")[i]
+  qs_obj  <- qs2::qs_read(qs_path)
+  RSS <- rbind(qs_obj$glm_result$mGLM0s$cortexL$RSS,
+               qs_obj$glm_result$mGLM0s$cortexR$RSS)
+  Fstat <- c(working_res$subject_results[[i]]$glm_results$mGLM0s$cortexL$Fstat,
+             working_res$subject_results[[i]]$glm_results$mGLM0s$cortexR$Fstat)
+  list(RSS = RSS, Fstat = Fstat)
+}
+
+scores_to_mat <- function(scores_list) {
+  do.call(rbind, scores_list)
+}
+
+# Condition 1: with qs, sequential -- each iteration qs_reads.
+got_qs_seq <- scores_to_mat(lapply(seq_len(n_subjects), function(i) {
+  d <- load_subject_data(i)
+  score_candidates_lookup(cands, d$RSS, d$Fstat)
+}))
+check("qs + sequential matches regularize lookup",
+      isTRUE(all.equal(got_qs_seq, expected_scores, check.attributes = FALSE)))
+
+# Condition 2: without qs, sequential -- preload RSS+Fstat once, score in loop.
+preloaded <- lapply(seq_len(n_subjects), load_subject_data)
+got_mem_seq <- scores_to_mat(lapply(seq_len(n_subjects), function(i) {
+  score_candidates_lookup(cands, preloaded[[i]]$RSS, preloaded[[i]]$Fstat)
+}))
+check("in-memory + sequential matches regularize lookup",
+      isTRUE(all.equal(got_mem_seq, expected_scores, check.attributes = FALSE)))
+
+# Condition 3: with qs, parallel -- each worker qs_reads its own subject.
+cl <- parallel::makeCluster(2)
+parallel::clusterEvalQ(cl, {
+  devtools::load_all("~/Documents/Github/hrf-z", quiet = TRUE)
+  library(qs2)
+})
+parallel::clusterExport(cl, c("allHRF_res", "working_res", "cands",
+                              "load_subject_data"))
+got_qs_par <- scores_to_mat(parallel::parLapply(cl, seq_len(n_subjects), function(i) {
+  d <- load_subject_data(i)
+  score_candidates_lookup(cands, d$RSS, d$Fstat)
+}))
+parallel::stopCluster(cl)
+check("qs + parallel matches regularize lookup",
+      isTRUE(all.equal(got_qs_par, expected_scores, check.attributes = FALSE)))
+
+# Condition 4: without qs, parallel -- preloaded RSS shipped via clusterExport.
+cl <- parallel::makeCluster(2)
+parallel::clusterEvalQ(cl, devtools::load_all("~/Documents/Github/hrf-z", quiet = TRUE))
+parallel::clusterExport(cl, c("preloaded", "cands"))
+got_mem_par <- scores_to_mat(parallel::parLapply(cl, seq_len(n_subjects), function(i) {
+  score_candidates_lookup(cands, preloaded[[i]]$RSS, preloaded[[i]]$Fstat)
+}))
+parallel::stopCluster(cl)
+check("in-memory + parallel matches regularize lookup",
+      isTRUE(all.equal(got_mem_par, expected_scores, check.attributes = FALSE)))
+
+# Sanity: pick_winning_candidate over the lookup scores reproduces the
+# lookup fixture's winning_candidate_id.
+got_winners <- apply(got_qs_seq, 1, pick_winning_candidate)
+check("pick_winning_candidate on lookup scores matches saved winners",
+      identical(as.integer(got_winners),
+                as.integer(expected_lookup$subject_results$winning_candidate_id)))
 
 cat("\n")
 if (fail == 0) {

@@ -641,3 +641,46 @@ build_candidate_maps <- function(pop_avg, hrf_grid,
 pick_winning_candidate <- function(scores) {
   which.min(scores)
 }
+
+
+#' Score Candidate Maps for One Subject via RSS Lookup
+#'
+#' Computes Fstat-weighted RSS for each candidate map using pre-computed
+#' per-voxel-per-model RSS. Fastest scoring path; usable when
+#' \code{fit_allHRFs} was run with \code{save_rss = TRUE} so RSS matrices
+#' are available (loaded either from the .qs cache or already in memory).
+#'
+#' Port of the per-subject body of
+#' \code{regularize_allHRFs::fit_candidate_maps_lookup}, single-subject and
+#' source-agnostic (caller decides how to source RSS + Fstat). During the
+#' migration window the regularize copy is kept and still drives the
+#' aggregate lookup path; the fit_bestHRF copy will drive Phase 3
+#' personalization for new subjects.
+#'
+#' @param candidate_maps List of per-candidate data.frames from
+#'   \code{\link{build_candidate_maps}}. Each must have a \code{voxel} and
+#'   \code{model_idx} column.
+#' @param RSS Numeric matrix \code{[n_voxels x n_models]}. Per-voxel
+#'   residual sum of squares from \code{multiGLM} (cortexL + cortexR
+#'   stacked).
+#' @param fstat Numeric vector of canonical-HRF Fstat values, indexed by
+#'   voxel (length = \code{nrow(RSS)}). Used to compute the Fstat-squared
+#'   weights over the population-mask voxels.
+#'
+#' @return Numeric vector of length \code{length(candidate_maps)} giving
+#'   Fstat-weighted RSS per candidate (lower is better).
+#' @keywords internal
+score_candidates_lookup <- function(candidate_maps, RSS, fstat) {
+  pop_voxels <- candidate_maps[[1]]$voxel
+  fstat_sq <- fstat[pop_voxels]^2
+  fstat_sq_sum <- sum(fstat_sq, na.rm = TRUE)
+
+  scores <- numeric(length(candidate_maps))
+  for (j in seq_along(candidate_maps)) {
+    voxel_idx <- candidate_maps[[j]]$voxel
+    model_idx <- candidate_maps[[j]]$model_idx
+    voxel_rss <- RSS[cbind(voxel_idx, model_idx)]
+    scores[j] <- sum(voxel_rss * fstat_sq, na.rm = TRUE) / fstat_sq_sum
+  }
+  scores
+}
