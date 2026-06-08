@@ -546,3 +546,98 @@ package_results <- function(raw, xii) {
     )
   )
 }
+
+
+#' Build Candidate HRF Maps for One Subject's Personalization
+#'
+#' Generates the candidate HRF maps that fit_bestHRF scores when picking a
+#' subject's personalized HRF. For each combination of \code{a1_offset} and
+#' \code{b1_offset}, shifts the population-average snapped a1/b1 by the
+#' offset (clamped to the hrf_grid valid range) and snaps back to the nearest
+#' grid point. \code{c_snapped} is taken verbatim from \code{pop_avg}.
+#'
+#' Port of the per-subject body of \code{regularize_allHRFs::create_candidate_maps}.
+#' During the migration window this lives in both files; regularize keeps using
+#' its copy until Phase 2 strips the candidate-fitting machinery from
+#' \code{regularize_allHRFs.R}.
+#'
+#' @param pop_avg Data frame with columns \code{voxel}, \code{a1_snapped},
+#'   \code{b1_snapped}, \code{c_snapped} (the regularize pop_avg).
+#' @param hrf_grid HRF grid with at least \code{a1}, \code{b1}, \code{c},
+#'   \code{time_to_peak}, \code{FWHM} columns.
+#' @param a1_offsets Numeric vector of a1 offsets to scan (default
+#'   \code{c(-2, -1, 0, 1, 2)}).
+#' @param b1_offsets Numeric vector of b1 offsets to scan (default
+#'   \code{c(-0.5, -0.25, 0, 0.25, 0.5)}).
+#' @param verbose Integer verbosity level.
+#'
+#' @return List with two elements:
+#'   \describe{
+#'     \item{candidate_maps}{List of per-candidate data.frames with columns
+#'       voxel, a1, b1, c, model_idx, time_to_peak, FWHM, offset_id,
+#'       a1_offset, b1_offset.}
+#'     \item{offset_combos}{Data.frame of the offset combinations scanned.}
+#'   }
+#' @keywords internal
+build_candidate_maps <- function(pop_avg, hrf_grid,
+                                 a1_offsets = c(-2, -1, 0, 1, 2),
+                                 b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
+                                 verbose = 1) {
+  offset_combos <- expand.grid(a1_offset = a1_offsets, b1_offset = b1_offsets)
+  n_candidates <- nrow(offset_combos)
+  if (verbose > 0) cat("Creating", n_candidates, "candidate maps\n")
+
+  a1_min <- min(hrf_grid$a1); a1_max <- max(hrf_grid$a1)
+  b1_min <- min(hrf_grid$b1); b1_max <- max(hrf_grid$b1)
+  hrf_grid$key <- paste(hrf_grid$a1, hrf_grid$b1, hrf_grid$c, sep = "_")
+
+  candidate_maps <- vector("list", n_candidates)
+  for (i in seq_len(n_candidates)) {
+    a1_off <- offset_combos$a1_offset[i]
+    b1_off <- offset_combos$b1_offset[i]
+
+    a1_shifted <- pmin(pmax(pop_avg$a1_snapped + a1_off, a1_min), a1_max)
+    b1_shifted <- pmin(pmax(pop_avg$b1_snapped + b1_off, b1_min), b1_max)
+    c_vals     <- pop_avg$c_snapped
+
+    snapped <- snap_to_grid(a1_shifted, b1_shifted, c_vals, hrf_grid)
+
+    keys     <- paste(snapped$a1, snapped$b1, snapped$c, sep = "_")
+    grid_idx <- match(keys, hrf_grid$key)
+
+    candidate_maps[[i]] <- data.frame(
+      voxel        = pop_avg$voxel,
+      a1           = snapped$a1,
+      b1           = snapped$b1,
+      c            = snapped$c,
+      model_idx    = grid_idx,
+      time_to_peak = hrf_grid$time_to_peak[grid_idx],
+      FWHM         = hrf_grid$FWHM[grid_idx],
+      offset_id    = i,
+      a1_offset    = a1_off,
+      b1_offset    = b1_off
+    )
+  }
+
+  if (verbose > 0) {
+    all_keys <- unique(unlist(lapply(candidate_maps, function(cm) {
+      paste(cm$a1, cm$b1, cm$c, sep = "_")
+    })))
+    cat("Total unique HRF combos across candidates:", length(all_keys), "\n")
+  }
+
+  list(candidate_maps = candidate_maps, offset_combos = offset_combos)
+}
+
+
+#' Pick Winning Candidate
+#'
+#' Selects the candidate with the lowest weighted RSS. Trivial \code{which.min}
+#' wrapper kept as a named function for clarity at call sites.
+#'
+#' @param scores Numeric vector of weighted RSS scores (one per candidate).
+#' @return Integer index of the candidate with the smallest score.
+#' @keywords internal
+pick_winning_candidate <- function(scores) {
+  which.min(scores)
+}
