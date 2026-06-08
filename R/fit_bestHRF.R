@@ -217,6 +217,73 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 }
 
 
+#' Fit All Voxels Given an HRF Map
+#'
+#' Iterates over unique HRFs in `hrf_map_df`, building a design matrix per
+#' unique HRF and fitting all voxels that share it. Returns matrices of
+#' betas, contrast estimates, SEs, t-stats, raw + adjusted p-values.
+#'
+#' @param hrf_map_df data.frame with columns voxel, a1, b1, c.
+#' @param y Numeric matrix. BOLD data (nT x nV).
+#' @param EVs Event data for one subject.
+#' @param nT Integer. Number of timepoints.
+#' @param TR Numeric. Repetition time.
+#' @param nuisance_block Numeric matrix. Nuisance + DCT (nT x n_nuisance).
+#' @param A Numeric matrix. Contrast matrix (n_contrasts x n_task).
+#' @param n_task Integer. Number of task regressors.
+#' @param nV Integer. Total number of voxels.
+#' @param label Character. Used in verbose log line.
+#' @param onsets,offsets Logical. Include onset/offset regressors.
+#' @param p_adjust_method Character. P-value adjustment method.
+#' @param verbose Integer. Verbosity level.
+#' @return List of matrices: beta_mat, est_mat, SE_mat, tstat_mat, pval_mat,
+#'   pval_adj_mat (each nV x n_task or nV x n_contrasts), and df scalar.
+#' @keywords internal
+fit_all_voxels <- function(hrf_map_df, y, EVs, nT, TR, nuisance_block,
+                           A, n_task, nV, label,
+                           onsets = FALSE, offsets = FALSE,
+                           p_adjust_method = "BH", verbose = 1) {
+  beta_mat  <- matrix(NA_real_, nrow = nV, ncol = n_task)
+  est_mat   <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+  SE_mat    <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+  tstat_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+  pval_mat  <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+
+  hrf_map_df$hrf_key <- paste(hrf_map_df$a1, hrf_map_df$b1, hrf_map_df$c, sep = "_")
+  voxel_groups <- split(hrf_map_df$voxel, hrf_map_df$hrf_key)
+  unique_hrfs  <- unique(hrf_map_df[, c("a1", "b1", "c", "hrf_key")])
+
+  if (verbose > 0) cat("Fitting", label, "-", nrow(unique_hrfs), "unique HRF groups...\n")
+
+  df_val <- NA_integer_
+  for (g in seq_len(nrow(unique_hrfs))) {
+    td <- build_task_design(EVs, nT, TR, unique_hrfs$a1[g], unique_hrfs$b1[g], unique_hrfs$c[g], onsets, offsets)
+    fd <- build_full_design(td$design, nuisance_block, nT)
+    XtX_inv <- solve(crossprod(fd$X_full))
+    vox_idx <- voxel_groups[[unique_hrfs$hrf_key[g]]]
+
+    grp <- fit_hrf_group(vox_idx, y, fd$X_full, XtX_inv, n_task, A)
+
+    beta_mat[vox_idx, ]  <- grp$beta
+    est_mat[vox_idx, ]   <- grp$est
+    SE_mat[vox_idx, ]    <- grp$SE
+    tstat_mat[vox_idx, ] <- grp$tstat
+    pval_mat[vox_idx, ]  <- grp$pval
+    df_val <- grp$df
+  }
+
+  valid <- which(!is.na(pval_mat[, 1]))
+  pval_adj_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
+  if (length(valid) > 0) {
+    pval_adj_mat[valid, ] <- apply_p_adjustment(pval_mat[valid, , drop = FALSE], p_adjust_method)
+  }
+
+  list(beta_mat = beta_mat, est_mat = est_mat, SE_mat = SE_mat,
+       tstat_mat = tstat_mat, pval_mat = pval_mat, pval_adj_mat = pval_adj_mat,
+       df = df_val)
+}
+
+
 #' Fit Best HRF GLM for a Single Subject
 #'
 #' Fits a voxel-wise GLM using personalized HRFs from regularize_allHRFs.
@@ -312,47 +379,6 @@ fit_bestHRF <- function(regularize_result,
   A <- if (is.null(contrasts)) diag(n_task) else contrasts
   if (ncol(A) != n_task) stop("Contrast matrix has ", ncol(A), " columns but there are ", n_task, " task regressors")
 
-  # --- Helper: fit all voxels given an HRF map, return raw matrices ---
-  fit_all_voxels <- function(hrf_map_df, label) {
-    beta_mat <- matrix(NA_real_, nrow = nV, ncol = n_task)
-    est_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-    SE_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-    tstat_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-    pval_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-
-    hrf_map_df$hrf_key <- paste(hrf_map_df$a1, hrf_map_df$b1, hrf_map_df$c, sep = "_")
-    voxel_groups <- split(hrf_map_df$voxel, hrf_map_df$hrf_key)
-    unique_hrfs <- unique(hrf_map_df[, c("a1", "b1", "c", "hrf_key")])
-
-    if (verbose > 0) cat("Fitting", label, "-", nrow(unique_hrfs), "unique HRF groups...\n")
-
-    df_val <- NA_integer_
-    for (g in seq_len(nrow(unique_hrfs))) {
-      td <- build_task_design(EVs, nT, TR, unique_hrfs$a1[g], unique_hrfs$b1[g], unique_hrfs$c[g], onsets, offsets)
-      fd <- build_full_design(td$design, nuisance_block, nT)
-      XtX_inv <- solve(crossprod(fd$X_full))
-      vox_idx <- voxel_groups[[unique_hrfs$hrf_key[g]]]
-
-      grp <- fit_hrf_group(vox_idx, y, fd$X_full, XtX_inv, n_task, A)
-
-      beta_mat[vox_idx, ] <- grp$beta
-      est_mat[vox_idx, ] <- grp$est
-      SE_mat[vox_idx, ] <- grp$SE
-      tstat_mat[vox_idx, ] <- grp$tstat
-      pval_mat[vox_idx, ] <- grp$pval
-      df_val <- grp$df
-    }
-
-    valid <- which(!is.na(pval_mat[, 1]))
-    pval_adj_mat <- matrix(NA_real_, nrow = nV, ncol = nrow(A))
-    if (length(valid) > 0) {
-      pval_adj_mat[valid, ] <- apply_p_adjustment(pval_mat[valid, , drop = FALSE], p_adjust_method)
-    }
-
-    list(beta_mat = beta_mat, est_mat = est_mat, SE_mat = SE_mat,
-         tstat_mat = tstat_mat, pval_mat = pval_mat, pval_adj_mat = pval_adj_mat, df = df_val)
-  }
-
   # --- Helper: package raw matrices into xifti list ---
   package_results <- function(raw, xii) {
     list(
@@ -371,12 +397,16 @@ fit_bestHRF <- function(regularize_result,
 
   # Fit working HRF (same HRF for all voxels)
   working_map <- data.frame(voxel = 1:nV, a1 = working_hrf$a1, b1 = working_hrf$b1, c = working_hrf$c)
-  raw_working <- fit_all_voxels(working_map, "working HRF")
+  raw_working <- fit_all_voxels(working_map, y, EVs, nT, TR, nuisance_block,
+                                A, n_task, nV, "working HRF",
+                                onsets, offsets, p_adjust_method, verbose)
 
   # Fit each requested mode (personalized and/or adapted)
   mode_sections <- list()
   for (m in modes) {
-    raw_m <- fit_all_voxels(hrf_maps[[m]], m)
+    raw_m <- fit_all_voxels(hrf_maps[[m]], y, EVs, nT, TR, nuisance_block,
+                            A, n_task, nV, m,
+                            onsets, offsets, p_adjust_method, verbose)
     sec <- package_results(raw_m, xii)
     sec$hrf_assignments <- hrf_maps[[m]]
     if (m == "personalized") sec$subject_idx <- subject_idx
