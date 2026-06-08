@@ -31,6 +31,11 @@
 #' @param log_file Character path or NULL. If set, per-mode progress lines are
 #'   appended here (with timestamp + label + pid prefix). Useful for monitoring
 #'   parallel mode workers.
+#' @param n_cores Integer. Number of workers for mode-level parallelism
+#'   (working / personalized / adapted run on independent workers via
+#'   \code{parallel::parLapplyLB} on a PSOCK cluster, capped at the number
+#'   of requested modes). Default \code{1} = pure sequential \code{lapply}.
+#'   PSOCK works on macOS / Linux / Windows.
 #' @param verbose Integer. Verbosity level.
 #'
 #' @return A list with class \code{"bestHRF"} containing:
@@ -62,6 +67,7 @@ fit_bestHRF <- function(regularize_result,
                         offsets = FALSE,
                         p_adjust_method = "BH",
                         log_file = NULL,
+                        n_cores = 1,
                         verbose = 1) {
 
   # Vector of one or both: c("personalized") | c("adapted") | c("personalized","adapted").
@@ -114,13 +120,15 @@ fit_bestHRF <- function(regularize_result,
     )
   }
 
-  # Concurrency layer (sequential for now; mclapply replaces lapply in the
-  # next commit). Returns raw numeric matrices -- xifti conversion happens
+  # Concurrency layer: returns raw numeric matrices. xifti conversion happens
   # below sequentially so we don't push xifti objects through the fork pipe.
-  raw_results <- lapply(jobs, function(j) {
-    fit_one_mode(j, y, EVs, nT, TR, nuisance_block, A, n_task, nV,
-                 onsets, offsets, p_adjust_method, log_file, verbose)
-  })
+  raw_results <- run_modes_parallel(
+    jobs = jobs, n_cores = n_cores,
+    y = y, EVs = EVs, nT = nT, TR = TR, nuisance_block = nuisance_block,
+    A = A, n_task = n_task, nV = nV,
+    onsets = onsets, offsets = offsets, p_adjust_method = p_adjust_method,
+    log_file = log_file, verbose = verbose
+  )
 
   # Sequential packaging: wrap each raw result into an xifti section and
   # attach per-mode metadata (hrf_assignments, subject_idx for personalized).
@@ -137,6 +145,57 @@ fit_bestHRF <- function(regularize_result,
   result <- c(sections, list(df = raw_results[[1]]$df, contrast_matrix = A))
   class(result) <- "bestHRF"
   result
+}
+
+
+#' Dispatch Mode Fits Sequentially or via a PSOCK Cluster
+#'
+#' Runs \code{\link{fit_one_mode}} once per job. With \code{n_cores = 1}
+#' (default) uses \code{lapply} for behaviorally identical sequential fits.
+#' With \code{n_cores > 1} builds a PSOCK cluster via
+#' \code{\link{setup_parallel_cluster}} and dispatches with
+#' \code{parallel::parLapplyLB}. PSOCK works on macOS / Linux / Windows.
+#'
+#' Note: PSOCK ships y/EVs/nuisance_block to each worker via clusterExport
+#' (no shared memory). With ~3 modes this is fine; per-worker memory scales
+#' with the BOLD matrix size.
+#'
+#' @param jobs List of job triples (label, map, subject_idx) built in
+#'   \code{fit_bestHRF}.
+#' @param n_cores Integer. Workers, capped at \code{length(jobs)}.
+#' @param y,EVs,nT,TR,nuisance_block,A,n_task,nV See \code{\link{fit_one_mode}}.
+#' @param onsets,offsets,p_adjust_method See \code{\link{fit_one_mode}}.
+#' @param log_file,verbose See \code{\link{fit_one_mode}}. \code{log_file} is
+#'   also used as the cluster \code{outfile} so worker stdout/stderr lands
+#'   there alongside the per-mode timestamp lines.
+#' @return List of raw fit results, one per job (same order as \code{jobs}).
+#' @keywords internal
+run_modes_parallel <- function(jobs, n_cores,
+                               y, EVs, nT, TR, nuisance_block,
+                               A, n_task, nV,
+                               onsets, offsets, p_adjust_method,
+                               log_file = NULL, verbose = 1) {
+  worker_fn <- function(j) {
+    fit_one_mode(j, y, EVs, nT, TR, nuisance_block, A, n_task, nV,
+                 onsets, offsets, p_adjust_method, log_file, verbose)
+  }
+
+  if (!isTRUE(n_cores > 1)) return(lapply(jobs, worker_fn))
+
+  n_workers <- min(n_cores, length(jobs))
+  if (verbose > 0) cat("run_modes_parallel: PSOCK cluster with", n_workers, "workers\n")
+
+  cluster_outfile <- if (!is.null(log_file)) log_file else ""
+  cl <- parallel::makeCluster(n_workers, outfile = cluster_outfile)
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+
+  vars_to_export <- c("y", "EVs", "nT", "TR", "nuisance_block",
+                      "A", "n_task", "nV",
+                      "onsets", "offsets", "p_adjust_method",
+                      "log_file", "verbose")
+  setup_parallel_cluster(cl, verbose, vars_to_export)
+
+  parallel::parLapplyLB(cl, jobs, worker_fn)
 }
 
 

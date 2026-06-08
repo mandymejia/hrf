@@ -21,6 +21,7 @@ fit_bestHRF(
   offsets = FALSE,
   p_adjust_method = "BH",
   log_file = NULL,
+  n_cores = 1,
   verbose = 1
 )
 }
@@ -65,6 +66,12 @@ shape (\code{a1 = 6, b1 = 1, c = 1/6}).}
 \item{log_file}{Character path or NULL. If set, per-mode progress lines are
 appended here (with timestamp + label + pid prefix). Useful for monitoring
 parallel mode workers.}
+
+\item{n_cores}{Integer. Number of workers for mode-level parallelism
+(working / personalized / adapted run on independent workers via
+\code{parallel::parLapplyLB} on a PSOCK cluster, capped at the number
+of requested modes). Default \code{1} = pure sequential \code{lapply}.
+PSOCK works on macOS / Linux / Windows.}
 
 \item{verbose}{Integer. Verbosity level.}
 }

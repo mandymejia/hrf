@@ -53,6 +53,13 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     "get_taper_start",
     # regularize_allHRFs
     "process_candidate_subject_refit",
+    # fit_bestHRF (3-way mode parallelism)
+    "fit_one_mode",
+    "fit_all_voxels",
+    "build_full_design",
+    "fit_hrf_group",
+    "compute_contrasts",
+    "apply_p_adjustment",
     # file handling
     "save_object",
     "load_object",
