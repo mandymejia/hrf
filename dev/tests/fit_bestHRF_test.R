@@ -1,4 +1,4 @@
-# Test: fit_bestHRF in population mode.
+# Test: fit_bestHRF in adapted mode (adapted-average HRF).
 # Re-runs fit_bestHRF on the 4-subject MOTOR_LR fixture (subject 1) and
 # compares to the saved baseline.
 #
@@ -12,12 +12,12 @@ devtools::load_all("~/Documents/Github/hrf-z", quiet = TRUE)
 # ** Inputs **
 session_data <- readRDS("dev/fixtures/session_data_4s/session_data_motor_lr_4s.rds")
 reg_result   <- readRDS("dev/fixtures/regularize_result_motorlr_1125s_slim.rds")
-reg_result$subject_results <- NULL  # force population-only regularize
+reg_result$subject_results <- NULL  # force adapted-only regularize
 
 # ** Saved baseline **
 expected <- readRDS("dev/fixtures/fit_bestHRF_result_motorlr_4s_pop.rds")
 
-cat("Running fit_bestHRF (population mode, subject 1)...\n")
+cat("Running fit_bestHRF (adapted mode, subject 1)...\n")
 t0 <- Sys.time()
 got <- fit_bestHRF(
   reg_result,
@@ -25,7 +25,7 @@ got <- fit_bestHRF(
   EVs       = session_data$EVs_list[[1]],
   nuisance_file = session_data$nuisance_files[1],
   TR = 0.72,
-  use = "population",
+  use = "adapted",
   onsets = TRUE, offsets = TRUE,
   verbose = 0
 )
@@ -63,11 +63,11 @@ check("working$contrasts$pval",   xifti_eq(got$working$contrasts$pval,   expecte
 check("working$contrasts$pval_adj", xifti_eq(got$working$contrasts$pval_adj, expected$working$contrasts$pval_adj))
 check("working$hrf_assignments",  isTRUE(all.equal(got$working$hrf_assignments, expected$working$hrf_assignments)))
 
-check("population$betas",         xifti_eq(got$population$betas,         expected$population$betas))
-check("population$contrasts$tstat", xifti_eq(got$population$contrasts$tstat, expected$population$contrasts$tstat))
-check("population$contrasts$pval", xifti_eq(got$population$contrasts$pval, expected$population$contrasts$pval))
-check("population$contrasts$pval_adj", xifti_eq(got$population$contrasts$pval_adj, expected$population$contrasts$pval_adj))
-check("population$hrf_assignments", isTRUE(all.equal(got$population$hrf_assignments, expected$population$hrf_assignments)))
+check("adapted$betas",         xifti_eq(got$adapted$betas,         expected$adapted$betas))
+check("adapted$contrasts$tstat", xifti_eq(got$adapted$contrasts$tstat, expected$adapted$contrasts$tstat))
+check("adapted$contrasts$pval", xifti_eq(got$adapted$contrasts$pval, expected$adapted$contrasts$pval))
+check("adapted$contrasts$pval_adj", xifti_eq(got$adapted$contrasts$pval_adj, expected$adapted$contrasts$pval_adj))
+check("adapted$hrf_assignments", isTRUE(all.equal(got$adapted$hrf_assignments, expected$adapted$hrf_assignments)))
 
 cat("\n")
 if (fail == 0) {

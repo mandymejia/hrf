@@ -10,7 +10,7 @@ fit_bestHRF(
   EVs,
   nuisance_file = NULL,
   TR,
-  use = c("subject", "population"),
+  use = c("personalized", "adapted"),
   subject_idx = NULL,
   contrasts = NULL,
   working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
@@ -34,12 +34,14 @@ fit_bestHRF(
 
 \item{TR}{Numeric. Repetition time in seconds.}
 
-\item{use}{Either "subject" (default) for the subject's adapted HRF map, or
-"population" for the population-average map. "subject" requires
-\code{regularize_result} to have been built with \code{seffects = TRUE} and a
-non-NULL \code{subject_idx}.}
+\item{use}{Character vector. Subset of \code{c("personalized", "adapted")};
+pass either (or both) to request the corresponding HRF fit alongside the
+always-present working fit. Defaults to "personalized". Including
+"personalized" requires \code{regularize_result} to have been built with
+\code{seffects = TRUE} and a non-NULL \code{subject_idx}.}
 
-\item{subject_idx}{Integer. Subject index (required when use = "subject").}
+\item{subject_idx}{Integer. Subject index (required when use includes
+"personalized").}
 
 \item{contrasts}{Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 Default NULL uses identity (each beta tested individually).}
@@ -64,10 +66,12 @@ shape (\code{a1 = 6, b1 = 1, c = 1/6}).}
 \value{
 A list with class \code{"bestHRF"} containing:
 \describe{
-\item{working}{Canonical HRF fit: betas and contrasts (as xifti)}
-\item{adapted (or population)}{Regularized HRF fit: betas, contrasts,
-hrf_assignments (voxel-to-HRF mapping), and subject_idx (when use = "subject").
-Section is named "adapted" when use = "subject", "population" when use = "population".}
+\item{working}{Canonical HRF fit: betas and contrasts (as xifti). Always
+present.}
+\item{personalized}{Subject-specific best HRF fit (when use is
+"personalized" or "both").}
+\item{adapted}{Population-average HRF fit (when use is "adapted" or
+"both").}
 \item{df}{Degrees of freedom}
 \item{contrast_matrix}{The contrast matrix A used}
 }

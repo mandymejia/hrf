@@ -9,9 +9,9 @@ validate_bestHRF_inputs(regularize_result, use, subject_idx)
 \arguments{
 \item{regularize_result}{Output from regularize_allHRFs.}
 
-\item{use}{Either "subject" or "population".}
+\item{use}{Either "personalized" or "adapted".}
 
-\item{subject_idx}{Subject index (required when use = "subject").}
+\item{subject_idx}{Subject index (required when use = "personalized").}
 }
 \description{
 Checks consistency between \code{use}, the regularize result, and subject_idx.

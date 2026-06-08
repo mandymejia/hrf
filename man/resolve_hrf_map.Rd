@@ -4,20 +4,20 @@
 \alias{resolve_hrf_map}
 \title{Resolve HRF Map from Regularize Result}
 \usage{
-resolve_hrf_map(regularize_result, use, subject_idx = NULL)
+resolve_hrf_map(regularize_result, mode, subject_idx = NULL)
 }
 \arguments{
 \item{regularize_result}{Output from regularize_allHRFs.}
 
-\item{use}{Either "subject" or "population".}
+\item{mode}{One of "personalized" or "adapted".}
 
-\item{subject_idx}{Integer subject index (required when use = "subject").}
+\item{subject_idx}{Integer subject index (required when mode = "personalized").}
 }
 \value{
 data.frame with columns: voxel, a1, b1, c.
 }
 \description{
-Returns the HRF map specified by \code{use}: either the subject's adapted map
-(winning candidate) or the population average.
+Returns the HRF map for a single mode: the subject's personalized map
+(winning candidate) or the population-average ("adapted") map.
 }
 \keyword{internal}

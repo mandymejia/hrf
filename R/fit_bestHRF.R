@@ -120,43 +120,42 @@ apply_p_adjustment <- function(pval_mat, method = "BH") {
 #' Checks consistency between `use`, the regularize result, and subject_idx.
 #'
 #' @param regularize_result Output from regularize_allHRFs.
-#' @param use Either "subject" or "population".
-#' @param subject_idx Subject index (required when use = "subject").
+#' @param use Either "personalized" or "adapted".
+#' @param subject_idx Subject index (required when use = "personalized").
 #' @keywords internal
 validate_bestHRF_inputs <- function(regularize_result, use, subject_idx) {
   has_seffects <- !is.null(regularize_result$subject_results)
 
-  if (use == "subject") {
+  if ("personalized" %in% use) {
     if (!has_seffects) {
-      stop("use = 'subject' requires regularize_allHRFs to have been run with seffects = TRUE. ",
-           "Re-run regularize_allHRFs with seffects = TRUE, or call fit_bestHRF with use = 'population'.")
+      stop("use including 'personalized' requires regularize_allHRFs to have been run with seffects = TRUE. ",
+           "Re-run with seffects = TRUE, or call fit_bestHRF with use = 'adapted' only.")
     }
     if (is.null(subject_idx)) {
-      stop("subject_idx is required when use = 'subject'.")
+      stop("subject_idx is required when use includes 'personalized'.")
     }
     n_subjects <- nrow(regularize_result$subject_results)
     if (subject_idx < 1 || subject_idx > n_subjects) {
       stop("subject_idx = ", subject_idx, " is out of range (1 to ", n_subjects, ").")
     }
   }
-  # use == "population": subject_idx is ignored regardless of seffects
 }
 
 
 #' Resolve HRF Map from Regularize Result
 #'
-#' Returns the HRF map specified by `use`: either the subject's adapted map
-#' (winning candidate) or the population average.
+#' Returns the HRF map for a single mode: the subject's personalized map
+#' (winning candidate) or the population-average ("adapted") map.
 #'
 #' @param regularize_result Output from regularize_allHRFs.
-#' @param use Either "subject" or "population".
-#' @param subject_idx Integer subject index (required when use = "subject").
+#' @param mode One of "personalized" or "adapted".
+#' @param subject_idx Integer subject index (required when mode = "personalized").
 #' @return data.frame with columns: voxel, a1, b1, c.
 #' @keywords internal
-resolve_hrf_map <- function(regularize_result, use, subject_idx = NULL) {
-  validate_bestHRF_inputs(regularize_result, use, subject_idx)
+resolve_hrf_map <- function(regularize_result, mode, subject_idx = NULL) {
+  validate_bestHRF_inputs(regularize_result, mode, subject_idx)
 
-  if (use == "subject") {
+  if (mode == "personalized") {
     winning_id <- regularize_result$subject_results$winning_candidate_id[subject_idx]
     cm <- regularize_result$candidate_maps[[winning_id]]
     data.frame(voxel = cm$voxel, a1 = cm$a1, b1 = cm$b1, c = cm$c)
@@ -230,11 +229,13 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 #' @param EVs Event data for this subject.
 #' @param nuisance_file Character. Path to nuisance regressor file (or NULL).
 #' @param TR Numeric. Repetition time in seconds.
-#' @param use Either "subject" (default) for the subject's adapted HRF map, or
-#'   "population" for the population-average map. "subject" requires
-#'   `regularize_result` to have been built with `seffects = TRUE` and a
-#'   non-NULL `subject_idx`.
-#' @param subject_idx Integer. Subject index (required when use = "subject").
+#' @param use Character vector. Subset of \code{c("personalized", "adapted")};
+#'   pass either (or both) to request the corresponding HRF fit alongside the
+#'   always-present working fit. Defaults to "personalized". Including
+#'   "personalized" requires `regularize_result` to have been built with
+#'   `seffects = TRUE` and a non-NULL `subject_idx`.
+#' @param subject_idx Integer. Subject index (required when use includes
+#'   "personalized").
 #' @param contrasts Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 #'   Default NULL uses identity (each beta tested individually).
 #' @param working_hrf List with elements \code{a1}, \code{b1}, \code{c}
@@ -250,10 +251,12 @@ fit_hrf_group <- function(vox_idx, y, X_full, XtX_inv, n_task, A) {
 #'
 #' @return A list with class \code{"bestHRF"} containing:
 #'   \describe{
-#'     \item{working}{Canonical HRF fit: betas and contrasts (as xifti)}
-#'     \item{adapted (or population)}{Regularized HRF fit: betas, contrasts,
-#'       hrf_assignments (voxel-to-HRF mapping), and subject_idx (when use = "subject").
-#'       Section is named "adapted" when use = "subject", "population" when use = "population".}
+#'     \item{working}{Canonical HRF fit: betas and contrasts (as xifti). Always
+#'       present.}
+#'     \item{personalized}{Subject-specific best HRF fit (when use is
+#'       "personalized" or "both").}
+#'     \item{adapted}{Population-average HRF fit (when use is "adapted" or
+#'       "both").}
 #'     \item{df}{Degrees of freedom}
 #'     \item{contrast_matrix}{The contrast matrix A used}
 #'   }
@@ -264,7 +267,7 @@ fit_bestHRF <- function(regularize_result,
                         EVs,
                         nuisance_file = NULL,
                         TR,
-                        use = c("subject", "population"),
+                        use = c("personalized", "adapted"),
                         subject_idx = NULL,
                         contrasts = NULL,
                         working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
@@ -276,11 +279,15 @@ fit_bestHRF <- function(regularize_result,
                         p_adjust_method = "BH",
                         verbose = 1) {
 
-  use <- match.arg(use)
-
-  # Resolve HRF map
-  hrf_map <- resolve_hrf_map(regularize_result, use, subject_idx)
-  if (verbose > 0) cat("fit_bestHRF:", use, "mode,", nrow(hrf_map), "voxels\n")
+  # Vector of one or both: c("personalized") | c("adapted") | c("personalized","adapted").
+  use <- match.arg(use, several.ok = TRUE)
+  modes <- use
+  hrf_maps <- setNames(
+    lapply(modes, function(m) resolve_hrf_map(regularize_result, m, subject_idx)),
+    modes
+  )
+  if (verbose > 0) cat("fit_bestHRF: modes =", paste(modes, collapse = ", "),
+                       "(", nrow(hrf_maps[[1]]), "voxels )\n")
 
   # Load BOLD data
   if (verbose > 0) cat("Loading BOLD data...\n")
@@ -297,8 +304,9 @@ fit_bestHRF <- function(regularize_result,
   }
   nuisance_block <- build_nuisance_block(nuisance_mat, nT, TR, hpf)
 
-  # Determine n_task and set up contrasts
-  first_td <- build_task_design(EVs, nT, TR, hrf_map$a1[1], hrf_map$b1[1], hrf_map$c[1], onsets, offsets)
+  # Determine n_task and set up contrasts (use first mode's map as reference)
+  first_map <- hrf_maps[[1]]
+  first_td <- build_task_design(EVs, nT, TR, first_map$a1[1], first_map$b1[1], first_map$c[1], onsets, offsets)
   n_task <- ncol(first_td$design)
   task_names <- first_td$task_names
   A <- if (is.null(contrasts)) diag(n_task) else contrasts
@@ -365,26 +373,23 @@ fit_bestHRF <- function(regularize_result,
   working_map <- data.frame(voxel = 1:nV, a1 = working_hrf$a1, b1 = working_hrf$b1, c = working_hrf$c)
   raw_working <- fit_all_voxels(working_map, "working HRF")
 
-  # Fit adapted/population HRF
-  mode_label <- if (use == "subject") "adapted" else "population"
-  raw_adapted <- fit_all_voxels(hrf_map, mode_label)
+  # Fit each requested mode (personalized and/or adapted)
+  mode_sections <- list()
+  for (m in modes) {
+    raw_m <- fit_all_voxels(hrf_maps[[m]], m)
+    sec <- package_results(raw_m, xii)
+    sec$hrf_assignments <- hrf_maps[[m]]
+    if (m == "personalized") sec$subject_idx <- subject_idx
+    mode_sections[[m]] <- sec
+  }
 
   if (verbose > 0) cat("fit_bestHRF complete.\n")
-
-  adapted_section <- package_results(raw_adapted, xii)
-  adapted_section$hrf_assignments <- hrf_map
-  if (use == "subject") adapted_section$subject_idx <- subject_idx
 
   working_section <- package_results(raw_working, xii)
   working_section$hrf_assignments <- working_map
 
-  result <- list(
-    working = working_section,
-    placeholder = adapted_section,
-    df = raw_working$df,
-    contrast_matrix = A
-  )
-  names(result)[2] <- mode_label
+  result <- c(list(working = working_section), mode_sections,
+              list(df = raw_working$df, contrast_matrix = A))
 
   class(result) <- "bestHRF"
   result
