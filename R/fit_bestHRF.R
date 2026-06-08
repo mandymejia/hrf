@@ -284,6 +284,30 @@ fit_all_voxels <- function(hrf_map_df, y, EVs, nT, TR, nuisance_block,
 }
 
 
+#' Package Raw Fit Matrices into a List of xifti Objects
+#'
+#' Wraps each numeric matrix produced by \code{\link{fit_all_voxels}} into an
+#' xifti object using \code{xii} as the template.
+#'
+#' @param raw List from \code{fit_all_voxels()}: must contain beta_mat, est_mat,
+#'   SE_mat, tstat_mat, pval_mat, pval_adj_mat.
+#' @param xii Template xifti object.
+#' @return List with \code{$betas} and \code{$contrasts$\{est,SE,tstat,pval,pval_adj\}}.
+#' @keywords internal
+package_results <- function(raw, xii) {
+  list(
+    betas = ciftiTools::newdata_xifti(xii, raw$beta_mat),
+    contrasts = list(
+      est      = ciftiTools::newdata_xifti(xii, raw$est_mat),
+      SE       = ciftiTools::newdata_xifti(xii, raw$SE_mat),
+      tstat    = ciftiTools::newdata_xifti(xii, raw$tstat_mat),
+      pval     = ciftiTools::newdata_xifti(xii, raw$pval_mat),
+      pval_adj = ciftiTools::newdata_xifti(xii, raw$pval_adj_mat)
+    )
+  )
+}
+
+
 #' Fit Best HRF GLM for a Single Subject
 #'
 #' Fits a voxel-wise GLM using personalized HRFs from regularize_allHRFs.
@@ -378,20 +402,6 @@ fit_bestHRF <- function(regularize_result,
   task_names <- first_td$task_names
   A <- if (is.null(contrasts)) diag(n_task) else contrasts
   if (ncol(A) != n_task) stop("Contrast matrix has ", ncol(A), " columns but there are ", n_task, " task regressors")
-
-  # --- Helper: package raw matrices into xifti list ---
-  package_results <- function(raw, xii) {
-    list(
-      betas = ciftiTools::newdata_xifti(xii, raw$beta_mat),
-      contrasts = list(
-        est = ciftiTools::newdata_xifti(xii, raw$est_mat),
-        SE = ciftiTools::newdata_xifti(xii, raw$SE_mat),
-        tstat = ciftiTools::newdata_xifti(xii, raw$tstat_mat),
-        pval = ciftiTools::newdata_xifti(xii, raw$pval_mat),
-        pval_adj = ciftiTools::newdata_xifti(xii, raw$pval_adj_mat)
-      )
-    )
-  }
 
   xii <- bold_data$BOLD_xii
 
