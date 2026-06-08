@@ -255,6 +255,7 @@ fit_all_voxels <- function(hrf_map_df, y, EVs, nT, TR, nuisance_block,
 
   if (verbose > 0) cat("Fitting", label, "-", nrow(unique_hrfs), "unique HRF groups...\n")
 
+  # df is invariant across HRF groups (same nT, same X_full ncol). Set once.
   df_val <- NA_integer_
   for (g in seq_len(nrow(unique_hrfs))) {
     td <- build_task_design(EVs, nT, TR, unique_hrfs$a1[g], unique_hrfs$b1[g], unique_hrfs$c[g], onsets, offsets)
@@ -269,7 +270,9 @@ fit_all_voxels <- function(hrf_map_df, y, EVs, nT, TR, nuisance_block,
     SE_mat[vox_idx, ]    <- grp$SE
     tstat_mat[vox_idx, ] <- grp$tstat
     pval_mat[vox_idx, ]  <- grp$pval
-    df_val <- grp$df
+
+    if (is.na(df_val)) df_val <- grp$df
+    else if (df_val != grp$df) stop("df differs across HRF groups: ", df_val, " vs ", grp$df)
   }
 
   valid <- which(!is.na(pval_mat[, 1]))
@@ -395,9 +398,11 @@ fit_bestHRF <- function(regularize_result,
   }
   nuisance_block <- build_nuisance_block(nuisance_mat, nT, TR, hpf)
 
-  # Determine n_task and set up contrasts (use first mode's map as reference)
-  first_map <- hrf_maps[[1]]
-  first_td <- build_task_design(EVs, nT, TR, first_map$a1[1], first_map$b1[1], first_map$c[1], onsets, offsets)
+  # Determine n_task and set up contrasts. Use working_hrf params (always
+  # valid SPM canonical) since task structure depends on EVs, not HRF shape.
+  first_td <- build_task_design(EVs, nT, TR,
+                                working_hrf$a1, working_hrf$b1, working_hrf$c,
+                                onsets, offsets)
   n_task <- ncol(first_td$design)
   task_names <- first_td$task_names
   A <- if (is.null(contrasts)) diag(n_task) else contrasts
