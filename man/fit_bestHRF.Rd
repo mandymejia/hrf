@@ -20,6 +20,7 @@ fit_bestHRF(
   onsets = FALSE,
   offsets = FALSE,
   p_adjust_method = "BH",
+  log_file = NULL,
   verbose = 1
 )
 }
@@ -60,6 +61,10 @@ shape (\code{a1 = 6, b1 = 1, c = 1/6}).}
 \item{onsets, offsets}{Logical. Include onset/offset regressors.}
 
 \item{p_adjust_method}{Character. P-value adjustment method.}
+
+\item{log_file}{Character path or NULL. If set, per-mode progress lines are
+appended here (with timestamp + label + pid prefix). Useful for monitoring
+parallel mode workers.}
 
 \item{verbose}{Integer. Verbosity level.}
 }

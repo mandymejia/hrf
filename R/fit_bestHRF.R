@@ -28,6 +28,9 @@
 #' @param hpf Numeric. High-pass filter cutoff.
 #' @param onsets,offsets Logical. Include onset/offset regressors.
 #' @param p_adjust_method Character. P-value adjustment method.
+#' @param log_file Character path or NULL. If set, per-mode progress lines are
+#'   appended here (with timestamp + label + pid prefix). Useful for monitoring
+#'   parallel mode workers.
 #' @param verbose Integer. Verbosity level.
 #'
 #' @return A list with class \code{"bestHRF"} containing:
@@ -58,6 +61,7 @@ fit_bestHRF <- function(regularize_result,
                         onsets = FALSE,
                         offsets = FALSE,
                         p_adjust_method = "BH",
+                        log_file = NULL,
                         verbose = 1) {
 
   # Vector of one or both: c("personalized") | c("adapted") | c("personalized","adapted").
@@ -97,34 +101,79 @@ fit_bestHRF <- function(regularize_result,
 
   xii <- bold_data$BOLD_xii
 
-  # Fit working HRF (same HRF for all voxels)
-  working_map <- data.frame(voxel = 1:nV, a1 = working_hrf$a1, b1 = working_hrf$b1, c = working_hrf$c)
-  raw_working <- fit_all_voxels(working_map, y, EVs, nT, TR, nuisance_block,
-                                A, n_task, nV, "working HRF",
-                                onsets, offsets, p_adjust_method, verbose)
-
-  # Fit each requested mode (personalized and/or adapted)
-  mode_sections <- list()
+  # Build a job list: working (always) + each requested mode. Each job is a
+  # self-contained (label, hrf_map, subject_idx) triple that fit_one_mode can
+  # consume independently -- enables the upcoming mclapply concurrency layer.
+  working_map <- data.frame(voxel = 1:nV, a1 = working_hrf$a1,
+                            b1 = working_hrf$b1, c = working_hrf$c)
+  jobs <- list(list(label = "working", map = working_map, subject_idx = NULL))
   for (m in modes) {
-    raw_m <- fit_all_voxels(hrf_maps[[m]], y, EVs, nT, TR, nuisance_block,
-                            A, n_task, nV, m,
-                            onsets, offsets, p_adjust_method, verbose)
-    sec <- package_results(raw_m, xii)
-    sec$hrf_assignments <- hrf_maps[[m]]
-    if (m == "personalized") sec$subject_idx <- subject_idx
-    mode_sections[[m]] <- sec
+    jobs[[length(jobs) + 1]] <- list(
+      label = m, map = hrf_maps[[m]],
+      subject_idx = if (m == "personalized") subject_idx else NULL
+    )
   }
+
+  # Concurrency layer (sequential for now; mclapply replaces lapply in the
+  # next commit). Returns raw numeric matrices -- xifti conversion happens
+  # below sequentially so we don't push xifti objects through the fork pipe.
+  raw_results <- lapply(jobs, function(j) {
+    fit_one_mode(j, y, EVs, nT, TR, nuisance_block, A, n_task, nV,
+                 onsets, offsets, p_adjust_method, log_file, verbose)
+  })
+
+  # Sequential packaging: wrap each raw result into an xifti section and
+  # attach per-mode metadata (hrf_assignments, subject_idx for personalized).
+  sections <- Map(function(raw, j) {
+    sec <- package_results(raw, xii)
+    sec$hrf_assignments <- j$map
+    if (!is.null(j$subject_idx)) sec$subject_idx <- j$subject_idx
+    sec
+  }, raw_results, jobs)
+  names(sections) <- vapply(jobs, `[[`, character(1), "label")
 
   if (verbose > 0) cat("fit_bestHRF complete.\n")
 
-  working_section <- package_results(raw_working, xii)
-  working_section$hrf_assignments <- working_map
-
-  result <- c(list(working = working_section), mode_sections,
-              list(df = raw_working$df, contrast_matrix = A))
-
+  result <- c(sections, list(df = raw_results[[1]]$df, contrast_matrix = A))
   class(result) <- "bestHRF"
   result
+}
+
+
+#' Fit One Mode (working / adapted / personalized) and Return Raw Matrices
+#'
+#' Wraps a single call to \code{\link{fit_all_voxels}} for one mode's HRF map.
+#' Returns the raw numeric matrices only -- xifti conversion happens
+#' sequentially in the caller so parallel workers don't have to push xifti
+#' objects back through the fork pipe.
+#'
+#' @param j List with elements \code{label} (character), \code{map}
+#'   (HRF map data.frame), \code{subject_idx} (used only for the personalized
+#'   mode; passed through, not consumed here).
+#' @param y,EVs,nT,TR,nuisance_block,A,n_task,nV See \code{\link{fit_all_voxels}}.
+#' @param onsets,offsets,p_adjust_method See \code{\link{fit_all_voxels}}.
+#' @param log_file Character path or NULL. If set, appends a timestamp +
+#'   label + pid line at start and end of the fit.
+#' @param verbose Integer. Verbosity level (passed through).
+#' @return List of raw numeric matrices from \code{fit_all_voxels()}.
+#' @keywords internal
+fit_one_mode <- function(j, y, EVs, nT, TR, nuisance_block,
+                         A, n_task, nV,
+                         onsets, offsets, p_adjust_method,
+                         log_file = NULL, verbose = 1) {
+  log_msg <- function(msg) {
+    if (!is.null(log_file)) {
+      cat(sprintf("[%s] [%s] [pid %d] %s\n",
+                  format(Sys.time()), j$label, Sys.getpid(), msg),
+          file = log_file, append = TRUE)
+    }
+  }
+  log_msg("starting fit")
+  raw <- fit_all_voxels(j$map, y, EVs, nT, TR, nuisance_block,
+                        A, n_task, nV, j$label,
+                        onsets, offsets, p_adjust_method, verbose)
+  log_msg(sprintf("done (df = %d)", raw$df))
+  raw
 }
 
 
