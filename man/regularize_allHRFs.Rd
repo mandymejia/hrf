@@ -2,72 +2,33 @@
 % Please edit documentation in R/regularize_allHRFs.R
 \name{regularize_allHRFs}
 \alias{regularize_allHRFs}
-\title{Regularize All HRFs Using POCv2 Algorithm}
+\title{Build the Population HRF Template from fit_allHRFs Results}
 \usage{
-regularize_allHRFs(
-  workingHRF_results,
-  allHRF_results,
-  BOLD = NULL,
-  EVs = NULL,
-  nuisance = NULL,
-  TR = NULL,
-  a1_offsets = c(-2, -1, 0, 1, 2),
-  b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
-  seffects = TRUE,
-  onsets = FALSE,
-  offsets = FALSE,
-  n_cores = 1,
-  log_dir = "logs",
-  verbose = 1
-)
+regularize_allHRFs(workingHRF_results, allHRF_results, verbose = 1)
 }
 \arguments{
-\item{workingHRF_results}{Results from \code{fit_workingHRF()}.}
+\item{workingHRF_results}{Results from \code{fit_workingHRF()}. Needed for
+the activation masks (which voxels are kept in pop_avg) and the xifti
+geometry template attached for downstream plotting.}
 
 \item{allHRF_results}{Results from \code{fit_allHRFs()}.}
-
-\item{BOLD}{Character vector of CIFTI file paths. Required for refit mode.}
-
-\item{EVs}{List of event data per subject. Required for refit mode.}
-
-\item{nuisance}{Character vector of nuisance file paths (or NULL). For refit mode.}
-
-\item{TR}{Numeric. Repetition time in seconds. Required for refit mode.}
-
-\item{a1_offsets}{Numeric vector of a1 offsets for candidate maps.}
-
-\item{b1_offsets}{Numeric vector of b1 offsets for candidate maps.}
-
-\item{seffects}{Logical. If \code{TRUE} (default), fit all candidate maps
-per subject and pick a winning candidate per subject (the adapted-HRF
-workflow). If \code{FALSE}, return only the population average and skip
-per-subject candidate selection.}
-
-\item{onsets}{Logical. Include onset regressors (refit mode only).}
-
-\item{offsets}{Logical. Include offset regressors (refit mode only).}
-
-\item{n_cores}{Integer. Number of parallel worker processes for refit mode
-(1 = sequential). Ignored in lookup mode (\code{save_rss = TRUE}).}
-
-\item{log_dir}{Directory for cluster log files (refit + parallel only).}
 
 \item{verbose}{Integer verbosity level.}
 }
 \value{
 A list with class \code{"regularizeHRFs"} containing:
 \describe{
-\item{pop_avg}{Population average HRF map per voxel}
-\item{best_params_df}{Best HRF per subject per voxel (steps 1-2)}
-\item{candidate_maps}{List of 25 candidate maps}
-\item{subject_results}{Per-subject candidate selection results}
-\item{winning_c}{Winning c value}
-\item{c_votes}{Vote counts per c value}
-\item{hrf_grid}{HRF grid with t2p/fwhm columns}
-\item{mask_prop_NA}{Population activation mask}
+\item{pop_avg}{Population average HRF map per voxel.}
+\item{best_params_df}{Per-subject best HRF parameters (intermediate).}
+\item{winning_c}{Winning c value (scalar).}
+\item{c_votes}{Vote counts per c value.}
+\item{hrf_grid}{HRF grid with t2p/fwhm columns.}
+\item{mask_prop_NA}{Population activation mask.}
 }
 }
 \description{
-Creates a population-averaged HRF map, generates candidate offset maps,
-and selects the best candidate per subject based on weighted RSS.
+Aggregates per-subject best-HRF parameters from \code{fit_allHRFs()} into a
+population template: per-voxel mean time-to-peak / FWHM, unmasked + smoothed,
+snapped back to the HRF grid. Per-subject candidate scoring lives in
+\code{\link{fit_bestHRF}} now -- this function is aggregation only.
 }

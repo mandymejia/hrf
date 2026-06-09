@@ -51,8 +51,6 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
     "fit_multiGLM_all_designs",
     "extract_hrf_params",
     "get_taper_start",
-    # regularize_allHRFs
-    "process_candidate_subject_refit",
     # fit_bestHRF (3-way mode parallelism)
     "fit_one_mode",
     "fit_all_voxels",
