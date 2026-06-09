@@ -1,22 +1,39 @@
 #' Fit Best HRF GLM for a Single Subject
 #'
-#' Fits a voxel-wise GLM using personalized HRFs from regularize_allHRFs.
-#' Each voxel gets its own design matrix based on the population or
-#' subject-specific HRF map. Voxels sharing the same HRF are grouped
-#' for efficiency.
+#' Fits a voxel-wise GLM under one or both HRF models per voxel: the
+#' population-average HRF (\code{"adapted"}) and/or a subject-personalized
+#' HRF chosen here by scoring 25 candidates around the pop_avg. Always
+#' produces a canonical-HRF baseline (\code{"working"}) alongside.
 #'
-#' @param regularize_result Output from \code{regularize_allHRFs()}.
+#' Candidate scoring for personalized mode:
+#' \describe{
+#'   \item{lookup}{If \code{allHRF_subject} is supplied, RSS is read from the
+#'     subject's cached \code{fit_allHRFs(save_rss = TRUE)} qs file and scored
+#'     in vectorized form (fast).}
+#'   \item{refit}{Otherwise, the candidate designs are refit against the
+#'     subject's BOLD via \code{multiGLM} (slow but works for new subjects
+#'     that have no cached RSS).}
+#' }
+#'
+#' @param regularize_result Output from \code{regularize_allHRFs()}. Supplies
+#'   \code{pop_avg} + \code{hrf_grid}. Required.
 #' @param BOLD_file Character. Path to subject's CIFTI file.
 #' @param EVs Event data for this subject.
 #' @param nuisance_file Character. Path to nuisance regressor file (or NULL).
 #' @param TR Numeric. Repetition time in seconds.
 #' @param use Character vector. Subset of \code{c("personalized", "adapted")};
 #'   pass either (or both) to request the corresponding HRF fit alongside the
-#'   always-present working fit. Defaults to "personalized". Including
-#'   "personalized" requires `regularize_result` to have been built with
-#'   `seffects = TRUE` and a non-NULL `subject_idx`.
-#' @param subject_idx Integer. Subject index (required when use includes
-#'   "personalized").
+#'   always-present working fit. Defaults to both.
+#' @param allHRF_result,subject_idx Optional pair that enables the fast
+#'   lookup scoring path for personalized mode. \code{allHRF_result} is the
+#'   output of \code{fit_allHRFs(save_rss = TRUE)} (its \code{result_paths}
+#'   attribute points to this subject's qs cache, which contains both the
+#'   per-model RSS matrix and the canonical-HRF Fstat per voxel in
+#'   \code{mGLM0s}). \code{subject_idx} picks the subject. If
+#'   \code{allHRF_result} is NULL, personalized mode falls back to refit
+#'   scoring (multiGLM-based).
+#' @param a1_offsets,b1_offsets Numeric vectors of pop_avg offsets to scan
+#'   for personalized candidates. Defaults give 5x5 = 25 candidates.
 #' @param contrasts Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 #'   Default NULL uses identity (each beta tested individually).
 #' @param working_hrf List with elements \code{a1}, \code{b1}, \code{c}
@@ -40,14 +57,12 @@
 #'
 #' @return A list with class \code{"bestHRF"} containing:
 #'   \describe{
-#'     \item{working}{Canonical HRF fit: betas and contrasts (as xifti). Always
-#'       present.}
-#'     \item{personalized}{Subject-specific best HRF fit (when use is
-#'       "personalized" or "both").}
-#'     \item{adapted}{Population-average HRF fit (when use is "adapted" or
-#'       "both").}
-#'     \item{df}{Degrees of freedom}
-#'     \item{contrast_matrix}{The contrast matrix A used}
+#'     \item{working}{Canonical HRF fit: betas + contrasts as xifti (always present).}
+#'     \item{adapted}{Population-average HRF fit (when \code{"adapted"} in use).}
+#'     \item{personalized}{Personalized HRF fit (when \code{"personalized"} in
+#'       use). Includes \code{$winning_candidate_id} and \code{$candidate_scores}.}
+#'     \item{df}{Degrees of freedom (shared across modes).}
+#'     \item{contrast_matrix}{The contrast matrix A used.}
 #'   }
 #'
 #' @export
@@ -57,7 +72,10 @@ fit_bestHRF <- function(regularize_result,
                         nuisance_file = NULL,
                         TR,
                         use = c("personalized", "adapted"),
+                        allHRF_result = NULL,
                         subject_idx = NULL,
+                        a1_offsets = c(-2, -1, 0, 1, 2),
+                        b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
                         contrasts = NULL,
                         working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
                         brainstructures = c("left", "right"),
@@ -73,21 +91,42 @@ fit_bestHRF <- function(regularize_result,
   # Vector of one or both: c("personalized") | c("adapted") | c("personalized","adapted").
   use <- match.arg(use, several.ok = TRUE)
   modes <- use
-  hrf_maps <- setNames(
-    lapply(modes, function(m) resolve_hrf_map(regularize_result, m, subject_idx)),
-    modes
-  )
-  if (verbose > 0) cat("fit_bestHRF: modes =", paste(modes, collapse = ", "),
-                       "(", nrow(hrf_maps[[1]]), "voxels )\n")
+  validate_bestHRF_inputs(regularize_result, modes, allHRF_result, subject_idx)
 
-  # Load BOLD data
+  pop_avg  <- regularize_result$pop_avg
+  hrf_grid <- regularize_result$hrf_grid
+
+  # If allHRF_result is supplied, the lookup path will need this subject's qs
+  # cache path (qs holds BOTH per-model RSS and canonical-HRF Fstat in mGLM0s,
+  # by construction of GLM_multi -- F-stat compares canonical vs null).
+  allHRF_subject <- if (!is.null(allHRF_result)) {
+    list(qs_path = attr(allHRF_result, "result_paths")[subject_idx])
+  } else {
+    NULL
+  }
+
+  # Load BOLD smoothed-unscaled (same as fit_allHRFs, so cached-RSS lookup is
+  # consistent with refit scoring). PSC-scale inline for the GLM fits below
+  # -- multiGLM rejects PSC-scaled input, so refit-mode scoring needs the
+  # smoothed-unscaled xii.
   if (verbose > 0) cat("Loading BOLD data...\n")
-  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res, smoothing = TRUE, scale = TRUE)
-  y <- t(as.matrix(bold_data$BOLD_xii))  # nT x nV
-  nT <- nrow(y)
-  nV <- ncol(y)
+  bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res,
+                              smoothing = TRUE, scale = FALSE)
+  BOLD_xii_unscaled <- bold_data$BOLD_xii
 
-  # Build nuisance block (shared across all voxels)
+  mat <- as.matrix(BOLD_xii_unscaled)  # n_voxels x nT
+  mu  <- rowMeans(mat, na.rm = TRUE)
+  if (any(!is.finite(mu) | abs(mu) < 1e-6)) {
+    stop("Near-zero or non-finite voxel mean detected; PSC scaling invalid.")
+  }
+  mat <- ((mat - mu) / mu) * 100
+  y   <- t(mat)  # nT x nV
+  xii <- BOLD_xii_unscaled  # template only; package_results overwrites data
+  nT  <- nrow(y)
+  nV  <- ncol(y)
+
+  # Nuisance: raw matrix used by score_candidates_refit (multiGLM adds its own
+  # DCT); nuisance_block (raw + DCT) is used by the per-mode GLM fits.
   nuisance_mat <- if (!is.null(nuisance_file)) {
     as.matrix(utils::read.table(nuisance_file, header = FALSE))
   } else {
@@ -95,33 +134,50 @@ fit_bestHRF <- function(regularize_result,
   }
   nuisance_block <- build_nuisance_block(nuisance_mat, nT, TR, hpf)
 
-  # Determine n_task and set up contrasts. Use working_hrf params (always
-  # valid SPM canonical) since task structure depends on EVs, not HRF shape.
+  # n_task / contrasts. Use working_hrf params for task derivation since task
+  # structure depends on EVs, not HRF shape.
   first_td <- build_task_design(EVs, nT, TR,
                                 working_hrf$a1, working_hrf$b1, working_hrf$c,
                                 onsets, offsets)
   n_task <- ncol(first_td$design)
-  task_names <- first_td$task_names
   A <- if (is.null(contrasts)) diag(n_task) else contrasts
   if (ncol(A) != n_task) stop("Contrast matrix has ", ncol(A), " columns but there are ", n_task, " task regressors")
 
-  xii <- bold_data$BOLD_xii
+  # Resolve HRF maps for each requested mode. Personalized may need BOLD_xii
+  # (smoothed-UNSCALED) + raw nuisance (refit) or qs_path (lookup).
+  hrf_resolutions <- setNames(
+    lapply(modes, resolve_hrf_map,
+           pop_avg = pop_avg, hrf_grid = hrf_grid,
+           allHRF_subject = allHRF_subject,
+           BOLD_xii = BOLD_xii_unscaled, EVs = EVs, nuisance = nuisance_mat, TR = TR,
+           brainstructures = brainstructures, hpf = hpf,
+           onsets = onsets, offsets = offsets,
+           a1_offsets = a1_offsets, b1_offsets = b1_offsets,
+           verbose = verbose),
+    modes
+  )
 
-  # Build a job list: working (always) + each requested mode. Each job is a
-  # self-contained (label, hrf_map, subject_idx) triple that fit_one_mode can
-  # consume independently -- enables the upcoming mclapply concurrency layer.
+  if (verbose > 0) cat("fit_bestHRF: modes =", paste(modes, collapse = ", "),
+                       "(", nrow(hrf_resolutions[[1]]$map), "voxels )\n")
+
+  # Job list: working (always) + each requested mode. The personalized job
+  # carries winning_candidate_id + candidate_scores so packaging can stash
+  # them on the result without re-touching resolve_hrf_map output.
   working_map <- data.frame(voxel = 1:nV, a1 = working_hrf$a1,
                             b1 = working_hrf$b1, c = working_hrf$c)
-  jobs <- list(list(label = "working", map = working_map, subject_idx = NULL))
+  jobs <- list(list(label = "working", map = working_map,
+                    winning_candidate_id = NULL, candidate_scores = NULL))
   for (m in modes) {
+    res <- hrf_resolutions[[m]]
     jobs[[length(jobs) + 1]] <- list(
-      label = m, map = hrf_maps[[m]],
-      subject_idx = if (m == "personalized") subject_idx else NULL
+      label = m, map = res$map,
+      winning_candidate_id = res$winning_candidate_id,
+      candidate_scores     = res$candidate_scores
     )
   }
 
   # Concurrency layer: returns raw numeric matrices. xifti conversion happens
-  # below sequentially so we don't push xifti objects through the fork pipe.
+  # sequentially below so we don't push xifti objects through PSOCK exports.
   raw_results <- run_modes_parallel(
     jobs = jobs, n_cores = n_cores,
     y = y, EVs = EVs, nT = nT, TR = TR, nuisance_block = nuisance_block,
@@ -130,14 +186,8 @@ fit_bestHRF <- function(regularize_result,
     log_file = log_file, verbose = verbose
   )
 
-  # Sequential packaging: wrap each raw result into an xifti section and
-  # attach per-mode metadata (hrf_assignments, subject_idx for personalized).
-  sections <- Map(function(raw, j) {
-    sec <- package_results(raw, xii)
-    sec$hrf_assignments <- j$map
-    if (!is.null(j$subject_idx)) sec$subject_idx <- j$subject_idx
-    sec
-  }, raw_results, jobs)
+  sections <- mapply(package_mode_section, raw_results, jobs,
+                     MoreArgs = list(xii = xii), SIMPLIFY = FALSE)
   names(sections) <- vapply(jobs, `[[`, character(1), "label")
 
   if (verbose > 0) cat("fit_bestHRF complete.\n")
@@ -236,52 +286,187 @@ fit_one_mode <- function(j, y, EVs, nT, TR, nuisance_block,
 }
 
 
-#' Resolve HRF Map from Regularize Result
+#' Resolve HRF Map for One Mode
 #'
-#' Returns the HRF map for a single mode: the subject's personalized map
-#' (winning candidate) or the population-average ("adapted") map.
+#' Returns the HRF map (and any per-mode diagnostics) for one requested mode.
+#' \code{"adapted"} is a pure pop_avg lookup; \code{"personalized"} delegates
+#' to \code{\link{resolve_personalized_hrf_map}} which scores candidates.
 #'
-#' @param regularize_result Output from regularize_allHRFs.
-#' @param mode One of "personalized" or "adapted".
-#' @param subject_idx Integer subject index (required when mode = "personalized").
-#' @return data.frame with columns: voxel, a1, b1, c.
+#' @param mode One of \code{"personalized"} or \code{"adapted"}.
+#' @param pop_avg,hrf_grid See \code{\link{fit_bestHRF}}.
+#' @param allHRF_subject,BOLD_xii,EVs,nuisance,TR,brainstructures,hpf,onsets,offsets,a1_offsets,b1_offsets,verbose
+#'   See \code{\link{resolve_personalized_hrf_map}}; ignored when
+#'   \code{mode == "adapted"}.
+#' @return List with elements \code{map} (data.frame with columns
+#'   \code{voxel, a1, b1, c}), \code{winning_candidate_id} (integer or NULL),
+#'   and \code{candidate_scores} (numeric vector or NULL).
 #' @keywords internal
-resolve_hrf_map <- function(regularize_result, mode, subject_idx = NULL) {
-  validate_bestHRF_inputs(regularize_result, mode, subject_idx)
-
-  if (mode == "personalized") {
-    winning_id <- regularize_result$subject_results$winning_candidate_id[subject_idx]
-    cm <- regularize_result$candidate_maps[[winning_id]]
-    data.frame(voxel = cm$voxel, a1 = cm$a1, b1 = cm$b1, c = cm$c)
+resolve_hrf_map <- function(mode, pop_avg, hrf_grid,
+                            allHRF_subject = NULL,
+                            BOLD_xii = NULL, EVs = NULL, nuisance = NULL, TR = NULL,
+                            brainstructures = c("left", "right"), hpf = 0.01,
+                            onsets = FALSE, offsets = FALSE,
+                            a1_offsets = c(-2, -1, 0, 1, 2),
+                            b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
+                            verbose = 1) {
+  if (mode == "adapted") {
+    list(
+      map = data.frame(voxel = pop_avg$voxel,
+                       a1    = pop_avg$a1_snapped,
+                       b1    = pop_avg$b1_snapped,
+                       c     = pop_avg$c_snapped),
+      winning_candidate_id = NULL,
+      candidate_scores     = NULL
+    )
   } else {
-    pa <- regularize_result$pop_avg
-    data.frame(voxel = pa$voxel, a1 = pa$a1_snapped, b1 = pa$b1_snapped, c = pa$c_snapped)
+    resolve_personalized_hrf_map(
+      pop_avg = pop_avg, hrf_grid = hrf_grid,
+      allHRF_subject = allHRF_subject,
+      BOLD_xii = BOLD_xii, EVs = EVs, nuisance = nuisance, TR = TR,
+      brainstructures = brainstructures, hpf = hpf,
+      onsets = onsets, offsets = offsets,
+      a1_offsets = a1_offsets, b1_offsets = b1_offsets,
+      verbose = verbose
+    )
   }
+}
+
+
+#' Resolve Personalized HRF Map
+#'
+#' Builds 25 candidate maps around \code{pop_avg}, scores them via the
+#' lookup path (when \code{allHRF_subject} supplies cached RSS + Fstat) or
+#' the refit path (otherwise), and returns the winning candidate's map plus
+#' diagnostics.
+#'
+#' @param pop_avg,hrf_grid See \code{\link{fit_bestHRF}}.
+#' @param allHRF_subject Optional list with \code{qs_path} pointing to the
+#'   subject's fit_allHRFs qs cache (which carries both per-model RSS and
+#'   canonical-HRF Fstat). When supplied, lookup scoring is used; NULL
+#'   forces the refit path.
+#' @param BOLD_xii Smoothed/scaled BOLD as a xifti (from
+#'   \code{load_bold_data}). Required for refit scoring.
+#' @param EVs Event data for this subject. Required for refit scoring.
+#' @param nuisance Raw nuisance matrix (multiGLM adds its own DCT). May
+#'   be NULL.
+#' @param TR Numeric. Repetition time in seconds.
+#' @param brainstructures,hpf,onsets,offsets Passed through to
+#'   \code{\link{score_candidates_refit}} when refitting.
+#' @param a1_offsets,b1_offsets See \code{\link{fit_bestHRF}}.
+#' @param verbose Integer.
+#' @return List with \code{map}, \code{winning_candidate_id},
+#'   \code{candidate_scores}.
+#' @keywords internal
+resolve_personalized_hrf_map <- function(pop_avg, hrf_grid, allHRF_subject,
+                                         BOLD_xii, EVs, nuisance, TR,
+                                         brainstructures, hpf,
+                                         onsets, offsets,
+                                         a1_offsets, b1_offsets,
+                                         verbose = 1) {
+  cands <- build_candidate_maps(pop_avg, hrf_grid,
+                                a1_offsets = a1_offsets,
+                                b1_offsets = b1_offsets,
+                                verbose = max(0, verbose - 1))$candidate_maps
+
+  scores <- if (!is.null(allHRF_subject)) {
+    if (verbose > 0) cat("Scoring candidates via RSS lookup (qs: ",
+                         basename(allHRF_subject$qs_path), ")\n", sep = "")
+    cache <- load_qs_cache(allHRF_subject$qs_path)
+    score_candidates_lookup(cands, cache$RSS, cache$Fstat)
+  } else {
+    if (verbose > 0) cat("Scoring candidates via multiGLM refit\n")
+    score_candidates_refit(
+      candidate_maps = cands, hrf_grid = hrf_grid,
+      BOLD_xii = BOLD_xii, EVs = EVs, nuisance = nuisance, TR = TR,
+      brainstructures = brainstructures, hpf = hpf,
+      onsets = onsets, offsets = offsets
+    )
+  }
+
+  winner <- pick_winning_candidate(scores)
+  cm <- cands[[winner]]
+  list(
+    map = data.frame(voxel = cm$voxel, a1 = cm$a1, b1 = cm$b1, c = cm$c),
+    winning_candidate_id = winner,
+    candidate_scores     = scores
+  )
+}
+
+
+#' Load RSS + Canonical Fstat from a fit_allHRFs qs Cache
+#'
+#' Reads, for one subject, the stacked (cortexL + cortexR) per-model RSS
+#' matrix \emph{and} the canonical-HRF Fstat vector written by
+#' \code{fit_allHRFs(save_rss = TRUE)}. Fstat in \code{mGLM0s} is the
+#' canonical-vs-null F-statistic by construction in
+#' \code{\link{GLM_multi}}, so it's identical to what
+#' \code{fit_workingHRF()} would compute; no need to load workingHRF
+#' separately.
+#'
+#' @param qs_path Character path to the subject's qs cache file.
+#' @return List with elements \code{RSS} (numeric matrix
+#'   \code{[n_voxels x n_models]}) and \code{Fstat} (numeric vector,
+#'   length \code{n_voxels}).
+#' @keywords internal
+load_qs_cache <- function(qs_path) {
+  qs_obj <- load_object(file_path = qs_path, delete_after_load = FALSE)
+  RSS <- rbind(qs_obj$glm_result$mGLM0s$cortexL$RSS,
+               qs_obj$glm_result$mGLM0s$cortexR$RSS)
+  if (is.null(RSS) || nrow(RSS) == 0L) {
+    stop("RSS not found in qs cache '", qs_path,
+         "'. Was fit_allHRFs run with save_rss = TRUE?")
+  }
+  Fstat <- c(qs_obj$glm_result$mGLM0s$cortexL$Fstat,
+             qs_obj$glm_result$mGLM0s$cortexR$Fstat)
+  if (is.null(Fstat) || length(Fstat) == 0L) {
+    stop("Fstat not found in qs cache '", qs_path, "' (mGLM0s$cortex{L,R}$Fstat).")
+  }
+  list(RSS = RSS, Fstat = Fstat)
 }
 
 
 #' Validate fit_bestHRF Inputs
 #'
-#' Checks consistency between `use`, the regularize result, and subject_idx.
+#' Checks the structural prereqs: \code{regularize_result} has \code{pop_avg}
+#' + \code{hrf_grid} with the expected columns, and (for personalized lookup)
+#' the \code{allHRF_result} / \code{subject_idx} pair points to an existing qs
+#' cache for that subject.
 #'
-#' @param regularize_result Output from regularize_allHRFs.
-#' @param use Either "personalized" or "adapted".
-#' @param subject_idx Subject index (required when use = "personalized").
+#' @param regularize_result,use,allHRF_result,subject_idx See \code{\link{fit_bestHRF}}.
 #' @keywords internal
-validate_bestHRF_inputs <- function(regularize_result, use, subject_idx) {
-  has_seffects <- !is.null(regularize_result$subject_results)
+validate_bestHRF_inputs <- function(regularize_result, use,
+                                    allHRF_result, subject_idx) {
+  if (is.null(regularize_result$pop_avg)) {
+    stop("regularize_result$pop_avg is NULL. Pass the output of regularize_allHRFs().")
+  }
+  if (is.null(regularize_result$hrf_grid)) {
+    stop("regularize_result$hrf_grid is NULL. Pass the output of regularize_allHRFs().")
+  }
+  required_pa <- c("voxel", "a1_snapped", "b1_snapped", "c_snapped")
+  missing_pa <- setdiff(required_pa, names(regularize_result$pop_avg))
+  if (length(missing_pa) > 0L) {
+    stop("regularize_result$pop_avg is missing column(s): ",
+         paste(missing_pa, collapse = ", "))
+  }
+  required_grid <- c("a1", "b1", "c", "time_to_peak", "FWHM")
+  missing_grid <- setdiff(required_grid, names(regularize_result$hrf_grid))
+  if (length(missing_grid) > 0L) {
+    stop("regularize_result$hrf_grid is missing column(s): ",
+         paste(missing_grid, collapse = ", "))
+  }
 
-  if ("personalized" %in% use) {
-    if (!has_seffects) {
-      stop("use including 'personalized' requires regularize_allHRFs to have been run with seffects = TRUE. ",
-           "Re-run with seffects = TRUE, or call fit_bestHRF with use = 'adapted' only.")
-    }
+  if ("personalized" %in% use && !is.null(allHRF_result)) {
     if (is.null(subject_idx)) {
-      stop("subject_idx is required when use includes 'personalized'.")
+      stop("subject_idx is required when allHRF_result is supplied.")
     }
-    n_subjects <- nrow(regularize_result$subject_results)
-    if (subject_idx < 1 || subject_idx > n_subjects) {
-      stop("subject_idx = ", subject_idx, " is out of range (1 to ", n_subjects, ").")
+    qs_path <- attr(allHRF_result, "result_paths")[subject_idx]
+    if (is.null(qs_path) || is.na(qs_path) || !nzchar(qs_path)) {
+      stop("attr(allHRF_result, 'result_paths')[", subject_idx,
+           "] is empty -- did fit_allHRFs run with save_rss = TRUE and save subject ",
+           subject_idx, "?")
+    }
+    if (!file.exists(qs_path)) {
+      stop("qs cache for subject ", subject_idx, " not found at: ", qs_path)
     }
   }
 }
@@ -521,6 +706,28 @@ apply_p_adjustment <- function(pval_mat, method = "BH") {
     pval_adj[, k] <- stats::p.adjust(pval_mat[, k], method = method)
   }
   pval_adj
+}
+
+
+#' Package One Mode's Raw Fit Into a Section + Metadata
+#'
+#' Wraps \code{\link{package_results}} and attaches the per-mode metadata
+#' (HRF assignment map; for personalized, also the winning candidate id and
+#' the full vector of candidate scores).
+#'
+#' @param raw Raw fit list returned by \code{\link{fit_one_mode}}.
+#' @param j Corresponding job entry built in \code{\link{fit_bestHRF}};
+#'   carries \code{map}, and (for personalized) \code{winning_candidate_id}
+#'   and \code{candidate_scores}.
+#' @param xii Template xifti for \code{\link{package_results}}.
+#' @return List in the shape of a single \code{fit_bestHRF} result section.
+#' @keywords internal
+package_mode_section <- function(raw, j, xii) {
+  sec <- package_results(raw, xii)
+  sec$hrf_assignments <- j$map
+  if (!is.null(j$winning_candidate_id)) sec$winning_candidate_id <- j$winning_candidate_id
+  if (!is.null(j$candidate_scores))      sec$candidate_scores      <- j$candidate_scores
+  sec
 }
 
 

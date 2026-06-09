@@ -11,7 +11,10 @@ fit_bestHRF(
   nuisance_file = NULL,
   TR,
   use = c("personalized", "adapted"),
+  allHRF_result = NULL,
   subject_idx = NULL,
+  a1_offsets = c(-2, -1, 0, 1, 2),
+  b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
   contrasts = NULL,
   working_hrf = list(a1 = 6, b1 = 1, c = 1/6),
   brainstructures = c("left", "right"),
@@ -26,7 +29,8 @@ fit_bestHRF(
 )
 }
 \arguments{
-\item{regularize_result}{Output from \code{regularize_allHRFs()}.}
+\item{regularize_result}{Output from \code{regularize_allHRFs()}. Supplies
+\code{pop_avg} + \code{hrf_grid}. Required.}
 
 \item{BOLD_file}{Character. Path to subject's CIFTI file.}
 
@@ -38,12 +42,19 @@ fit_bestHRF(
 
 \item{use}{Character vector. Subset of \code{c("personalized", "adapted")};
 pass either (or both) to request the corresponding HRF fit alongside the
-always-present working fit. Defaults to "personalized". Including
-"personalized" requires \code{regularize_result} to have been built with
-\code{seffects = TRUE} and a non-NULL \code{subject_idx}.}
+always-present working fit. Defaults to both.}
 
-\item{subject_idx}{Integer. Subject index (required when use includes
-"personalized").}
+\item{allHRF_result, subject_idx}{Optional pair that enables the fast
+lookup scoring path for personalized mode. \code{allHRF_result} is the
+output of \code{fit_allHRFs(save_rss = TRUE)} (its \code{result_paths}
+attribute points to this subject's qs cache, which contains both the
+per-model RSS matrix and the canonical-HRF Fstat per voxel in
+\code{mGLM0s}). \code{subject_idx} picks the subject. If
+\code{allHRF_result} is NULL, personalized mode falls back to refit
+scoring (multiGLM-based).}
+
+\item{a1_offsets, b1_offsets}{Numeric vectors of pop_avg offsets to scan
+for personalized candidates. Defaults give 5x5 = 25 candidates.}
 
 \item{contrasts}{Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 Default NULL uses identity (each beta tested individually).}
@@ -78,19 +89,28 @@ PSOCK works on macOS / Linux / Windows.}
 \value{
 A list with class \code{"bestHRF"} containing:
 \describe{
-\item{working}{Canonical HRF fit: betas and contrasts (as xifti). Always
-present.}
-\item{personalized}{Subject-specific best HRF fit (when use is
-"personalized" or "both").}
-\item{adapted}{Population-average HRF fit (when use is "adapted" or
-"both").}
-\item{df}{Degrees of freedom}
-\item{contrast_matrix}{The contrast matrix A used}
+\item{working}{Canonical HRF fit: betas + contrasts as xifti (always present).}
+\item{adapted}{Population-average HRF fit (when \code{"adapted"} in use).}
+\item{personalized}{Personalized HRF fit (when \code{"personalized"} in
+use). Includes \code{$winning_candidate_id} and \code{$candidate_scores}.}
+\item{df}{Degrees of freedom (shared across modes).}
+\item{contrast_matrix}{The contrast matrix A used.}
 }
 }
 \description{
-Fits a voxel-wise GLM using personalized HRFs from regularize_allHRFs.
-Each voxel gets its own design matrix based on the population or
-subject-specific HRF map. Voxels sharing the same HRF are grouped
-for efficiency.
+Fits a voxel-wise GLM under one or both HRF models per voxel: the
+population-average HRF (\code{"adapted"}) and/or a subject-personalized
+HRF chosen here by scoring 25 candidates around the pop_avg. Always
+produces a canonical-HRF baseline (\code{"working"}) alongside.
+}
+\details{
+Candidate scoring for personalized mode:
+\describe{
+\item{lookup}{If \code{allHRF_subject} is supplied, RSS is read from the
+subject's cached \code{fit_allHRFs(save_rss = TRUE)} qs file and scored
+in vectorized form (fast).}
+\item{refit}{Otherwise, the candidate designs are refit against the
+subject's BOLD via \code{multiGLM} (slow but works for new subjects
+that have no cached RSS).}
+}
 }

@@ -4,16 +4,17 @@
 \alias{validate_bestHRF_inputs}
 \title{Validate fit_bestHRF Inputs}
 \usage{
-validate_bestHRF_inputs(regularize_result, use, subject_idx)
+validate_bestHRF_inputs(regularize_result, use, allHRF_result, subject_idx)
 }
 \arguments{
-\item{regularize_result}{Output from regularize_allHRFs.}
-
-\item{use}{Either "personalized" or "adapted".}
-
-\item{subject_idx}{Subject index (required when use = "personalized").}
+\item{regularize_result, use, allHRF_result, subject_idx}{See \code{\link{fit_bestHRF}}.}
 }
 \description{
-Checks consistency between \code{use}, the regularize result, and subject_idx.
+Checks the structural prereqs: \code{regularize_result} has \code{pop_avg}
+\itemize{
+\item \code{hrf_grid} with the expected columns, and (for personalized lookup)
+the \code{allHRF_result} / \code{subject_idx} pair points to an existing qs
+cache for that subject.
+}
 }
 \keyword{internal}

@@ -2,22 +2,42 @@
 % Please edit documentation in R/fit_bestHRF.R
 \name{resolve_hrf_map}
 \alias{resolve_hrf_map}
-\title{Resolve HRF Map from Regularize Result}
+\title{Resolve HRF Map for One Mode}
 \usage{
-resolve_hrf_map(regularize_result, mode, subject_idx = NULL)
+resolve_hrf_map(
+  mode,
+  pop_avg,
+  hrf_grid,
+  allHRF_subject = NULL,
+  BOLD_xii = NULL,
+  EVs = NULL,
+  nuisance = NULL,
+  TR = NULL,
+  brainstructures = c("left", "right"),
+  hpf = 0.01,
+  onsets = FALSE,
+  offsets = FALSE,
+  a1_offsets = c(-2, -1, 0, 1, 2),
+  b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
+  verbose = 1
+)
 }
 \arguments{
-\item{regularize_result}{Output from regularize_allHRFs.}
+\item{mode}{One of \code{"personalized"} or \code{"adapted"}.}
 
-\item{mode}{One of "personalized" or "adapted".}
+\item{pop_avg, hrf_grid}{See \code{\link{fit_bestHRF}}.}
 
-\item{subject_idx}{Integer subject index (required when mode = "personalized").}
+\item{allHRF_subject, BOLD_xii, EVs, nuisance, TR, brainstructures, hpf, onsets, offsets, a1_offsets, b1_offsets, verbose}{See \code{\link{resolve_personalized_hrf_map}}; ignored when
+\code{mode == "adapted"}.}
 }
 \value{
-data.frame with columns: voxel, a1, b1, c.
+List with elements \code{map} (data.frame with columns
+\code{voxel, a1, b1, c}), \code{winning_candidate_id} (integer or NULL),
+and \code{candidate_scores} (numeric vector or NULL).
 }
 \description{
-Returns the HRF map for a single mode: the subject's personalized map
-(winning candidate) or the population-average ("adapted") map.
+Returns the HRF map (and any per-mode diagnostics) for one requested mode.
+\code{"adapted"} is a pure pop_avg lookup; \code{"personalized"} delegates
+to \code{\link{resolve_personalized_hrf_map}} which scores candidates.
 }
 \keyword{internal}

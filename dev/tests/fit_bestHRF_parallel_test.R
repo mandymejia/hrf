@@ -10,41 +10,31 @@ ciftiTools::ciftiTools.setOption('wb_path', '/Applications/workbench/bin_macosxu
 devtools::load_all("~/Documents/Github/hrf-z", quiet = TRUE)
 
 session_data <- readRDS("dev/fixtures/session_data_4s/session_data_motor_lr_4s.rds")
-reg_result   <- readRDS("dev/fixtures/regularize_result_motorlr_1125s_slim.rds")
-reg_result$subject_results <- NULL  # adapted-only
+reg_result   <- readRDS("dev/fixtures/regularize_allHRFs_result_motorlr_4s.rds")
 
 log_path <- tempfile(pattern = "fit_bestHRF_parlog_", fileext = ".txt")
 cat("Log file:", log_path, "\n\n")
 
-cat("== Run 1: n_cores=2, log_file set ==\n")
-t0 <- Sys.time()
-got_par <- fit_bestHRF(
-  reg_result,
+call_args <- list(
+  regularize_result = reg_result,
   BOLD_file = session_data$BOLD_files[1],
   EVs       = session_data$EVs_list[[1]],
   nuisance_file = session_data$nuisance_files[1],
   TR = 0.72,
   use = "adapted",
-  onsets = TRUE, offsets = TRUE,
-  log_file = log_path,
-  n_cores = 2,
-  verbose = 1
+  onsets = TRUE, offsets = TRUE
 )
+
+cat("== Run 1: n_cores=2, log_file set ==\n")
+t0 <- Sys.time()
+got_par <- do.call(fit_bestHRF, c(call_args, list(
+  log_file = log_path, n_cores = 2, verbose = 1
+)))
 cat("Elapsed:", round(as.numeric(difftime(Sys.time(), t0, units = "secs")), 1), "sec\n\n")
 
 cat("== Run 2: n_cores=1 (sequential reference) ==\n")
 t0 <- Sys.time()
-got_seq <- fit_bestHRF(
-  reg_result,
-  BOLD_file = session_data$BOLD_files[1],
-  EVs       = session_data$EVs_list[[1]],
-  nuisance_file = session_data$nuisance_files[1],
-  TR = 0.72,
-  use = "adapted",
-  onsets = TRUE, offsets = TRUE,
-  n_cores = 1,
-  verbose = 0
-)
+got_seq <- do.call(fit_bestHRF, c(call_args, list(n_cores = 1, verbose = 0)))
 cat("Elapsed:", round(as.numeric(difftime(Sys.time(), t0, units = "secs")), 1), "sec\n\n")
 
 fail <- 0
