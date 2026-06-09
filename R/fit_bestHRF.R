@@ -684,3 +684,95 @@ score_candidates_lookup <- function(candidate_maps, RSS, fstat) {
   }
   scores
 }
+
+
+#' Score Candidate Maps for One Subject by Refitting multiGLM
+#'
+#' Computes Fstat-weighted RSS for each candidate map by refitting all unique
+#' HRF designs against the subject's BOLD via \code{multiGLM}. Slower than
+#' \code{\link{score_candidates_lookup}} but doesn't require cached RSS, so
+#' it's the path used for new subjects without a \code{save_rss = TRUE}
+#' \code{fit_allHRFs} run.
+#'
+#' Port of the per-subject body of
+#' \code{regularize_allHRFs::process_candidate_subject_refit}. Same arg
+#' shapes as multiGLM expects (BOLD as xifti, raw nuisance matrix, TR/hpf),
+#' so the math is bit-identical to regularize's refit path; future cleanup
+#' could swap multiGLM for a y/nuisance_block GLM but parity comes first.
+#'
+#' Fstat for the weights comes from the SAME multiGLM call (canonical-design
+#' mGLM0s output), not from a separately-run workingHRF result -- mirrors how
+#' \code{process_candidate_subject_refit} sources it.
+#'
+#' @param candidate_maps List of per-candidate data.frames from
+#'   \code{\link{build_candidate_maps}}.
+#' @param hrf_grid HRF grid with at least \code{a1, b1, c, a2, b2} columns.
+#' @param BOLD_xii Subject's BOLD as a xifti object (already loaded by caller).
+#' @param EVs Event data for this subject.
+#' @param nuisance Numeric matrix of nuisance regressors (DCT bases will be
+#'   added internally by multiGLM via \code{hpf}).
+#' @param TR Numeric. Repetition time in seconds.
+#' @param brainstructures Character vector passed through to multiGLM.
+#' @param hpf Numeric. High-pass filter cutoff (sets DCT basis count).
+#' @param onsets,offsets Logical. Include onset/offset regressors.
+#'
+#' @return Numeric vector of length \code{length(candidate_maps)} giving
+#'   Fstat-weighted RSS per candidate (lower is better).
+#' @keywords internal
+score_candidates_refit <- function(candidate_maps, hrf_grid,
+                                   BOLD_xii, EVs, nuisance, TR,
+                                   brainstructures = c("left", "right"),
+                                   hpf = 0.01,
+                                   onsets = FALSE, offsets = FALSE) {
+  all_model_idx <- sort(unique(unlist(lapply(candidate_maps, function(cm) unique(cm$model_idx)))))
+  unique_grid   <- hrf_grid[all_model_idx, ]
+  n_models      <- nrow(unique_grid)
+  idx_map       <- setNames(seq_len(n_models), all_model_idx)
+  pop_voxels    <- candidate_maps[[1]]$voxel
+
+  nT <- ncol(BOLD_xii)
+
+  design_canonical <- make_design(
+    EVs = EVs, nTime = nT, TR = TR, dHRF = 0,
+    onset = onsets, offset = offsets
+  )$design
+  nK <- ncol(design_canonical)
+
+  design_3D <- array(NA, dim = c(nT, nK, n_models))
+  for (j in seq_len(n_models)) {
+    taper_start_j <- get_taper_start(
+      a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
+      a2 = unique_grid$a2[j], b2 = unique_grid$b2[j],
+      c = unique_grid$c[j], TR = TR, deriv = 0
+    )
+    design_3D[,,j] <- make_design(
+      EVs = EVs, nTime = nT, TR = TR, dHRF = 0,
+      onset = onsets, offset = offsets,
+      taper_start = taper_start_j,
+      a1 = unique_grid$a1[j], b1 = unique_grid$b1[j],
+      c = unique_grid$c[j],
+      a2 = unique_grid$a2[j], b2 = unique_grid$b2[j]
+    )$design
+  }
+
+  glm_result <- multiGLM(
+    BOLD = BOLD_xii, brainstructures = brainstructures,
+    resamp_res = NULL, design = design_3D,
+    design_canonical = design_canonical,
+    nuisance = nuisance, scrub = NULL, TR = TR, hpf = hpf
+  )
+
+  RSS   <- rbind(glm_result$mGLM0s$cortexL$RSS,   glm_result$mGLM0s$cortexR$RSS)
+  Fstat <- c(   glm_result$mGLM0s$cortexL$Fstat, glm_result$mGLM0s$cortexR$Fstat)
+
+  fstat_sq     <- Fstat[pop_voxels]^2
+  fstat_sq_sum <- sum(fstat_sq, na.rm = TRUE)
+
+  scores <- numeric(length(candidate_maps))
+  for (j in seq_along(candidate_maps)) {
+    compact_idx <- idx_map[as.character(candidate_maps[[j]]$model_idx)]
+    voxel_rss   <- RSS[cbind(pop_voxels, compact_idx)]
+    scores[j]   <- sum(voxel_rss * fstat_sq, na.rm = TRUE) / fstat_sq_sum
+  }
+  scores
+}

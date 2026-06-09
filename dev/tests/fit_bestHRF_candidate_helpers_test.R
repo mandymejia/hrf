@@ -135,6 +135,72 @@ check("pick_winning_candidate on lookup scores matches saved winners",
       identical(as.integer(got_winners),
                 as.integer(expected_lookup$subject_results$winning_candidate_id)))
 
+# === score_candidates_refit ===
+# Refit-mode regularize fixture (no qs RSS, scores come from a fresh multiGLM
+# refit of all unique candidate designs). Lock single-subject helper output
+# against the per-subject rows of that fixture, sequentially and in parallel.
+cat("\n--- score_candidates_refit vs refit-mode regularize ---\n")
+library(ciftiTools)
+ciftiTools::ciftiTools.setOption('wb_path', '/Applications/workbench/bin_macosxub/wb_command')
+sd          <- readRDS("dev/fixtures/session_data_4s/session_data_motor_lr_4s.rds")
+cands_refit <- expected$candidate_maps  # same offset grid; refit fixture
+expected_refit_scores <- as.matrix(
+  expected$subject_results[, paste0("weighted_RSS_", seq_along(cands_refit))]
+)
+
+# Helper: load subject i's BOLD_xii + nuisance (caller's responsibility).
+load_refit_inputs <- function(i) {
+  BOLD_xii <- ciftiTools::read_cifti(
+    sd$BOLD_files[[i]], brainstructures = c("left", "right"), resamp_res = 10000
+  )
+  nuisance <- as.matrix(utils::read.table(sd$nuisance_files[[i]], header = FALSE))
+  list(BOLD_xii = BOLD_xii, nuisance = nuisance, EVs = sd$EVs_list[[i]])
+}
+
+# Sub-condition A: subject 1 sequential -- proves single-call equivalence.
+cat("  Running subject 1 sequentially (~12s)...\n")
+t0 <- Sys.time()
+inp1 <- load_refit_inputs(1)
+got_refit_s1 <- score_candidates_refit(
+  candidate_maps = cands_refit, hrf_grid = expected$hrf_grid,
+  BOLD_xii = inp1$BOLD_xii, EVs = inp1$EVs, nuisance = inp1$nuisance,
+  TR = 0.72, onsets = TRUE, offsets = TRUE
+)
+cat("  Elapsed:", round(as.numeric(difftime(Sys.time(), t0, units="secs")), 1), "sec\n")
+check("subject 1 refit scores match regularize refit fixture",
+      isTRUE(all.equal(got_refit_s1,
+                       as.numeric(expected_refit_scores[1, ]),
+                       check.attributes = FALSE)))
+
+# Sub-condition B: all 4 subjects in parallel -- proves it survives parLapplyLB.
+cat("  Running 4 subjects in parallel via PSOCK (~22s)...\n")
+t0 <- Sys.time()
+cl <- parallel::makeCluster(2)
+parallel::clusterEvalQ(cl, {
+  devtools::load_all("~/Documents/Github/hrf-z", quiet = TRUE)
+  library(ciftiTools)
+  ciftiTools::ciftiTools.setOption('wb_path', '/Applications/workbench/bin_macosxub/wb_command')
+})
+parallel::clusterExport(cl, c("sd", "cands_refit", "expected", "load_refit_inputs"))
+got_refit_par <- do.call(rbind, parallel::parLapplyLB(cl, seq_len(n_subjects), function(i) {
+  inp <- load_refit_inputs(i)
+  score_candidates_refit(
+    candidate_maps = cands_refit, hrf_grid = expected$hrf_grid,
+    BOLD_xii = inp$BOLD_xii, EVs = inp$EVs, nuisance = inp$nuisance,
+    TR = 0.72, onsets = TRUE, offsets = TRUE
+  )
+}))
+parallel::stopCluster(cl)
+cat("  Elapsed:", round(as.numeric(difftime(Sys.time(), t0, units="secs")), 1), "sec\n")
+check("all 4 subjects refit scores match regularize refit fixture (parallel)",
+      isTRUE(all.equal(got_refit_par, expected_refit_scores, check.attributes = FALSE)))
+
+# Sanity: pick_winning_candidate on refit scores reproduces saved winners.
+refit_winners <- apply(got_refit_par, 1, pick_winning_candidate)
+check("pick_winning_candidate on refit scores matches saved winners",
+      identical(as.integer(refit_winners),
+                as.integer(expected$subject_results$winning_candidate_id)))
+
 cat("\n")
 if (fail == 0) {
   cat("==== All checks passed ====\n")
