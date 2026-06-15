@@ -69,12 +69,12 @@ plot_design_line <- function(design, colors="Set1", linetype="solid", linewidth=
   df$Field <- factor(df$Field, levels=colnames(design))
 
   if (length(linetype) == nK) {
-    plt <- ggplot2::ggplot(df, ggplot2::aes_string(x="idx", y="value", col="Field", linetype="Field")) +
+    plt <- ggplot2::ggplot(df, ggplot2::aes(x=idx, y=value, col=Field, linetype=Field)) +
       ggplot2::geom_hline(yintercept=0, color="black", linetype="dashed") +
       ggplot2::geom_line(linewidth=linewidth, alpha=alpha) +
       ggplot2::scale_linetype_manual(values=linetype)
   } else {
-    plt <- ggplot2::ggplot(df, ggplot2::aes_string(x="idx", y="value", col="Field")) +
+    plt <- ggplot2::ggplot(df, ggplot2::aes(x=idx, y=value, col=Field)) +
       ggplot2::geom_hline(yintercept=0, color="black", linetype="dashed") +
       ggplot2::geom_line(linetype=linetype, linewidth=linewidth, alpha=alpha)
   }
