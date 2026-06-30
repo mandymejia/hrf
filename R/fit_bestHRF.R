@@ -118,7 +118,7 @@ fit_bestHRF <- function(fit_allHRFs_result,
   # Lookup mode is opt-in via subject_idx. The qs cache holds both per-model
   # RSS and canonical-HRF Fstat in mGLM0s (GLM_multi compares canonical vs null).
   allHRF_subject <- if ("personalized" %in% cfg$use && !is.null(cfg$subject_idx)) {
-    list(qs_path = attr(cfg$fit_allHRFs_result$fit_allHRFs, "result_paths")[cfg$subject_idx])
+    list(qs_path = resolve_qs_path(attr(cfg$fit_allHRFs_result$fit_allHRFs, "result_paths")[cfg$subject_idx]))
   } else {
     NULL
   }
@@ -376,15 +376,38 @@ resolve_personalized_hrf_map <- function(cfg, pop_avg, hrf_grid,
 }
 
 
+#' Resolve a qs cache path from result_paths attr.
+#' Absolute -> pass through. Relative -> prepend getOption("hrf.output_root").
+#' @keywords internal
+resolve_qs_path <- function(path) {
+  if (is.null(path) || is.na(path) || !nzchar(path)) return(path)
+  if (file.exists(path)) return(path)
+  root <- getOption("hrf.output_root", default = NULL)
+  if (!is.null(root)) {
+    if (startsWith(path, "/")) {
+      # Stale absolute path -- extract the fit_allHRFs/... tail and re-anchor to root.
+      tail <- regmatches(path, regexpr("fit_allHRFs/.*", path))
+      if (length(tail) && nzchar(tail)) {
+        candidate <- file.path(root, tail)
+        if (file.exists(candidate)) return(candidate)
+      }
+    } else {
+      candidate <- file.path(root, path)
+      if (file.exists(candidate)) return(candidate)
+    }
+  }
+  stop("qs cache not found at '", path,
+       "' and could not resolve via options(hrf.output_root). ",
+       "Either set the option to the current pipeline output dir, ",
+       "or check the path.")
+}
+
+
 #' Load RSS + Canonical Fstat from a fit_allHRFs qs Cache
 #'
 #' Reads, for one subject, the stacked (cortexL + cortexR) per-model RSS
 #' matrix \emph{and} the canonical-HRF Fstat vector written by
-#' \code{fit_allHRFs(save_rss = TRUE)}. Fstat in \code{mGLM0s} is the
-#' canonical-vs-null F-statistic by construction in
-#' \code{\link{GLM_multi}}, so it's identical to what
-#' \code{fit_workingHRF()} would compute; no need to load workingHRF
-#' separately.
+#' \code{fit_allHRFs(save_rss = TRUE)}.
 #'
 #' @param qs_path Character path to the subject's qs cache file.
 #' @return List with elements \code{RSS} (numeric matrix
@@ -443,7 +466,7 @@ validate_bestHRF_inputs <- function(cfg) {
       stop("fit_allHRFs_result$fit_allHRFs has no 'result_paths' attribute -- ",
            "cannot run personalized lookup. Pass subject_idx = NULL to use refit mode.")
     }
-    qs_path <- paths[cfg$subject_idx]
+    qs_path <- resolve_qs_path(paths[cfg$subject_idx])
     if (is.null(qs_path) || is.na(qs_path) || !nzchar(qs_path)) {
       stop("attr(fit_allHRFs_result$fit_allHRFs, 'result_paths')[", cfg$subject_idx,
            "] is empty -- did fit_allHRFs run with save_rss = TRUE and save subject ",

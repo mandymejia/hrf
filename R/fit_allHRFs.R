@@ -137,8 +137,13 @@ fit_allHRFs <- function(
   }
 
  
-  # Get file paths from the results (same for both parallel and sequential)
   result_paths <- sapply(subject_results, function(x) if(!is.null(x$file_path)) x$file_path else NA)
+  output_root <- getOption("hrf.output_root", default = NULL)
+  result_paths_stored <- if (!is.null(output_root)) {
+    sub(paste0("^", normalizePath(output_root, mustWork = FALSE), "/?"), "", result_paths)
+  } else {
+    result_paths
+  }
   # Load the saved .qs files into a list and strip out design_3D to save memory
   loaded_subject_results <- lapply(result_paths, function(fp) {
     if(!is.na(fp) && file.exists(fp)) {
@@ -152,11 +157,6 @@ fit_allHRFs <- function(
     }
   })
 
-  # Needs to be modified for new save/load
-  #   cat("Going into report_design_fit_errors")
-  #   report_design_fit_errors(subject_results, verbose)
-
-  # Step 2d: Extract best parameters across all subjects (DUMMY for now)
   if(verbose > 0) cat("Extracting best parameters across all subjects (2d step)...\n")
   tictoc::tic()
   best_params_results <- extract_best_params_all_subjects(loaded_subject_results, hrf_grid, verbose)
@@ -181,7 +181,7 @@ fit_allHRFs <- function(
     subject_results     = loaded_subject_results,
     hrf_grid            = hrf_grid
   )
-  attr(fit_allHRFs, "result_paths") <- result_paths
+  attr(fit_allHRFs, "result_paths") <- result_paths_stored
   class(fit_allHRFs) <- "allHRFs"
 
   if (verbose > 0) cat("Running regularize_allHRFs aggregation...\n")

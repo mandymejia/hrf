@@ -17,10 +17,6 @@ length \code{n_voxels}).
 \description{
 Reads, for one subject, the stacked (cortexL + cortexR) per-model RSS
 matrix \emph{and} the canonical-HRF Fstat vector written by
-\code{fit_allHRFs(save_rss = TRUE)}. Fstat in \code{mGLM0s} is the
-canonical-vs-null F-statistic by construction in
-\code{\link{GLM_multi}}, so it's identical to what
-\code{fit_workingHRF()} would compute; no need to load workingHRF
-separately.
+\code{fit_allHRFs(save_rss = TRUE)}.
 }
 \keyword{internal}
