@@ -10,7 +10,7 @@ validate_bestHRF_inputs(cfg)
 \item{cfg}{The fit_bestHRF cfg list.}
 }
 \description{
-Checks: \code{cfg$combo} has \code{regularize_allHRFs} + \code{fit_allHRFs}
+Checks: \code{cfg$fit_allHRFs_result} has \code{regularize_allHRFs} + \code{fit_allHRFs}
 sub-objects with the expected columns, and (for personalized lookup) the
 subject's qs cache path exists.
 }

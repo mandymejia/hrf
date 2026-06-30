@@ -5,7 +5,7 @@
 \title{Fit Best HRF GLM for a Single Subject}
 \usage{
 fit_bestHRF(
-  combo,
+  fit_allHRFs_result,
   BOLD_file,
   EVs,
   nuisance_file = NULL,
@@ -28,10 +28,11 @@ fit_bestHRF(
 )
 }
 \arguments{
-\item{combo}{An \code{hrfs} object from \code{\link{fit_allHRFs}}. Supplies
-\code{pop_avg} + \code{hrf_grid} via \code{combo$regularize_allHRFs}, and
-the per-subject qs cache via \code{combo$fit_allHRFs} (its
-\code{result_paths} attribute) for lookup-mode personalized scoring.}
+\item{fit_allHRFs_result}{An \code{hrfs} object returned by
+\code{\link{fit_allHRFs}}. Supplies \code{pop_avg} + \code{hrf_grid} via
+\code{fit_allHRFs_result$regularize_allHRFs}, and the per-subject qs
+cache via \code{fit_allHRFs_result$fit_allHRFs} (its \code{result_paths}
+attribute) for lookup-mode personalized scoring.}
 
 \item{BOLD_file}{Character. Path to subject's CIFTI file.}
 
@@ -46,7 +47,7 @@ pass either (or both) to request the corresponding HRF fit alongside the
 always-present working fit. Defaults to both.}
 
 \item{subject_idx}{Integer or NULL. When non-NULL, personalized mode uses
-lookup scoring against \code{combo}'s cached RSS for that subject. When
+lookup scoring against \code{fit_allHRFs_result}'s cached RSS for that subject. When
 NULL, personalized mode falls back to refit scoring (multiGLM against
 this subject's BOLD) -- use NULL for new subjects not in the original
 \code{fit_allHRFs} run.}

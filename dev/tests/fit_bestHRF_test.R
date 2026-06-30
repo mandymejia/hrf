@@ -30,12 +30,12 @@ reg_result   <- readRDS("dev/fixtures/regularize_allHRFs_result_motorlr_4s.rds")
 allHRF_res   <- readRDS("dev/fixtures/fit_allHRFs_result_motorlr_4s.rds")
 
 # Synthesize a combo from the fixtures (avoids re-running fit_allHRFs).
-combo <- list(
+fit_allHRFs_result <- list(
   fit_workingHRF     = NULL,   # not consulted by fit_bestHRF
   fit_allHRFs        = allHRF_res,   # carries attr "result_paths" for lookup
   regularize_allHRFs = reg_result
 )
-class(combo) <- "hrfs"
+class(fit_allHRFs_result) <- "hrfs"
 
 subj <- 1L
 
@@ -73,7 +73,7 @@ compare_section <- function(label, got_sec, exp_sec) {
 
 call_fit <- function(use, subject_idx = NULL) {
   fit_bestHRF(
-    combo         = combo,
+    fit_allHRFs_result = fit_allHRFs_result,
     BOLD_file     = session_data$BOLD_files[subj],
     EVs           = session_data$EVs_list[[subj]],
     nuisance_file = session_data$nuisance_files[subj],

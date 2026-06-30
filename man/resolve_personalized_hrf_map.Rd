@@ -17,7 +17,7 @@ resolve_personalized_hrf_map(
 \item{cfg}{The fit_bestHRF cfg list; supplies EVs, TR, brainstructures,
 hpf, onsets, offsets, a1_offsets, b1_offsets, verbose.}
 
-\item{pop_avg, hrf_grid}{Pulled from \code{cfg$combo$regularize_allHRFs}.}
+\item{pop_avg, hrf_grid}{Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs}.}
 
 \item{allHRF_subject}{Optional list with \code{qs_path} pointing to the
 subject's fit_allHRFs qs cache (which carries both per-model RSS and

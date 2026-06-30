@@ -19,7 +19,7 @@ resolve_hrf_map(
 
 \item{cfg}{The fit_bestHRF cfg list.}
 
-\item{pop_avg, hrf_grid}{Pulled from \code{cfg$combo$regularize_allHRFs} by
+\item{pop_avg, hrf_grid}{Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs} by
 the caller (passed explicitly so this fn doesn't re-extract per call).}
 
 \item{allHRF_subject, BOLD_xii, nuisance}{See

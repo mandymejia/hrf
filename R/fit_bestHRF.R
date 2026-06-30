@@ -15,10 +15,11 @@
 #'     that have no cached RSS).}
 #' }
 #'
-#' @param combo An \code{hrfs} object from \code{\link{fit_allHRFs}}. Supplies
-#'   \code{pop_avg} + \code{hrf_grid} via \code{combo$regularize_allHRFs}, and
-#'   the per-subject qs cache via \code{combo$fit_allHRFs} (its
-#'   \code{result_paths} attribute) for lookup-mode personalized scoring.
+#' @param fit_allHRFs_result An \code{hrfs} object returned by
+#'   \code{\link{fit_allHRFs}}. Supplies \code{pop_avg} + \code{hrf_grid} via
+#'   \code{fit_allHRFs_result$regularize_allHRFs}, and the per-subject qs
+#'   cache via \code{fit_allHRFs_result$fit_allHRFs} (its \code{result_paths}
+#'   attribute) for lookup-mode personalized scoring.
 #' @param BOLD_file Character. Path to subject's CIFTI file.
 #' @param EVs Event data for this subject.
 #' @param nuisance_file Character. Path to nuisance regressor file (or NULL).
@@ -27,7 +28,7 @@
 #'   pass either (or both) to request the corresponding HRF fit alongside the
 #'   always-present working fit. Defaults to both.
 #' @param subject_idx Integer or NULL. When non-NULL, personalized mode uses
-#'   lookup scoring against \code{combo}'s cached RSS for that subject. When
+#'   lookup scoring against \code{fit_allHRFs_result}'s cached RSS for that subject. When
 #'   NULL, personalized mode falls back to refit scoring (multiGLM against
 #'   this subject's BOLD) -- use NULL for new subjects not in the original
 #'   \code{fit_allHRFs} run.
@@ -65,7 +66,7 @@
 #'   }
 #'
 #' @export
-fit_bestHRF <- function(combo,
+fit_bestHRF <- function(fit_allHRFs_result,
                         BOLD_file,
                         EVs,
                         nuisance_file = NULL,
@@ -89,7 +90,7 @@ fit_bestHRF <- function(combo,
   use <- match.arg(use, several.ok = TRUE)
 
   cfg <- list(
-    combo           = combo,
+    fit_allHRFs_result = fit_allHRFs_result,
     BOLD_file       = BOLD_file,
     EVs             = EVs,
     nuisance_file   = nuisance_file,
@@ -111,13 +112,13 @@ fit_bestHRF <- function(combo,
 
   validate_bestHRF_inputs(cfg)
 
-  pop_avg  <- cfg$combo$regularize_allHRFs$pop_avg
-  hrf_grid <- cfg$combo$regularize_allHRFs$hrf_grid
+  pop_avg  <- cfg$fit_allHRFs_result$regularize_allHRFs$pop_avg
+  hrf_grid <- cfg$fit_allHRFs_result$regularize_allHRFs$hrf_grid
 
   # Lookup mode is opt-in via subject_idx. The qs cache holds both per-model
   # RSS and canonical-HRF Fstat in mGLM0s (GLM_multi compares canonical vs null).
   allHRF_subject <- if ("personalized" %in% cfg$use && !is.null(cfg$subject_idx)) {
-    list(qs_path = attr(cfg$combo$fit_allHRFs, "result_paths")[cfg$subject_idx])
+    list(qs_path = attr(cfg$fit_allHRFs_result$fit_allHRFs, "result_paths")[cfg$subject_idx])
   } else {
     NULL
   }
@@ -294,7 +295,7 @@ fit_one_mode <- function(j, cfg, y, nT, nuisance_block,
 #'
 #' @param mode One of \code{"personalized"} or \code{"adapted"}.
 #' @param cfg The fit_bestHRF cfg list.
-#' @param pop_avg,hrf_grid Pulled from \code{cfg$combo$regularize_allHRFs} by
+#' @param pop_avg,hrf_grid Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs} by
 #'   the caller (passed explicitly so this fn doesn't re-extract per call).
 #' @param allHRF_subject,BOLD_xii,nuisance See
 #'   \code{\link{resolve_personalized_hrf_map}}; ignored when
@@ -331,7 +332,7 @@ resolve_hrf_map <- function(mode, cfg, pop_avg, hrf_grid,
 #'
 #' @param cfg The fit_bestHRF cfg list; supplies EVs, TR, brainstructures,
 #'   hpf, onsets, offsets, a1_offsets, b1_offsets, verbose.
-#' @param pop_avg,hrf_grid Pulled from \code{cfg$combo$regularize_allHRFs}.
+#' @param pop_avg,hrf_grid Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs}.
 #' @param allHRF_subject Optional list with \code{qs_path} pointing to the
 #'   subject's fit_allHRFs qs cache (which carries both per-model RSS and
 #'   canonical-HRF Fstat). When supplied, lookup scoring is used; NULL
@@ -409,42 +410,42 @@ load_qs_cache <- function(qs_path) {
 
 #' Validate fit_bestHRF Inputs
 #'
-#' Checks: \code{cfg$combo} has \code{regularize_allHRFs} + \code{fit_allHRFs}
+#' Checks: \code{cfg$fit_allHRFs_result} has \code{regularize_allHRFs} + \code{fit_allHRFs}
 #' sub-objects with the expected columns, and (for personalized lookup) the
 #' subject's qs cache path exists.
 #'
 #' @param cfg The fit_bestHRF cfg list.
 #' @keywords internal
 validate_bestHRF_inputs <- function(cfg) {
-  reg <- cfg$combo$regularize_allHRFs
+  reg <- cfg$fit_allHRFs_result$regularize_allHRFs
   if (is.null(reg$pop_avg)) {
-    stop("combo$regularize_allHRFs$pop_avg is NULL. Pass an hrfs object from fit_allHRFs().")
+    stop("fit_allHRFs_result$regularize_allHRFs$pop_avg is NULL. Pass an hrfs object from fit_allHRFs().")
   }
   if (is.null(reg$hrf_grid)) {
-    stop("combo$regularize_allHRFs$hrf_grid is NULL. Pass an hrfs object from fit_allHRFs().")
+    stop("fit_allHRFs_result$regularize_allHRFs$hrf_grid is NULL. Pass an hrfs object from fit_allHRFs().")
   }
   required_pa <- c("voxel", "a1_snapped", "b1_snapped", "c_snapped")
   missing_pa <- setdiff(required_pa, names(reg$pop_avg))
   if (length(missing_pa) > 0L) {
-    stop("combo$regularize_allHRFs$pop_avg is missing column(s): ",
+    stop("fit_allHRFs_result$regularize_allHRFs$pop_avg is missing column(s): ",
          paste(missing_pa, collapse = ", "))
   }
   required_grid <- c("a1", "b1", "c", "time_to_peak", "FWHM")
   missing_grid <- setdiff(required_grid, names(reg$hrf_grid))
   if (length(missing_grid) > 0L) {
-    stop("combo$regularize_allHRFs$hrf_grid is missing column(s): ",
+    stop("fit_allHRFs_result$regularize_allHRFs$hrf_grid is missing column(s): ",
          paste(missing_grid, collapse = ", "))
   }
 
   if ("personalized" %in% cfg$use && !is.null(cfg$subject_idx)) {
-    paths <- attr(cfg$combo$fit_allHRFs, "result_paths")
+    paths <- attr(cfg$fit_allHRFs_result$fit_allHRFs, "result_paths")
     if (is.null(paths)) {
-      stop("combo$fit_allHRFs has no 'result_paths' attribute -- ",
+      stop("fit_allHRFs_result$fit_allHRFs has no 'result_paths' attribute -- ",
            "cannot run personalized lookup. Pass subject_idx = NULL to use refit mode.")
     }
     qs_path <- paths[cfg$subject_idx]
     if (is.null(qs_path) || is.na(qs_path) || !nzchar(qs_path)) {
-      stop("attr(combo$fit_allHRFs, 'result_paths')[", cfg$subject_idx,
+      stop("attr(fit_allHRFs_result$fit_allHRFs, 'result_paths')[", cfg$subject_idx,
            "] is empty -- did fit_allHRFs run with save_rss = TRUE and save subject ",
            cfg$subject_idx, "?")
     }
