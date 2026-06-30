@@ -575,8 +575,8 @@ plot_param_grid_metrics <- function(hrf_grid) {
   show_canonical <- 6 %in% a1_vals && 1 %in% b1_vals
   canonical_layer <- if (show_canonical) {
     geom_rect(data = data.frame(a1 = 6, b1 = 1),
-              aes(xmin = a1 - step_a1 / 2, xmax = a1 + step_a1 / 2,
-                  ymin = b1 - step_b1 / 2, ymax = b1 + step_b1 / 2),
+              aes(xmin = .data$a1 - step_a1 / 2, xmax = .data$a1 + step_a1 / 2,
+                  ymin = .data$b1 - step_b1 / 2, ymax = .data$b1 + step_b1 / 2),
               fill = NA, color = "white", linewidth = 1.2, inherit.aes = FALSE)
   } else NULL
 
@@ -589,11 +589,11 @@ plot_param_grid_metrics <- function(hrf_grid) {
   facet_layer <- if (n_c == 1) NULL else facet_grid(. ~ c_label)
 
   # Time-to-peak heatmap
-  p1 <- ggplot(hrf_params, aes(x = .data$a1, y = .data$b1, fill = time_to_peak)) +
+  p1 <- ggplot(hrf_params, aes(x = .data$a1, y = .data$b1, fill = .data$time_to_peak)) +
     geom_hline(yintercept = b1_grid, alpha = 0.1) +
     geom_vline(xintercept = a1_grid, alpha = 0.1) +
     geom_tile(alpha = 0.8) +
-    geom_text(aes(label = round(time_to_peak, 1))) +
+    geom_text(aes(label = round(.data$time_to_peak, 1))) +
     canonical_layer +
     scale_fill_viridis_c('Time to Peak  ', option = 'C') +
     scale_x_continuous(breaks = a1_vals, expand = c(0, 0)) +
@@ -669,7 +669,7 @@ plot_hrfs_slices <- function(hrf_grid, canonical_a1 = 6, canonical_b1 = 1,
     ltypes <- ifelse(vals %in% dashed_vals, "dashed", "solid")
     names(ltypes) <- as.character(vals)
 
-    canonical <- subset(df, a1 == canonical_a1 & b1 == canonical_b1)
+    canonical <- df[df$a1 == canonical_a1 & df$b1 == canonical_b1, ]
 
     ggplot(df, aes(x = .data$sec, y = .data$HRF_tapered,
                    color    = factor(.data[[color_var]]),
@@ -692,9 +692,9 @@ plot_hrfs_slices <- function(hrf_grid, canonical_a1 = 6, canonical_b1 = 1,
             axis.line    = element_line(color = "black"))
   }
 
-  pA <- make_panel(subset(hrf_df, b1 == canonical_b1), "a1",
+  pA <- make_panel(hrf_df[hrf_df$b1 == canonical_b1, ], "a1",
                    sprintf("b1 = %g", canonical_b1), canonical_a1, dashed_a1)
-  pB <- make_panel(subset(hrf_df, a1 == canonical_a1), "b1",
+  pB <- make_panel(hrf_df[hrf_df$a1 == canonical_a1, ], "b1",
                    sprintf("a1 = %g", canonical_a1), canonical_b1, dashed_b1)
 
   gridExtra::grid.arrange(pA, pB, nrow = 2)
