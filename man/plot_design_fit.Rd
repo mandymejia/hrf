@@ -7,7 +7,7 @@
 plot_design_fit(x, subject = 1, style = c("default", "overlapping"), ...)
 }
 \arguments{
-\item{x}{A \code{workingHRF} object as returned by \code{\link{fit_workingHRF}}.}
+\item{x}{A \code{workingHRF} object (e.g. \code{combo$fit_workingHRF}).}
 
 \item{subject}{Integer. Index of the subject whose design matrix should be plotted.}
 
@@ -22,7 +22,7 @@ args for \code{"overlapping"}: \code{drop_derivatives}, \code{drop_onset_offset}
 Whatever the dispatched plot function returns (invisibly).
 }
 \description{
-Visualizes the design matrix from a \code{\link{fit_workingHRF}} fit for one
+Visualizes the design matrix from a working-HRF fit for one
 subject. Dispatches to one of two layouts:
 \describe{
 \item{\code{style = "default"}}{Faceted panels via \code{\link{plot_design_unlapped}}:

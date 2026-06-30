@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_allHRFs.R
 \name{fit_allHRFs}
 \alias{fit_allHRFs}
-\title{Fit Grid-Based HRF Models Across Subjects}
+\title{Fit working HRF, grid of candidate HRFs, and regularize across subjects}
 \usage{
 fit_allHRFs(
   BOLD,
@@ -13,6 +13,10 @@ fit_allHRFs(
   resamp_res = NULL,
   hpf = 0.01,
   nuisance = NULL,
+  working_hrf = list(a1 = 6, b1 = 1, c = 1/6, a2 = 16, b2 = 1),
+  derivatives = TRUE,
+  alpha = 0.05,
+  min_active_subjects = 20,
   onsets = TRUE,
   offsets = TRUE,
   scrub = NULL,
@@ -59,6 +63,19 @@ low-frequency drift in fMRI data.}
 regressors (e.g., motion parameters, physiological noise). If \code{NULL},
 no nuisance regression is performed.}
 
+\item{working_hrf}{Named list of HRF params for the canonical working fit:
+\code{a1, b1, c, a2, b2}. Default is SPM canonical
+\code{list(a1=6, b1=1, c=1/6, a2=16, b2=1)}.}
+
+\item{derivatives}{Logical. If \code{TRUE}, include temporal + dispersion
+derivatives in the working-HRF design (used for the F-test mask).}
+
+\item{alpha}{Numeric. Per-subject p-value threshold (Bonferroni-corrected)
+for the working-HRF F-test that builds the activation mask.}
+
+\item{min_active_subjects}{Integer. Minimum number of subjects that must
+pass the F-test at a voxel for it to enter the group activation mask.}
+
 \item{onsets}{Logical or character vector. Add separate onset regressors
 per trial type? If \code{TRUE}, adds onset regressors for all tasks.
 If character vector, specifies which tasks to model onsets for.
@@ -94,8 +111,8 @@ in parallel using \code{parLapplyLB()}. Each core may spawn multiple
 workers to mask I/O latency.}
 
 \item{save_rss}{Logical. If \code{TRUE}, store per-voxel RSS for every HRF
-model in each subject's saved \code{.qs} so \code{regularize_allHRFs()}
-can use lookup mode. If \code{FALSE} (default), regularize must refit.}
+model in each subject's saved \code{.qs} so downstream callers can use
+lookup mode. If \code{FALSE} (default), the RSS is dropped on save.}
 
 \item{log_dir}{Character or NULL. Directory path for saving log files
 and temporary outputs during processing. If NULL, uses current working
@@ -110,40 +127,27 @@ in parallel processing mode.}
 \item{...}{Additional arguments passed to \code{hrf_grid} if it's a function.}
 }
 \value{
-Object of class \code{"allHRFs"}; a named list with elements:
+Object of class \code{"hrfs"}; a named list with three sub-objects
+(each carrying its own S3 class for plot dispatch) plus shared metadata:
 \describe{
-\item{\code{subject_results}}{List of per-subject GLM results from multiGLM()}
-\item{\code{best_params_results}}{Data frame with best-fitting HRF parameters
-per voxel across all subjects (columns: a1, b1, c, voxel, subject)}
-\item{\code{call_info}}{Processing metadata including number of HRF models tested}
-\item{\code{hrf_grid}}{The HRF parameter grid used}
-\item{\code{session_info}}{Processing settings}
+\item{\code{fit_workingHRF}}{class \code{"workingHRF"}: activation_masks,
+per-subject working GLMs, hrf_params.}
+\item{\code{fit_allHRFs}}{class \code{"allHRFs"}: per-subject 25-candidate
+GLM cache (path attr "result_paths"), best_params_results, hrf_grid.}
+\item{\code{regularize_allHRFs}}{class \code{"regularizeHRFs"}: pop_avg,
+best_params_df, winning_c, c_votes, mask_prop_NA, hrf_grid.}
+\item{\code{session_info}}{Pipeline knobs used (brainstructures, resamp_res,
+hpf, onsets, offsets, smoothing, surf_FWHM, derivatives, alpha,
+min_active_subjects).}
 }
+\code{attr(combo, "call_info")} holds the run metadata.
 }
 \description{
-Tests multiple HRF parameterizations across subjects to find optimal HRF
-shapes at each brain location. Unlike \code{fit_workingHRF} which uses a
-single canonical HRF, this function fits a grid of HRF parameter combinations
-and identifies the best-fitting model for each voxel.
+For each subject: fits a canonical working HRF (used to build the cross-
+subject activation mask via F-test) and a grid of candidate HRF parameter
+combinations (one best HRF per voxel). Across subjects: regularizes the
+candidate results into a population-average HRF parameter map.
 }
-\section{Processing Pipeline}{
-
-For each subject:
-\enumerate{
-\item Loads BOLD data
-\item Creates design matrices for all HRF parameter combinations (Step 2b)
-\item Fits multiGLM comparing all HRF models simultaneously (Step 2c)
-}
-Across subjects, extracts best-fitting parameters at each location (Step 2d).
-}
-
-\section{Computational Requirements}{
-
-This function is computationally intensive, fitting ~100+ HRF models per subject.
-Parallel processing is strongly recommended for multiple subjects. Results may
-be saved to disk in parallel mode to manage memory usage.
-}
-
 \examples{
 \dontrun{
 # Use default HRF grid
@@ -171,7 +175,6 @@ result <- fit_allHRFs(
 
 }
 \seealso{
-\code{\link{fit_workingHRF}} for single canonical HRF modeling,
 \code{\link{generate_hrf_grid}} for creating HRF parameter grids,
 \code{\link{multiGLM}} for the underlying GLM comparison
 }

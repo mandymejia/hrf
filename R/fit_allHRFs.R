@@ -1,23 +1,9 @@
-#' Fit Grid-Based HRF Models Across Subjects
+#' Fit working HRF, grid of candidate HRFs, and regularize across subjects
 #'
-#' Tests multiple HRF parameterizations across subjects to find optimal HRF
-#' shapes at each brain location. Unlike \code{fit_workingHRF} which uses a
-#' single canonical HRF, this function fits a grid of HRF parameter combinations
-#' and identifies the best-fitting model for each voxel.
-#'
-#' @section Processing Pipeline:
-#' For each subject:
-#' \enumerate{
-#'   \item Loads BOLD data
-#'   \item Creates design matrices for all HRF parameter combinations (Step 2b)
-#'   \item Fits multiGLM comparing all HRF models simultaneously (Step 2c)
-#' }
-#' Across subjects, extracts best-fitting parameters at each location (Step 2d).
-#'
-#' @section Computational Requirements:
-#' This function is computationally intensive, fitting ~100+ HRF models per subject.
-#' Parallel processing is strongly recommended for multiple subjects. Results may
-#' be saved to disk in parallel mode to manage memory usage.
+#' For each subject: fits a canonical working HRF (used to build the cross-
+#' subject activation mask via F-test) and a grid of candidate HRF parameter
+#' combinations (one best HRF per voxel). Across subjects: regularizes the
+#' candidate results into a population-average HRF parameter map.
 #'
 #' @inheritParams BOLD_Param
 #' @inheritParams EVs_Param
@@ -27,6 +13,15 @@
 #' @inheritParams resamp_res_Param
 #' @inheritParams hpf_Param
 #' @inheritParams nuisance_Param
+#' @param working_hrf Named list of HRF params for the canonical working fit:
+#'   \code{a1, b1, c, a2, b2}. Default is SPM canonical
+#'   \code{list(a1=6, b1=1, c=1/6, a2=16, b2=1)}.
+#' @param derivatives Logical. If \code{TRUE}, include temporal + dispersion
+#'   derivatives in the working-HRF design (used for the F-test mask).
+#' @param alpha Numeric. Per-subject p-value threshold (Bonferroni-corrected)
+#'   for the working-HRF F-test that builds the activation mask.
+#' @param min_active_subjects Integer. Minimum number of subjects that must
+#'   pass the F-test at a voxel for it to enter the group activation mask.
 #' @inheritParams onsets_Param
 #' @inheritParams offsets_Param
 #' @inheritParams scrub_Param
@@ -37,22 +32,26 @@
 #' @inheritParams log_dir_Param
 #' @inheritParams work_dir_Param
 #' @param save_rss Logical. If \code{TRUE}, store per-voxel RSS for every HRF
-#'   model in each subject's saved \code{.qs} so \code{regularize_allHRFs()}
-#'   can use lookup mode. If \code{FALSE} (default), regularize must refit.
+#'   model in each subject's saved \code{.qs} so downstream callers can use
+#'   lookup mode. If \code{FALSE} (default), the RSS is dropped on save.
 #' @param ... Additional arguments passed to \code{hrf_grid} if it's a function.
 #'
-#' @return Object of class \code{"allHRFs"}; a named list with elements:
+#' @return Object of class \code{"hrfs"}; a named list with three sub-objects
+#'   (each carrying its own S3 class for plot dispatch) plus shared metadata:
 #' \describe{
-#'   \item{\code{subject_results}}{List of per-subject GLM results from multiGLM()}
-#'   \item{\code{best_params_results}}{Data frame with best-fitting HRF parameters
-#'         per voxel across all subjects (columns: a1, b1, c, voxel, subject)}
-#'   \item{\code{call_info}}{Processing metadata including number of HRF models tested}
-#'   \item{\code{hrf_grid}}{The HRF parameter grid used}
-#'   \item{\code{session_info}}{Processing settings}
+#'   \item{\code{fit_workingHRF}}{class \code{"workingHRF"}: activation_masks,
+#'     per-subject working GLMs, hrf_params.}
+#'   \item{\code{fit_allHRFs}}{class \code{"allHRFs"}: per-subject 25-candidate
+#'     GLM cache (path attr "result_paths"), best_params_results, hrf_grid.}
+#'   \item{\code{regularize_allHRFs}}{class \code{"regularizeHRFs"}: pop_avg,
+#'     best_params_df, winning_c, c_votes, mask_prop_NA, hrf_grid.}
+#'   \item{\code{session_info}}{Pipeline knobs used (brainstructures, resamp_res,
+#'     hpf, onsets, offsets, smoothing, surf_FWHM, derivatives, alpha,
+#'     min_active_subjects).}
 #' }
+#'   \code{attr(combo, "call_info")} holds the run metadata.
 #'
-#' @seealso 
-#' \code{\link{fit_workingHRF}} for single canonical HRF modeling,
+#' @seealso
 #' \code{\link{generate_hrf_grid}} for creating HRF parameter grids,
 #' \code{\link{multiGLM}} for the underlying GLM comparison
 #'
@@ -91,7 +90,10 @@ fit_allHRFs <- function(
     resamp_res = NULL,
     hpf = 0.01,
     nuisance = NULL,
-    # Removed derivatives
+    working_hrf = list(a1 = 6, b1 = 1, c = 1/6, a2 = 16, b2 = 1),
+    derivatives = TRUE,
+    alpha = 0.05,
+    min_active_subjects = 20,
     onsets = TRUE,
     offsets = TRUE,
     scrub = NULL,
@@ -102,8 +104,6 @@ fit_allHRFs <- function(
     save_rss = FALSE,
     log_dir = "logs", work_dir = NULL, ...
 ) {
-  cat("***********Version 1.2222************\n")
-
   call_match <- match.call()
 
   hrf_grid <- set_hrf_grid(hrf_grid, ...)
@@ -113,18 +113,27 @@ fit_allHRFs <- function(
 
   if (verbose > 0) cat("fit_allHRFs called with", length(BOLD), "subjects and", nrow(hrf_grid), "HRF models using", n_cores, "cores\n")
 
+  cfg <- list(
+    BOLD = BOLD, EVs = EVs, nuisance = nuisance, scrub = scrub,
+    TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
+    hpf = hpf, smoothing = smoothing, surf_FWHM = surf_FWHM,
+    onsets = onsets, offsets = offsets,
+    hrf_grid = hrf_grid,
+    working_hrf = working_hrf, derivatives = derivatives,
+    alpha = alpha, min_active_subjects = min_active_subjects,
+    verbose = verbose
+  )
+
   # Parallel processing setup for subjects (2b + 2c per subject)
-  if(n_cores > 1) {
-    subject_results <- run_parallel_subjects_allHRFs(
-      BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir, save_rss
-    )
+  if (n_cores > 1) {
+    subject_results <- run_parallel_subjects_allHRFs(cfg, n_cores = n_cores,
+                                                      log_dir = log_dir,
+                                                      work_dir = work_dir,
+                                                      save_rss = save_rss)
   } else {
-    if(verbose > 0) cat("Using sequential processing\n")
-    subject_results <- run_sequential_subjects_allHRFs(
-      BOLD, EVs, nuisance, TR, brainstructures, resamp_res, hpf,
-      hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir, save_rss
-    )
+    if (verbose > 0) cat("Using sequential processing\n")
+    subject_results <- run_sequential_subjects_allHRFs(cfg, work_dir = work_dir,
+                                                        save_rss = save_rss)
   }
 
  
@@ -154,36 +163,54 @@ fit_allHRFs <- function(
   tictoc::toc()
 
 
-  result <- list(
+  if (verbose > 0) cat("Aggregating working-HRF subject results into activation masks...\n")
+  working_subject_results <- lapply(loaded_subject_results, `[[`, "working")
+  mask_results <- create_activation_masks(working_subject_results, alpha, min_active_subjects, verbose)
+  min_active_subjects <- mask_results$min_active_subjects
+  mask_results$min_active_subjects <- NULL
+
+  fit_workingHRF <- list(
+    activation_masks = mask_results,
+    subject_results  = working_subject_results,
+    hrf_params       = working_hrf
+  )
+  class(fit_workingHRF) <- "workingHRF"
+
+  fit_allHRFs <- list(
     best_params_results = best_params_results,
-    # subject_results = subject_results,
-    subject_results = loaded_subject_results,
-    call_info = list(
-      call = call_match,
-      n_subjects = length(BOLD),
-      n_hrf_models = nrow(hrf_grid),
-      TR = TR,
-      n_cores = n_cores,
-      parallel_method = if(n_cores > 1) "parLapply" else "sequential",
-      completion_time = Sys.time(),
-      save_rss = save_rss
-    ),
-    hrf_grid = hrf_grid,
+    subject_results     = loaded_subject_results,
+    hrf_grid            = hrf_grid
+  )
+  attr(fit_allHRFs, "result_paths") <- result_paths
+  class(fit_allHRFs) <- "allHRFs"
+
+  if (verbose > 0) cat("Running regularize_allHRFs aggregation...\n")
+  reg_result <- regularize_allHRFs(fit_workingHRF, fit_allHRFs, verbose = verbose)
+
+  combo <- list(
+    fit_workingHRF     = fit_workingHRF,
+    fit_allHRFs        = fit_allHRFs,
+    regularize_allHRFs = reg_result,
     session_info = list(
-      brainstructures = brainstructures,
-      resamp_res = resamp_res,
-      hpf = hpf,
-      onsets = onsets,
-      offsets = offsets,
-      smoothing = smoothing,
-      surf_FWHM = surf_FWHM
+      brainstructures = brainstructures, resamp_res = resamp_res, hpf = hpf,
+      onsets = onsets, offsets = offsets,
+      smoothing = smoothing, surf_FWHM = surf_FWHM,
+      derivatives = derivatives,
+      alpha = alpha, min_active_subjects = min_active_subjects
     )
   )
-
-  attr(result, "result_paths") <- result_paths
-
-  class(result) <- "allHRFs"
-  return(result)
+  attr(combo, "call_info") <- list(
+    call = call_match,
+    n_subjects = length(BOLD),
+    n_hrf_models = nrow(hrf_grid),
+    TR = TR,
+    n_cores = n_cores,
+    parallel_method = if (n_cores > 1) "parLapply" else "sequential",
+    completion_time = Sys.time(),
+    save_rss = save_rss
+  )
+  class(combo) <- "hrfs"
+  combo
 }
 
 #' Process subjects in parallel for allHRFs
@@ -212,73 +239,34 @@ fit_allHRFs <- function(
 #'   ("saved" or "error"), and file_path (for successful subjects).
 #'
 #' @keywords internal
-run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                          hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, n_cores, log_dir, work_dir, save_rss) {
+run_parallel_subjects_allHRFs <- function(cfg, n_cores, log_dir, work_dir, save_rss) {
 
-  if(verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n")
+  if (cfg$verbose > 0) cat("Setting up parallel cluster with", n_cores, "cores\n")
 
-  n_workers = n_cores
-  cat("Processing with cores of:", n_cores)
-
-  if (!dir.exists(log_dir)) { dir.create(log_dir, recursive = TRUE)}
+  if (!dir.exists(log_dir)) dir.create(log_dir, recursive = TRUE)
   log_file <- file.path(log_dir, sprintf("fit_allHRFs_log_%s.txt", format(Sys.time(), "%Y%m%d_%H%M%S")))
   message("Cluster logs will be saved to: ", normalizePath(log_file, mustWork = FALSE))
 
-  cl <- parallel::makeCluster(n_workers, outfile = log_file)
+  cl <- parallel::makeCluster(n_cores, outfile = log_file)
   on.exit(parallel::stopCluster(cl), add = TRUE)
 
+  setup_parallel_cluster(cl, cfg$verbose, c("cfg", "save_rss"))
 
-  vars_to_export <- c(
-    "BOLD", "EVs", "nuisance", "scrub", "TR", "brainstructures", "resamp_res",
-    "hpf", "hrf_grid", "onsets", "offsets", "smoothing", "surf_FWHM", "verbose",
-    "save_rss"
-  )
+  if (cfg$verbose > 0) cat("Processing subjects in parallel\n")
 
-  setup_parallel_cluster(cl, verbose, vars_to_export)
-
-  if(verbose > 0) cat("Processing subjects in parallel\n")
-
-
-  subject_results <- parallel::parLapplyLB(cl, 1:length(BOLD), function(i) {
+  parallel::parLapplyLB(cl, seq_along(cfg$BOLD), function(i) {
     tryCatch({
-      cat(sprintf("###Worker starting subject %d\n", i))
-      result <-  process_entire_subject(
-        subject_idx = i,
-        BOLD_file = BOLD[i],
-        EVs = EVs[[i]],
-        nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
-        scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
-        TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose,
-        save_rss = save_rss
-      )
-
-
-      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
-
-      cat(sprintf("###Worker finished subject %d successfully\n", i))
-      # result
+      cat(sprintf("[cluster] worker started subj %d\n", i))
+      result <- process_entire_subject(subject_idx = i, cfg = cfg, save_rss = save_rss)
+      file_path <- save_object(result, label = sprintf("subject_%03d", i),
+                               prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
+      cat(sprintf("[cluster] worker done    subj %d\n", i))
       list(subject_idx = i, status = "saved", file_path = file_path)
     }, error = function(e) {
-      cat(sprintf("###Worker FAILED subject %d: %s\n", i, e$message))
+      cat(sprintf("[cluster] worker FAILED  subj %d: %s\n", i, e$message))
       list(subject_idx = i, status = "error", error = e$message)
     })
   })
-
-  # subject_results <- parallel::parLapplyLB(cl, 1:length(BOLD), function(i) {
-  #   process_entire_subject(
-  #     subject_idx = i,
-  #     BOLD_file = BOLD[i],
-  #     EVs = EVs[[i]],
-  #     nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
-  #     scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
-  #     TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-  #     hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, verbose = verbose
-  #   )
-  # })
-
-  if(verbose > 0) cat("Parallel processing completed\n")
-  return(subject_results)
 }
 
 #' Process subjects sequentially for allHRFs
@@ -303,24 +291,12 @@ run_parallel_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructur
 #' @return List of full subject results from \code{process_entire_subject}.
 #'
 #' @keywords internal
-run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstructures, resamp_res,
-                                            hpf, hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, work_dir, save_rss) {
-
-  lapply(1:length(BOLD), function(i) {
+run_sequential_subjects_allHRFs <- function(cfg, work_dir, save_rss) {
+  lapply(seq_along(cfg$BOLD), function(i) {
     tryCatch({
-        result <- process_entire_subject(
-        subject_idx = i,
-        BOLD_file = BOLD[i],
-        EVs = EVs[[i]],
-        nuisance_file = if(!is.null(nuisance)) nuisance[i] else NULL,
-        scrub = if(!is.null(scrub)) scrub[[i]] else NULL,
-        TR = TR, brainstructures = brainstructures, resamp_res = resamp_res,
-        hpf = hpf, hrf_grid = hrf_grid, onsets = onsets, offsets = offsets, smoothing = smoothing, surf_FWHM = surf_FWHM, verbose = verbose,
-        save_rss = save_rss
-      )
-
-      file_path <- save_object(result, label = sprintf("subject_%03d", i), prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
-
+      result <- process_entire_subject(subject_idx = i, cfg = cfg, save_rss = save_rss)
+      file_path <- save_object(result, label = sprintf("subject_%03d", i),
+                               prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
       list(subject_idx = i, status = "saved", file_path = file_path)
     }, error = function(e) {
       list(subject_idx = i, status = "error", error = e$message)
@@ -336,20 +312,9 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
 #' and timing diagnostics.
 #'
 #' @inheritParams subject_idx_Param
-#' @param BOLD_file Character. File path to subject's CIFTI data.
-#' @inheritParams EVs_Param
-#' @inheritParams nuisance_file_Param
-#' @inheritParams TR_Param
-#' @inheritParams brainstructures_Param
-#' @inheritParams resamp_res_Param
-#' @inheritParams hpf_Param
-#' @inheritParams hrf_grid_Param
-#' @inheritParams onsets_Param
-#' @inheritParams offsets_Param
-#' @inheritParams scrub_Param
-#' @inheritParams verbose_Param
-#' @inheritParams smoothing_Param
-#' @inheritParams surf_FWHM_Param
+#' @param cfg Named list of pipeline config (built by \code{fit_allHRFs}).
+#' @param save_rss Logical. If \code{TRUE}, keep per-candidate RSS arrays in the
+#'   saved \code{.qs} (needed for downstream lookup-mode scoring).
 #'
 #' @return List with elements:
 #'   \item{subject_idx}{Subject identifier}
@@ -360,57 +325,48 @@ run_sequential_subjects_allHRFs <- function(BOLD, EVs, nuisance, TR, brainstruct
 #'   \item{error}{Error message (if status = "error")}
 #'
 #' @keywords internal
-process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
-                                   TR, brainstructures, resamp_res, hpf,
-                                   hrf_grid, onsets, offsets, scrub, smoothing, surf_FWHM, verbose, save_rss = FALSE) {
+process_entire_subject <- function(subject_idx, cfg, save_rss = FALSE) {
 
   tictoc::tic()
-  cat("***STARTING NEW SUBJECT....***\n")
+  cat(sprintf("[subj %d] start\n", subject_idx))
   start_time <- Sys.time()
-  if(verbose > 1) cat("Subject", subject_idx, ": Starting allHRFs pipeline...\n")
+
+  BOLD_file     <- cfg$BOLD[subject_idx]
+  EVs           <- cfg$EVs[[subject_idx]]
+  nuisance_file <- if (!is.null(cfg$nuisance)) cfg$nuisance[subject_idx] else NULL
+  scrub         <- if (!is.null(cfg$scrub))    cfg$scrub[[subject_idx]]  else NULL
 
   tryCatch({
-    # Debug ------ ------ ------ ------ ------ ------ ------ ------ ------ ------ ------
-    rss_report <- function(when, subject_idx) {
-      cat(sprintf("***Subject %d - %s\n", subject_idx, when))
-    }
-    rss_report("Start", subject_idx)
-    #------ ------ ------ ------ ------ ------ ------ ------ ------ ------ ------
-
-    # Step 1: Load BOLD data (reuse from fit_workingHRF)
     tictoc::tic()
-    bold_data <- load_bold_data(BOLD_file, brainstructures, resamp_res, smoothing, surf_FWHM)
-    cat("*****#%#time elapsed for load_bold_data: ")
-    tictoc::toc()
+    bold_data <- load_bold_data(BOLD_file, cfg$brainstructures, cfg$resamp_res, cfg$smoothing, cfg$surf_FWHM)
+    cat(sprintf("[subj %d] load_bold_data: ", subject_idx)); tictoc::toc()
     nT <- bold_data$nT
-    if(verbose > 1) cat("Subject", subject_idx, ": BOLD loaded, nT =", bold_data$nT, "\n")
 
-    # Step 2b: Create ALL design matrices for all HRF parameters
-    rss_report("***Before design matrix", subject_idx)
     tictoc::tic()
-    design_3D <- create_all_design_matrices(
-      EVs, nT, TR, hrf_grid, onsets, offsets, verbose, subject_idx
+    working_result <- fit_working_one_subject(
+      BOLD_xii      = bold_data$BOLD_xii,
+      nuisance_file = nuisance_file,
+      scrub         = scrub,
+      cfg           = cfg,
+      subject_idx   = subject_idx
     )
-    rss_report("***After design matrix", subject_idx)
-    cat("***design_3D RAM size:", format(object.size(design_3D), units = "MB"), "\n")
-    cat("****all design matrices took: ")
-    tictoc::toc()
+    cat(sprintf("[subj %d] fit_working_one_subject: ", subject_idx)); tictoc::toc()
 
-    # Step 2c: Fit multiGLM with all designs
-    rss_report("***Before GLM fit", subject_idx)
+    tictoc::tic()
+    design_3D <- create_all_design_matrices(EVs, nT, cfg$TR, cfg$hrf_grid,
+                                            cfg$onsets, cfg$offsets, cfg$verbose, subject_idx)
+    cat(sprintf("[subj %d] all design matrices: ", subject_idx)); tictoc::toc()
+
     tictoc::tic()
     glm_result <- fit_multiGLM_all_designs(
-      bold_data$BOLD_xii, design_3D$array, nuisance_file, TR, brainstructures,
-      hpf, scrub, resamp_res, verbose, subject_idx, EVs, onsets, offsets
+      bold_data$BOLD_xii, design_3D$array, nuisance_file, cfg$TR, cfg$brainstructures,
+      cfg$hpf, scrub, cfg$resamp_res, cfg$verbose, subject_idx, EVs, cfg$onsets, cfg$offsets
     )
-    cat("*****#%#time elapsed for multiGLM: ")
-    tictoc::toc()
-    rss_report("***After GLM fit", subject_idx)
-    cat("***glm_result RAM size:", format(object.size(glm_result), units = "MB"), "\n")
+    cat(sprintf("[subj %d] multiGLM: ", subject_idx)); tictoc::toc()
 
     # Extract best (a1, b1, rss) per voxel for EACH unique c value
     # This reduces storage from ~17 MB/subject to ~0.9 MB/subject
-    unique_c <- unique(hrf_grid$c)
+    unique_c <- unique(cfg$hrf_grid$c)
 
     for (hemi in c("cortexL", "cortexR")) {
       RSS <- glm_result$mGLM0s[[hemi]]$RSS
@@ -419,14 +375,14 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
         best_per_c <- list()
 
         for (c_val in unique_c) {
-          c_idx <- which(hrf_grid$c == c_val)
+          c_idx <- which(cfg$hrf_grid$c == c_val)
           RSS_c <- RSS[, c_idx]
           best_local <- apply(RSS_c, 1, which.min)
           best_global <- c_idx[best_local]
 
           best_per_c[[as.character(c_val)]] <- data.frame(
-            a1 = hrf_grid$a1[best_global],
-            b1 = hrf_grid$b1[best_global],
+            a1 = cfg$hrf_grid$a1[best_global],
+            b1 = cfg$hrf_grid$b1[best_global],
             c = c_val,
             rss = RSS_c[cbind(1:nrow(RSS), best_local)]
           )
@@ -439,37 +395,30 @@ process_entire_subject <- function(subject_idx, BOLD_file, EVs, nuisance_file,
       }
     }
 
-    cat("***glm_result RAM size after RSS extraction:", format(object.size(glm_result), units = "MB"), "\n")
-
-    cat("\n--- MEMORY Z! REPORT for Subject", subject_idx, "---\n")
-    cat("Size of BOLD data      :", format(object.size(bold_data), units = "MB"), "\n")
-    cat("Size of design_3D      :", format(object.size(design_3D), units = "MB"), "\n")
-    cat("Size of glm_result     :", format(object.size(glm_result), units = "MB"), "\n")
-    cat("Total mem in function  :", format(object.size(environment()), units = "MB"), "\n")
-    cat("--------------------------------------\n")
-    # Clean up memory before returning
-    # rm(bold_data, design_3D); gc()
+    cat(sprintf(
+      "[subj %d] memory: bold=%s, design=%s, glm=%s, env=%s\n",
+      subject_idx,
+      format(object.size(bold_data),    units = "MB"),
+      format(object.size(design_3D),    units = "MB"),
+      format(object.size(glm_result),   units = "MB"),
+      format(object.size(environment()), units = "MB")
+    ))
 
     processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
-    if(verbose > 1) cat("Subject", subject_idx, ": Completed in", round(processing_time, 1), "s\n")
-
-
-    cat("^^^***Subject", subject_idx, ": EVERYTHING DONE: ")
-    tictoc::toc()
+    cat(sprintf("[subj %d] done: ", subject_idx)); tictoc::toc()
     return(list(
       subject_idx = subject_idx,
       nT = nT,
-      design_3D = design_3D,  
+      design_3D = design_3D,
       glm_result = glm_result,  # Contains bestmodel_xii
+      working = working_result,
       processing_time = processing_time,
       status = "success"
     ))
 
   }, error = function(e) {
     processing_time <- as.numeric(Sys.time() - start_time, units = "secs")
-    cat("ERROR in process_entire_subject for subject", subject_idx, "\n")
-    cat("Error message:", conditionMessage(e), "\n")
-    cat("Error details:", e$message, "\n")
+    cat(sprintf("[subj %d] ERROR: %s\n", subject_idx, conditionMessage(e)))
 
     return(list(
       subject_idx = subject_idx,
@@ -507,14 +456,11 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
 
   # Get number of fields from first design (to determine array dimensions)
   hrf_params_1 <- extract_hrf_params(hrf_grid, 1)
-  cat("Running make_design idx=1\n")
 
   taper_start_1 <- get_taper_start(
     a1 = hrf_params_1$a1, b1 = hrf_params_1$b1,
     a2 = hrf_params_1$a2, b2 = hrf_params_1$b2,
     c = hrf_params_1$c, TR = TR, deriv = 0 )
-  cat(if (is.null(taper_start_1)) "No tapering needed (c=0 or HRF resolves by 30s)\n"
-    else sprintf("Taper start (idx=1): %.2f seconds\n", taper_start_1))
 
   design_1 <- make_design(
     EVs = EVs, nTime = nT, TR = TR, dHRF = 0,  # No derivatives in allHRFs
@@ -537,15 +483,12 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
   # Create remaining designs
   for (pp in 2:nrow(hrf_grid)) {
     tictoc::tic()
-    cat(sprintf("***Running make_design idx=%d\n", pp))
     hrf_params <- extract_hrf_params(hrf_grid, pp)
 
     taper_start_pp <- get_taper_start(
       a1 = hrf_params$a1, b1 = hrf_params$b1,
       a2 = hrf_params$a2, b2 = hrf_params$b2,
-      c = hrf_params$c, TR = TR,deriv = 0 )
-    cat(if (is.null(taper_start_pp)) sprintf("No tapering (idx=%d)\n", pp)
-        else sprintf("Taper start (idx=%d): %.2f seconds\n", pp, taper_start_pp))
+      c = hrf_params$c, TR = TR, deriv = 0 )
 
     design_pp <- make_design(
       EVs = EVs, nTime = nT, TR = TR, dHRF = 0,
@@ -557,8 +500,7 @@ create_all_design_matrices <- function(EVs, nT, TR, hrf_grid, onsets, offsets, v
     design_list[[pp]] <- design_pp$design
 
     design_3D[,,pp] <- design_pp$design
-    cat("time elapsed for make_design idx=", pp, ": ")
-    tictoc::toc()
+    cat(sprintf("[subj %d] make_design idx=%d: ", subject_idx, pp)); tictoc::toc()
   }
 
   if(verbose > 1) cat("Subject", subject_idx, ": Design array dims =", paste(dim(design_3D), collapse="x"), "\n")
@@ -603,7 +545,6 @@ fit_multiGLM_all_designs <- function(BOLD_xii, design_3D, nuisance_file, TR, bra
   )$design
 
   # Fit multiGLM with all designs
-  tictoc::tic("Fitting multiGLM:")
   glm_result <- multiGLM(
     BOLD = BOLD_xii,
     brainstructures = brainstructures,
@@ -615,9 +556,6 @@ fit_multiGLM_all_designs <- function(BOLD_xii, design_3D, nuisance_file, TR, bra
     TR = TR,
     hpf = hpf
   )
-  cat("*****#%#time elapsed (subject#: ", subject_idx, ") for multiGLM: ")
-  tictoc::toc()
-
 
   return(glm_result)
 }

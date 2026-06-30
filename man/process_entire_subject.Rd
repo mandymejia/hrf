@@ -4,86 +4,16 @@
 \alias{process_entire_subject}
 \title{Process entire subject through allHRFs pipeline}
 \usage{
-process_entire_subject(
-  subject_idx,
-  BOLD_file,
-  EVs,
-  nuisance_file,
-  TR,
-  brainstructures,
-  resamp_res,
-  hpf,
-  hrf_grid,
-  onsets,
-  offsets,
-  scrub,
-  smoothing,
-  surf_FWHM,
-  verbose,
-  save_rss = FALSE
-)
+process_entire_subject(subject_idx, cfg, save_rss = FALSE)
 }
 \arguments{
 \item{subject_idx}{Integer. Index identifying the current subject being
 processed (used internally for progress reporting and error tracking).}
 
-\item{BOLD_file}{Character. File path to subject's CIFTI data.}
+\item{cfg}{Named list of pipeline config (built by \code{fit_allHRFs}).}
 
-\item{EVs}{List, same length as \code{BOLD}. Each element is a data frame
-(or similar) giving event onsets and durations for that subject. Each
-data frame should have columns for onset times and durations in seconds.}
-
-\item{nuisance_file}{Character or NULL. File path to nuisance regressors
-text file. Expected format: tab/space-separated values, no header,
-one timepoint per row. If NULL, no nuisance regression is performed.}
-
-\item{TR}{Numeric. Repetition time in seconds. The temporal sampling
-rate of the BOLD acquisition.}
-
-\item{brainstructures}{Character vector passed to
-\code{ciftiTools::read_cifti()}, specifying which brain structures
-to analyze. Typical values: \code{c("left", "right")} for cortical
-hemispheres, or \code{c("left", "right", "subcortical")}.}
-
-\item{resamp_res}{Integer or \code{NULL}. Surface resampling resolution
-(e.g., 10000 for 10k vertices per hemisphere). If \code{NULL}, uses
-native resolution of the input data.}
-
-\item{hpf}{Numeric or \code{NULL}. High-pass filter cut-off frequency
-in Hz. Set \code{NULL} to disable filtering. Recommended for removing
-low-frequency drift in fMRI data.}
-
-\item{hrf_grid}{Data frame or function returning HRF parameter combinations.
-Must contain columns: a1, b1, c, a2, b2. If function, called with ... arguments.}
-
-\item{onsets}{Logical or character vector. Add separate onset regressors
-per trial type? If \code{TRUE}, adds onset regressors for all tasks.
-If character vector, specifies which tasks to model onsets for.
-Only compatible with block designs (events with duration > 1s).}
-
-\item{offsets}{Logical or character vector. Add separate offset regressors
-per trial type? If \code{TRUE}, adds offset regressors for all tasks.
-If character vector, specifies which tasks to model offsets for.
-Only compatible with block designs (events with duration > 1s).}
-
-\item{scrub}{List (one logical vector per subject) or \code{NULL}.
-Frames set to \code{TRUE} are excluded from the GLM. Used to remove
-high-motion or artifact-contaminated timepoints.}
-
-\item{smoothing}{Logical. Whether to apply spatial smoothing to BOLD data
-after loading. Default: \code{TRUE}. Set to \code{FALSE} to disable smoothing.}
-
-\item{surf_FWHM}{Numeric. Full width at half maximum (FWHM) parameter for
-Gaussian surface smoothing kernel in millimeters. Only used if
-\code{smoothing = TRUE}. Default: \code{5}. Corresponds to the
-\code{surf_FWHM} parameter in \code{ciftiTools::smooth_xifti()}.}
-
-\item{verbose}{Integer controlling output verbosity:
-\itemize{
-\item 0 = silent
-\item 1 = high-level progress messages
-\item 2 = detailed per-subject information
-}}
+\item{save_rss}{Logical. If \code{TRUE}, keep per-candidate RSS arrays in the
+saved \code{.qs} (needed for downstream lookup-mode scoring).}
 }
 \value{
 List with elements:

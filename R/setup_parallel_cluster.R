@@ -39,8 +39,7 @@ setup_parallel_cluster <- function(cl, verbose = 1, vars_to_export) {
 
   # Export necessary functions that arent apart of the NAMESPACE
   parallel::clusterExport(cl, c(
-    "process_single_subject_df",
-    "create_design_matrix",
+    "fit_working_one_subject",
     "fit_glm_model",
     "load_nuisance_regressors",
     "convert_design_to_array",

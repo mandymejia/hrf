@@ -19,8 +19,8 @@
 A plot is rendered; invisibly returns the underlying object used for plotting.
 }
 \description{
-Dispatches to one of four plot types for visualizing results from a
-\code{\link{fit_workingHRF}} object:
+Dispatches to one of four plot types for visualizing a \code{workingHRF}
+sub-object (e.g. \code{combo$fit_workingHRF} from \code{fit_allHRFs}):
 }
 \details{
 \describe{
@@ -32,8 +32,8 @@ Dispatches to one of four plot types for visualizing results from a
 }
 \examples{
 \dontrun{
-result <- fit_workingHRF(...)
-plot(result, type = "design", subject = 1)
+combo <- fit_allHRFs(...)
+plot(combo$fit_workingHRF, type = "design", subject = 1)
 plot(result, type = "proportion")
 plot(result, type = "binary", threshold = 0.2)
 plot(result, type = "mask")

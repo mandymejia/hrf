@@ -1,7 +1,7 @@
 #' Plot method for `workingHRF` objects
 #'
-#' Dispatches to one of four plot types for visualizing results from a
-#' \code{\link{fit_workingHRF}} object:
+#' Dispatches to one of four plot types for visualizing a \code{workingHRF}
+#' sub-object (e.g. \code{combo$fit_workingHRF} from \code{fit_allHRFs}):
 #'
 #' \describe{
 #'   \item{\code{type = "design"}}{Plots the design matrix for a specific subject.}
@@ -19,8 +19,8 @@
 #'
 #' @examples
 #' \dontrun{
-#' result <- fit_workingHRF(...)
-#' plot(result, type = "design", subject = 1)
+#' combo <- fit_allHRFs(...)
+#' plot(combo$fit_workingHRF, type = "design", subject = 1)
 #' plot(result, type = "proportion")
 #' plot(result, type = "binary", threshold = 0.2)
 #' plot(result, type = "mask")
@@ -41,7 +41,7 @@ plot.workingHRF <- function(x, type = c("design", "proportion", "binary", "mask"
 
 #' Plot HRF design matrix for a single subject
 #'
-#' Visualizes the design matrix from a \code{\link{fit_workingHRF}} fit for one
+#' Visualizes the design matrix from a working-HRF fit for one
 #' subject. Dispatches to one of two layouts:
 #' \describe{
 #'   \item{\code{style = "default"}}{Faceted panels via \code{\link{plot_design_unlapped}}:
@@ -51,7 +51,7 @@ plot.workingHRF <- function(x, type = c("design", "proportion", "binary", "mask"
 #'     all regressors plotted together, with color/linetype per field.}
 #' }
 #'
-#' @param x A \code{workingHRF} object as returned by \code{\link{fit_workingHRF}}.
+#' @param x A \code{workingHRF} object (e.g. \code{combo$fit_workingHRF}).
 #' @param subject Integer. Index of the subject whose design matrix should be plotted.
 #' @param style \code{"default"} (faceted) or \code{"overlapping"} (single overlay).
 #' @param ... Additional arguments forwarded to the underlying plot function

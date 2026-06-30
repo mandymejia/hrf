@@ -6,7 +6,6 @@
 #   Rscript dev/tests/run_all.R
 
 tests <- c(
-  "dev/tests/fit_workingHRF_test.R",
   "dev/tests/fit_allHRFs_test.R",
   "dev/tests/regularize_test.R",
   "dev/tests/fit_bestHRF_test.R"
