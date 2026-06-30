@@ -10,21 +10,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// round_regularized_params
-DataFrame round_regularized_params(List results, DataFrame hrf_params, std::string model, bool inside_grid, int max_voxels);
-RcppExport SEXP _hrf_round_regularized_params(SEXP resultsSEXP, SEXP hrf_paramsSEXP, SEXP modelSEXP, SEXP inside_gridSEXP, SEXP max_voxelsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< List >::type results(resultsSEXP);
-    Rcpp::traits::input_parameter< DataFrame >::type hrf_params(hrf_paramsSEXP);
-    Rcpp::traits::input_parameter< std::string >::type model(modelSEXP);
-    Rcpp::traits::input_parameter< bool >::type inside_grid(inside_gridSEXP);
-    Rcpp::traits::input_parameter< int >::type max_voxels(max_voxelsSEXP);
-    rcpp_result_gen = Rcpp::wrap(round_regularized_params(results, hrf_params, model, inside_grid, max_voxels));
-    return rcpp_result_gen;
-END_RCPP
-}
 // say_hello
 void say_hello();
 RcppExport SEXP _hrf_say_hello() {
@@ -36,7 +21,6 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_hrf_round_regularized_params", (DL_FUNC) &_hrf_round_regularized_params, 5},
     {"_hrf_say_hello", (DL_FUNC) &_hrf_say_hello, 0},
     {NULL, NULL, 0}
 };
