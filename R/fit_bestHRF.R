@@ -89,6 +89,11 @@ fit_bestHRF <- function(fit_allHRFs_result,
 
   use <- match.arg(use, several.ok = TRUE)
 
+  fit_allHRFs_result$fit_workingHRF <- NULL
+  fit_allHRFs_result$session_info   <- NULL
+  fit_allHRFs_result$fit_allHRFs$subject_results    <- NULL
+  fit_allHRFs_result$fit_allHRFs$best_params_results <- NULL
+
   cfg <- list(
     fit_allHRFs_result = fit_allHRFs_result,
     BOLD_file       = BOLD_file,
