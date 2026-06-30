@@ -7,34 +7,29 @@
 run_modes_parallel(
   jobs,
   n_cores,
+  cfg,
   y,
-  EVs,
   nT,
-  TR,
   nuisance_block,
   A,
   n_task,
   nV,
-  onsets,
-  offsets,
-  p_adjust_method,
-  log_file = NULL,
-  verbose = 1
+  log_file = NULL
 )
 }
 \arguments{
-\item{jobs}{List of job triples (label, map, subject_idx) built in
-\code{fit_bestHRF}.}
+\item{jobs}{List of jobs (label, map, winning_candidate_id, candidate_scores).}
 
 \item{n_cores}{Integer. Workers, capped at \code{length(jobs)}.}
 
-\item{y, EVs, nT, TR, nuisance_block, A, n_task, nV}{See \code{\link{fit_one_mode}}.}
+\item{cfg}{The fit_bestHRF cfg list; supplies EVs, TR, onsets, offsets,
+p_adjust_method, verbose.}
 
-\item{onsets, offsets, p_adjust_method}{See \code{\link{fit_one_mode}}.}
+\item{y, nT, nuisance_block, A, n_task, nV}{See \code{\link{fit_one_mode}}.}
 
-\item{log_file, verbose}{See \code{\link{fit_one_mode}}. \code{log_file} is
-also used as the cluster \code{outfile} so worker stdout/stderr lands
-there alongside the per-mode timestamp lines.}
+\item{log_file}{Character path or NULL. Also passed as the cluster
+\code{outfile} so worker stdout/stderr lands there alongside the
+per-mode timestamp lines.}
 }
 \value{
 List of raw fit results, one per job (same order as \code{jobs}).
@@ -45,10 +40,5 @@ Runs \code{\link{fit_one_mode}} once per job. With \code{n_cores = 1}
 With \code{n_cores > 1} builds a PSOCK cluster via
 \code{\link{setup_parallel_cluster}} and dispatches with
 \code{parallel::parLapplyLB}. PSOCK works on macOS / Linux / Windows.
-}
-\details{
-Note: PSOCK ships y/EVs/nuisance_block to each worker via clusterExport
-(no shared memory). With ~3 modes this is fine; per-worker memory scales
-with the BOLD matrix size.
 }
 \keyword{internal}

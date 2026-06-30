@@ -5,13 +5,12 @@
 \title{Fit Best HRF GLM for a Single Subject}
 \usage{
 fit_bestHRF(
-  regularize_result,
+  combo,
   BOLD_file,
   EVs,
   nuisance_file = NULL,
   TR,
   use = c("personalized", "adapted"),
-  allHRF_result = NULL,
   subject_idx = NULL,
   a1_offsets = c(-2, -1, 0, 1, 2),
   b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
@@ -29,8 +28,10 @@ fit_bestHRF(
 )
 }
 \arguments{
-\item{regularize_result}{Output from \code{regularize_allHRFs()}. Supplies
-\code{pop_avg} + \code{hrf_grid}. Required.}
+\item{combo}{An \code{hrfs} object from \code{\link{fit_allHRFs}}. Supplies
+\code{pop_avg} + \code{hrf_grid} via \code{combo$regularize_allHRFs}, and
+the per-subject qs cache via \code{combo$fit_allHRFs} (its
+\code{result_paths} attribute) for lookup-mode personalized scoring.}
 
 \item{BOLD_file}{Character. Path to subject's CIFTI file.}
 
@@ -44,14 +45,11 @@ fit_bestHRF(
 pass either (or both) to request the corresponding HRF fit alongside the
 always-present working fit. Defaults to both.}
 
-\item{allHRF_result, subject_idx}{Optional pair that enables the fast
-lookup scoring path for personalized mode. \code{allHRF_result} is the
-output of \code{fit_allHRFs(save_rss = TRUE)} (its \code{result_paths}
-attribute points to this subject's qs cache, which contains both the
-per-model RSS matrix and the canonical-HRF Fstat per voxel in
-\code{mGLM0s}). \code{subject_idx} picks the subject. If
-\code{allHRF_result} is NULL, personalized mode falls back to refit
-scoring (multiGLM-based).}
+\item{subject_idx}{Integer or NULL. When non-NULL, personalized mode uses
+lookup scoring against \code{combo}'s cached RSS for that subject. When
+NULL, personalized mode falls back to refit scoring (multiGLM against
+this subject's BOLD) -- use NULL for new subjects not in the original
+\code{fit_allHRFs} run.}
 
 \item{a1_offsets, b1_offsets}{Numeric vectors of pop_avg offsets to scan
 for personalized candidates. Defaults give 5x5 = 25 candidates.}

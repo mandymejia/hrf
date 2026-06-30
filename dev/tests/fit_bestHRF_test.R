@@ -1,16 +1,21 @@
-# Test: fit_bestHRF after the candidate-fitting migration.
+# Test: fit_bestHRF after the combo migration.
 #
-# New surface (per the refactor):
-#   - fit_bestHRF takes regularize_result (which supplies pop_avg + hrf_grid)
-#     plus an optional lookup-mode pair: allHRF_result + subject_idx. The qs
-#     cache carries both RSS and canonical-HRF Fstat. When allHRF_result is
-#     NULL, personalized mode refits.
+# Surface:
+#   fit_bestHRF(combo, BOLD_file, EVs, TR, use = c(...), subject_idx = NULL, ...)
+#   - combo is an `hrfs` object from fit_allHRFs(): supplies regularize_allHRFs
+#     (pop_avg + hrf_grid) and fit_allHRFs (per-subject qs cache via attr
+#     "result_paths").
+#   - subject_idx != NULL: personalized mode uses lookup scoring against the
+#     cached RSS for that subject.
+#   - subject_idx == NULL: personalized mode falls back to refit scoring
+#     (multiGLM against the subject's BOLD). Used for new subjects without
+#     a cache entry.
 #
 # Exercises three configurations on the 4-subject MOTOR_LR fixture (subject 1)
-# and compares each to a saved baseline:
+# and compares each to the saved baseline:
 #   1. adapted only
-#   2. personalized via lookup (allHRF_result + subject_idx)
-#   3. personalized via refit (allHRF_result = NULL)
+#   2. personalized via lookup (subject_idx = 1)
+#   3. personalized via refit (subject_idx = NULL)
 #
 # Run from repo root:
 #   Rscript dev/tests/fit_bestHRF_test.R
@@ -23,6 +28,14 @@ devtools::load_all("~/Documents/Github/hrf-z", quiet = TRUE)
 session_data <- readRDS("dev/fixtures/session_data_4s/session_data_motor_lr_4s.rds")
 reg_result   <- readRDS("dev/fixtures/regularize_allHRFs_result_motorlr_4s.rds")
 allHRF_res   <- readRDS("dev/fixtures/fit_allHRFs_result_motorlr_4s.rds")
+
+# Synthesize a combo from the fixtures (avoids re-running fit_allHRFs).
+combo <- list(
+  fit_workingHRF     = NULL,   # not consulted by fit_bestHRF
+  fit_allHRFs        = allHRF_res,   # carries attr "result_paths" for lookup
+  regularize_allHRFs = reg_result
+)
+class(combo) <- "hrfs"
 
 subj <- 1L
 
@@ -58,15 +71,14 @@ compare_section <- function(label, got_sec, exp_sec) {
         isTRUE(all.equal(got_sec$hrf_assignments, exp_sec$hrf_assignments)))
 }
 
-call_fit <- function(use, allHRF_result = NULL, subject_idx = NULL) {
+call_fit <- function(use, subject_idx = NULL) {
   fit_bestHRF(
-    regularize_result = reg_result,
-    BOLD_file = session_data$BOLD_files[subj],
-    EVs       = session_data$EVs_list[[subj]],
+    combo         = combo,
+    BOLD_file     = session_data$BOLD_files[subj],
+    EVs           = session_data$EVs_list[[subj]],
     nuisance_file = session_data$nuisance_files[subj],
-    TR = 0.72,
-    use = use,
-    allHRF_result = allHRF_result,
+    TR            = 0.72,
+    use           = use,
     subject_idx   = subject_idx,
     onsets = TRUE, offsets = TRUE,
     verbose = 0
@@ -86,11 +98,9 @@ compare_section("adapted_run$working",  got_adapted$working,  expected$adapted_r
 compare_section("adapted_run$adapted",  got_adapted$adapted,  expected$adapted_run$adapted)
 
 # === Run 2: personalized via lookup ===
-cat("\n== Run 2: use = 'personalized' + lookup pair ==\n")
+cat("\n== Run 2: use = 'personalized' + subject_idx (lookup) ==\n")
 t0 <- Sys.time()
-got_lookup <- call_fit("personalized",
-                       allHRF_result = allHRF_res,
-                       subject_idx = subj)
+got_lookup <- call_fit("personalized", subject_idx = subj)
 cat("Elapsed:", round(as.numeric(difftime(Sys.time(), t0, units="secs")), 1), "sec\n")
 compare_section("personalized_lookup_run$working", got_lookup$working,
                 expected$personalized_lookup_run$working)
@@ -103,10 +113,10 @@ check("personalized_lookup_run: candidate_scores",
       isTRUE(all.equal(got_lookup$personalized$candidate_scores,
                        expected$personalized_lookup_run$personalized$candidate_scores)))
 
-# === Run 3: personalized via refit ===
-cat("\n== Run 3: use = 'personalized', allHRF_result = NULL (refit) ==\n")
+# === Run 3: personalized via refit (subject_idx = NULL) ===
+cat("\n== Run 3: use = 'personalized', subject_idx = NULL (refit) ==\n")
 t0 <- Sys.time()
-got_refit <- call_fit("personalized")  # no lookup trio = refit
+got_refit <- call_fit("personalized", subject_idx = NULL)
 cat("Elapsed:", round(as.numeric(difftime(Sys.time(), t0, units="secs")), 1), "sec\n")
 compare_section("personalized_refit_run$working", got_refit$working,
                 expected$personalized_refit_run$working)

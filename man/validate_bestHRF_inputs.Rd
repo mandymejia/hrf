@@ -4,17 +4,14 @@
 \alias{validate_bestHRF_inputs}
 \title{Validate fit_bestHRF Inputs}
 \usage{
-validate_bestHRF_inputs(regularize_result, use, allHRF_result, subject_idx)
+validate_bestHRF_inputs(cfg)
 }
 \arguments{
-\item{regularize_result, use, allHRF_result, subject_idx}{See \code{\link{fit_bestHRF}}.}
+\item{cfg}{The fit_bestHRF cfg list.}
 }
 \description{
-Checks the structural prereqs: \code{regularize_result} has \code{pop_avg}
-\itemize{
-\item \code{hrf_grid} with the expected columns, and (for personalized lookup)
-the \code{allHRF_result} / \code{subject_idx} pair points to an existing qs
-cache for that subject.
-}
+Checks: \code{cfg$combo} has \code{regularize_allHRFs} + \code{fit_allHRFs}
+sub-objects with the expected columns, and (for personalized lookup) the
+subject's qs cache path exists.
 }
 \keyword{internal}

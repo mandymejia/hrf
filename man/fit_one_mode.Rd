@@ -4,36 +4,19 @@
 \alias{fit_one_mode}
 \title{Fit One Mode (working / adapted / personalized) and Return Raw Matrices}
 \usage{
-fit_one_mode(
-  j,
-  y,
-  EVs,
-  nT,
-  TR,
-  nuisance_block,
-  A,
-  n_task,
-  nV,
-  onsets,
-  offsets,
-  p_adjust_method,
-  log_file = NULL,
-  verbose = 1
-)
+fit_one_mode(j, cfg, y, nT, nuisance_block, A, n_task, nV, log_file = NULL)
 }
 \arguments{
-\item{j}{List with elements \code{label} (character), \code{map}
-(HRF map data.frame), \code{subject_idx} (used only for the personalized
-mode; passed through, not consumed here).}
+\item{j}{List with elements \code{label} (character) and \code{map}
+(HRF map data.frame).}
 
-\item{y, EVs, nT, TR, nuisance_block, A, n_task, nV}{See \code{\link{fit_all_voxels}}.}
+\item{cfg}{The fit_bestHRF cfg list; supplies EVs, TR, onsets, offsets,
+p_adjust_method, verbose.}
 
-\item{onsets, offsets, p_adjust_method}{See \code{\link{fit_all_voxels}}.}
+\item{y, nT, nuisance_block, A, n_task, nV}{See \code{\link{fit_all_voxels}}.}
 
 \item{log_file}{Character path or NULL. If set, appends a timestamp +
 label + pid line at start and end of the fit.}
-
-\item{verbose}{Integer. Verbosity level (passed through).}
 }
 \value{
 List of raw numeric matrices from \code{fit_all_voxels()}.

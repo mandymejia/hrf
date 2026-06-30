@@ -6,28 +6,24 @@
 \usage{
 resolve_hrf_map(
   mode,
+  cfg,
   pop_avg,
   hrf_grid,
   allHRF_subject = NULL,
   BOLD_xii = NULL,
-  EVs = NULL,
-  nuisance = NULL,
-  TR = NULL,
-  brainstructures = c("left", "right"),
-  hpf = 0.01,
-  onsets = FALSE,
-  offsets = FALSE,
-  a1_offsets = c(-2, -1, 0, 1, 2),
-  b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
-  verbose = 1
+  nuisance = NULL
 )
 }
 \arguments{
 \item{mode}{One of \code{"personalized"} or \code{"adapted"}.}
 
-\item{pop_avg, hrf_grid}{See \code{\link{fit_bestHRF}}.}
+\item{cfg}{The fit_bestHRF cfg list.}
 
-\item{allHRF_subject, BOLD_xii, EVs, nuisance, TR, brainstructures, hpf, onsets, offsets, a1_offsets, b1_offsets, verbose}{See \code{\link{resolve_personalized_hrf_map}}; ignored when
+\item{pop_avg, hrf_grid}{Pulled from \code{cfg$combo$regularize_allHRFs} by
+the caller (passed explicitly so this fn doesn't re-extract per call).}
+
+\item{allHRF_subject, BOLD_xii, nuisance}{See
+\code{\link{resolve_personalized_hrf_map}}; ignored when
 \code{mode == "adapted"}.}
 }
 \value{

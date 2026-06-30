@@ -5,24 +5,19 @@
 \title{Resolve Personalized HRF Map}
 \usage{
 resolve_personalized_hrf_map(
+  cfg,
   pop_avg,
   hrf_grid,
   allHRF_subject,
   BOLD_xii,
-  EVs,
-  nuisance,
-  TR,
-  brainstructures,
-  hpf,
-  onsets,
-  offsets,
-  a1_offsets,
-  b1_offsets,
-  verbose = 1
+  nuisance
 )
 }
 \arguments{
-\item{pop_avg, hrf_grid}{See \code{\link{fit_bestHRF}}.}
+\item{cfg}{The fit_bestHRF cfg list; supplies EVs, TR, brainstructures,
+hpf, onsets, offsets, a1_offsets, b1_offsets, verbose.}
+
+\item{pop_avg, hrf_grid}{Pulled from \code{cfg$combo$regularize_allHRFs}.}
 
 \item{allHRF_subject}{Optional list with \code{qs_path} pointing to the
 subject's fit_allHRFs qs cache (which carries both per-model RSS and
@@ -32,19 +27,8 @@ forces the refit path.}
 \item{BOLD_xii}{Smoothed/scaled BOLD as a xifti (from
 \code{load_bold_data}). Required for refit scoring.}
 
-\item{EVs}{Event data for this subject. Required for refit scoring.}
-
 \item{nuisance}{Raw nuisance matrix (multiGLM adds its own DCT). May
 be NULL.}
-
-\item{TR}{Numeric. Repetition time in seconds.}
-
-\item{brainstructures, hpf, onsets, offsets}{Passed through to
-\code{\link{score_candidates_refit}} when refitting.}
-
-\item{a1_offsets, b1_offsets}{See \code{\link{fit_bestHRF}}.}
-
-\item{verbose}{Integer.}
 }
 \value{
 List with \code{map}, \code{winning_candidate_id},
