@@ -92,7 +92,7 @@ report_design_fit_errors <- function(subject_results, verbose = 1) {
 #'     (capped at number of successful subjects if necessary)}
 #'
 #' @keywords internal
-create_activation_masks <- function(subject_results, alpha = 0.01, min_active_subjects, verbose = 1) {
+create_activation_masks <- function(subject_results, alpha = 0.01, min_active_subjects, min_active_pct = 0.25, verbose = 1) {
   successful_subjects <- which(sapply(subject_results, function(x) x$status == "success"))
   n_successful <- length(successful_subjects)
 
@@ -126,7 +126,7 @@ create_activation_masks <- function(subject_results, alpha = 0.01, min_active_su
 
   masks_df_prop <- masks_df %>% group_by(voxel) %>% summarize(prop = mean(mask, na.rm=TRUE))
   
-  subj_prop_result <- get_subj_prop(min_active_subjects, subject_results)
+  subj_prop_result <- get_subj_prop(min_active_subjects, min_active_pct, subject_results)
   subj_prop <- subj_prop_result$subj_prop
   min_active_subjects <- subj_prop_result$min_active_subjects
 
@@ -164,28 +164,39 @@ create_activation_masks <- function(subject_results, alpha = 0.01, min_active_su
 #' Computes the proportion threshold for determining active voxels based on
 #' the minimum number of active subjects required.
 #'
-#' @param min_active_subjects Integer. Minimum number of subjects required 
-#'   for a voxel to be considered active
+#' @param min_active_subjects Integer. Hard floor on number of subjects
+#'   required for a voxel to be considered active. Effective threshold is
+#'   \code{max(min_active_subjects, ceiling(min_active_pct * n_successful))}.
+#' @param min_active_pct Numeric in [0, 1]. Percentage-of-n floor on the
+#'   number of subjects required. Combined with \code{min_active_subjects}
+#'   via \code{max}. Both capped at 80\% of successful subjects.
 #' @param subject_results List of subject results from HRF analysis
 #' @return List with elements:
 #'   \item{subj_prop}{Numeric proportion of active subjects (rounded to two decimals)}
-#'   \item{min_active_subjects}{Integer. Adjusted minimum number of active subjects 
-#'     (capped at number of successful subjects if necessary)}
+#'   \item{min_active_subjects}{Integer. Effective threshold after combining
+#'     hard floor + percentage floor, capped at 80\% of successful subjects}
 #' @keywords internal
-get_subj_prop <- function(min_active_subjects, subject_results) {
+get_subj_prop <- function(min_active_subjects, min_active_pct, subject_results) {
   # Count successful subjects
   n_successful <- sum(vapply(subject_results, \(x) identical(x[["status"]], "success"), logical(1)))
   stopifnot("No subjects processed successfully - cannot create activation masks" = n_successful > 0)
 
-  calculated_min <- min(min_active_subjects, floor(n_successful * 0.80))
-  
-  if (min_active_subjects > calculated_min) {
-    warning("min_active_subjects (", min_active_subjects, ") exceeds 80% of successful subjects (", 
-            n_successful, "). Using ", calculated_min, " instead.")
-    min_active_subjects <- calculated_min
+  # Combined floor: max of hard count and percentage-of-n
+  combined_min <- max(min_active_subjects, ceiling(min_active_pct * n_successful))
+
+  # Cap at 80% of successful subjects
+  calculated_min <- min(combined_min, floor(n_successful * 0.80))
+
+  if (combined_min > calculated_min) {
+    warning("Combined mask threshold (", combined_min, " from max(min_active_subjects=",
+            min_active_subjects, ", ceiling(", min_active_pct, "*", n_successful,
+            "))) exceeds 80% of successful subjects (", n_successful,
+            "). Using ", calculated_min, " instead.")
   }
+  min_active_subjects <- calculated_min
   subj_prop <- round(min_active_subjects / n_successful, 2)
-  cat(sprintf("Using group mask threshold: %s (%d out of %d successful subjects)\n", 
-            subj_prop, min_active_subjects, n_successful))
+  cat(sprintf("Using group mask threshold: %s (%d out of %d successful subjects) [floor=%d, pct=%.2f]\n",
+            subj_prop, min_active_subjects, n_successful,
+            min_active_subjects, min_active_pct))
   return(list(subj_prop = subj_prop, min_active_subjects = min_active_subjects))
 }

@@ -17,6 +17,7 @@ fit_allHRFs(
   derivatives = TRUE,
   alpha = 0.05,
   min_active_subjects = 20,
+  min_active_pct = 0.25,
   onsets = TRUE,
   offsets = TRUE,
   scrub = NULL,

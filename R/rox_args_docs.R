@@ -437,11 +437,15 @@ NULL
 
 #' Minimum Active Subjects Threshold
 #'
-#' @param min_active_subjects Integer. Minimum number of subjects that
-#'   must show significant activation (p < alpha) at a voxel for it to be
-#'   included in the group mask used for regularization. Default is 20.
-#'   If the number of successful subjects is less than this value, it will
-#'   be automatically adjusted with a warning.
+#' @param min_active_subjects Integer. Hard floor on the number of subjects
+#'   that must show significant activation (p < alpha) at a voxel for it to be
+#'   included in the group mask. Combined with \code{min_active_pct} via
+#'   \code{max(min_active_subjects, ceiling(min_active_pct * n))}. Default 20.
+#'   If the combined threshold exceeds 80\% of successful subjects it is
+#'   capped there with a warning.
+#' @param min_active_pct Numeric in [0, 1]. Percentage-of-n floor on the
+#'   number of subjects required. Default 0.25 (25\%). Combined with
+#'   \code{min_active_subjects} via \code{max}; whichever is larger wins.
 #'
 #' @name min_active_subjects_Param
 NULL

@@ -4,19 +4,24 @@
 \alias{get_subj_prop}
 \title{Calculate the Proportion of Active Subjects}
 \usage{
-get_subj_prop(min_active_subjects, subject_results)
+get_subj_prop(min_active_subjects, min_active_pct, subject_results)
 }
 \arguments{
-\item{min_active_subjects}{Integer. Minimum number of subjects required
-for a voxel to be considered active}
+\item{min_active_subjects}{Integer. Hard floor on number of subjects
+required for a voxel to be considered active. Effective threshold is
+\code{max(min_active_subjects, ceiling(min_active_pct * n_successful))}.}
+
+\item{min_active_pct}{Numeric in \link{0, 1}. Percentage-of-n floor on the
+number of subjects required. Combined with \code{min_active_subjects}
+via \code{max}. Both capped at 80\\% of successful subjects.}
 
 \item{subject_results}{List of subject results from HRF analysis}
 }
 \value{
 List with elements:
 \item{subj_prop}{Numeric proportion of active subjects (rounded to two decimals)}
-\item{min_active_subjects}{Integer. Adjusted minimum number of active subjects
-(capped at number of successful subjects if necessary)}
+\item{min_active_subjects}{Integer. Effective threshold after combining
+hard floor + percentage floor, capped at 80\\% of successful subjects}
 }
 \description{
 Computes the proportion threshold for determining active voxels based on

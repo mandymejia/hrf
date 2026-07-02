@@ -8,6 +8,7 @@ create_activation_masks(
   subject_results,
   alpha = 0.01,
   min_active_subjects,
+  min_active_pct = 0.25,
   verbose = 1
 )
 }

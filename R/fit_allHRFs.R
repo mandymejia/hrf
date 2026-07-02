@@ -94,6 +94,7 @@ fit_allHRFs <- function(
     derivatives = TRUE,
     alpha = 0.05,
     min_active_subjects = 20,
+    min_active_pct = 0.25,
     onsets = TRUE,
     offsets = TRUE,
     scrub = NULL,
@@ -121,6 +122,7 @@ fit_allHRFs <- function(
     hrf_grid = hrf_grid,
     working_hrf = working_hrf, derivatives = derivatives,
     alpha = alpha, min_active_subjects = min_active_subjects,
+    min_active_pct = min_active_pct,
     verbose = verbose
   )
 
@@ -165,7 +167,7 @@ fit_allHRFs <- function(
 
   if (verbose > 0) cat("Aggregating working-HRF subject results into activation masks...\n")
   working_subject_results <- lapply(loaded_subject_results, `[[`, "working")
-  mask_results <- create_activation_masks(working_subject_results, alpha, min_active_subjects, verbose)
+  mask_results <- create_activation_masks(working_subject_results, alpha, min_active_subjects, min_active_pct, verbose)
   min_active_subjects <- mask_results$min_active_subjects
   mask_results$min_active_subjects <- NULL
 
@@ -196,7 +198,8 @@ fit_allHRFs <- function(
       onsets = onsets, offsets = offsets,
       smoothing = smoothing, surf_FWHM = surf_FWHM,
       derivatives = derivatives,
-      alpha = alpha, min_active_subjects = min_active_subjects
+      alpha = alpha, min_active_subjects = min_active_subjects,
+      min_active_pct = min_active_pct
     )
   )
   attr(combo, "call_info") <- list(
