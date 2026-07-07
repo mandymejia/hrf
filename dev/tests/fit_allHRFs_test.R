@@ -125,8 +125,8 @@ check("pop_avg fwhm_mean (1e-6)",
       length(r_got$pop_avg$fwhm_mean) == length(r_exp$pop_avg$fwhm_mean) &&
         all(abs(r_got$pop_avg$fwhm_mean - r_exp$pop_avg$fwhm_mean) < 1e-6 |
             (is.na(r_got$pop_avg$fwhm_mean) & is.na(r_exp$pop_avg$fwhm_mean))))
-check("pop_avg a1_snapped identical", identical(r_got$pop_avg$a1_snapped, r_exp$pop_avg$a1_snapped))
-check("pop_avg b1_snapped identical", identical(r_got$pop_avg$b1_snapped, r_exp$pop_avg$b1_snapped))
+check("pop_avg a1 identical", identical(r_got$pop_avg$a1, r_exp$pop_avg$a1))
+check("pop_avg b1 identical", identical(r_got$pop_avg$b1, r_exp$pop_avg$b1))
 check("best_params_df nrow identical",
       nrow(r_got$best_params_df) == nrow(r_exp$best_params_df))
 check("mask_prop_NA identical", identical(r_got$mask_prop_NA, r_exp$mask_prop_NA))

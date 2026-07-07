@@ -2,25 +2,13 @@
 % Please edit documentation in R/regularize_allHRFs.R
 \name{snap_to_grid}
 \alias{snap_to_grid}
-\title{Snap Parameters to Nearest Grid Point}
+\title{Snap continuous (a1, b1, c) to nearest grid point}
 \usage{
 snap_to_grid(a1, b1, c, hrf_grid)
 }
-\arguments{
-\item{a1}{Numeric vector of a1 values to snap.}
-
-\item{b1}{Numeric vector of b1 values to snap.}
-
-\item{c}{Numeric vector of c values to snap.}
-
-\item{hrf_grid}{HRF grid data.frame with a1, b1, c columns.}
-}
-\value{
-A data.frame with columns: a1, b1, c (snapped to grid).
-}
 \description{
-Snaps arbitrary (a1, b1, c) values to the nearest valid HRF grid point.
-Matches c value first, then finds the nearest (a1, b1) by normalized
-Euclidean distance.
+Used by \code{fit_bestHRF} to round personalized-mode HRFs back to a grid
+point. Not used by \code{regularize_allHRFs} (which produces on-grid winners
+directly).
 }
 \keyword{internal}

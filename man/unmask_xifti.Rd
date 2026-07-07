@@ -2,7 +2,7 @@
 % Please edit documentation in R/regularize_allHRFs.R
 \name{unmask_xifti}
 \alias{unmask_xifti}
-\title{Fill missing values in a xifti and smooth}
+\title{Fill + smooth a xifti map}
 \usage{
 unmask_xifti(
   xii,
@@ -12,29 +12,10 @@ unmask_xifti(
   impute_mask = NULL
 )
 }
-\arguments{
-\item{xii}{A \code{xifti} object with \code{NA} values to fill.}
-
-\item{method}{One of \code{"median"} (default), \code{"impute"}.}
-
-\item{surf_FWHM}{Cortex smoothing FWHM in mm (required, no default — caller
-sets policy; \code{unmask_pop_avg} is the canonical entry point).
-\code{0} skips smoothing.}
-
-\item{impute_FUN}{For \code{method="impute"}: function applied to neighbor
-values. Default is mean (ignoring \code{NA}).}
-
-\item{impute_mask}{For \code{method="impute"}: optional logical mask of
-voxels to impute. Default \code{NULL} = impute every \code{NA} location.}
-}
-\value{
-The filled, smoothed \code{xifti}.
-}
 \description{
-Method \code{"median"} replaces all \code{NA}s with the global median of
-the in-mask values (one scalar sprayed everywhere). Method \code{"impute"}
-uses \code{ciftiTools::impute_xifti} to fill from face-sharing surface
-neighbors. After filling, the map is smoothed with
-\code{ciftiTools::smooth_cifti}.
+Used by \code{plot.regularizeHRFs} to render continuous param maps: fills
+masked-out voxels via a chosen method, then optionally smooths. Not used
+by \code{regularize_allHRFs} aggregation any more (pop_rss produces winners
+directly on the grid).
 }
 \keyword{internal}

@@ -1,91 +1,220 @@
 #' Build the Population HRF Template from fit_allHRFs Results
 #'
-#' Aggregates per-subject best-HRF parameters from \code{fit_allHRFs()} into a
-#' population template: per-voxel mean time-to-peak / FWHM, unmasked + smoothed,
-#' snapped back to the HRF grid. Per-subject candidate scoring lives in
-#' \code{\link{fit_bestHRF}} now -- this function is aggregation only.
+#' Aggregates per-subject 25-candidate fits into a population template using
+#' summed-RSS: for each voxel, sum per-candidate RSS across all activated
+#' subjects, then pick the grid point with the lowest sum. Winner stays on
+#' the grid (no snap, no smoothing). Non-activated voxels get filled with the
+#' cortex-wide modal winning grid point.
 #'
-#' @param workingHRF_results Results from \code{fit_workingHRF()}. Needed for
-#'   the activation masks (which voxels are kept in pop_avg) and the xifti
-#'   geometry template attached for downstream plotting.
-#' @param allHRF_results Results from \code{fit_allHRFs()}.
-#' @param verbose Integer verbosity level.
+#' Requires \code{fit_allHRFs()} to have been run with \code{save_rss = TRUE}
+#' and the per-subject RSS matrices to be retained on
+#' \code{allHRF_results$subject_results$glm_result$mGLM0s$cortex[LR]$RSS}.
 #'
-#' @return A list with class \code{"regularizeHRFs"} containing:
+#' @param workingHRF_results Output of \code{fit_workingHRF()}. Supplies
+#'   the group activation mask (\code{$activation_masks}) and a xifti
+#'   geometry template.
+#' @param allHRF_results Output of \code{fit_allHRFs()}. Supplies the HRF
+#'   grid and per-subject RSS matrices.
+#' @param verbose Integer verbosity.
+#'
+#' @return A list with class \code{"regularizeHRFs"}:
 #'   \describe{
-#'     \item{pop_avg}{Population average HRF map per voxel.}
-#'     \item{best_params_df}{Per-subject best HRF parameters (intermediate).}
-#'     \item{winning_c}{Winning c value (scalar).}
-#'     \item{c_votes}{Vote counts per c value.}
-#'     \item{hrf_grid}{HRF grid with t2p/fwhm columns.}
-#'     \item{mask_prop_NA}{Population activation mask.}
+#'     \item{pop_avg}{Per-voxel winner: columns \code{voxel, a1,
+#'       b1, c} (values come straight off the grid).}
+#'     \item{winning_c}{Modal c across pop_avg (scalar).}
+#'     \item{hrf_grid}{HRF grid with \code{time_to_peak} + \code{FWHM} columns added.}
+#'     \item{mask_prop_NA}{Population activation mask (passed through).}
+#'     \item{winning_k}{Grid index per voxel picked by argmin; \code{mode_k}
+#'       for non-activated voxels after modal fill.}
 #'   }
 #'
 #' @export
-regularize_allHRFs <- function(workingHRF_results,
-                                allHRF_results,
-                                verbose = 1) {
+regularize_allHRFs <- function(workingHRF_results, allHRF_results, verbose = 1) {
 
-  # Step 0: Precompute metrics on HRF grid
-  hrf_grid <- allHRF_results$hrf_grid
-  if (verbose > 0) cat("\nPrecomputing t2p/fwhm for HRF grid...\n")
-  metrics <- get_hrf_metrics(hrf_grid$a1, hrf_grid$b1, hrf_grid$c)
-  hrf_grid$time_to_peak <- metrics$time_to_peak
-  hrf_grid$FWHM <- metrics$FWHM
+  # Step 1: attach t2p / FWHM columns to the HRF grid (downstream consumers use them).
+  hrf_grid <- add_grid_metrics(allHRF_results$hrf_grid)
 
-  # Step 1 (pre): Determine winning c
-  if (verbose > 0) cat("\nDetermining winning c value...\n")
-  winning_result <- determine_winning_c(allHRF_results, workingHRF_results, verbose = verbose)
-
-  # Step 1-2: Extract best params per subject with t2p/fwhm
-  if (verbose > 0) cat("\nExtracting best params and converting to t2p/fwhm...\n")
-  best_params_df <- extract_best_params_per_subject(
-    allHRF_results, workingHRF_results,
-    winning_result$winning_c, hrf_grid, verbose = verbose
+  # Step 2: stream per-candidate RSS sums across activated subjects.
+  agg <- sum_rss_across_subjects(
+    subject_results = allHRF_results$subject_results,
+    subj_masks      = workingHRF_results$activation_masks$masks,
+    n_candidates    = nrow(hrf_grid),
+    verbose         = verbose
   )
 
-  # Step 3: Average t2p/fwhm across subjects
-  if (verbose > 0) cat("\nComputing population average...\n")
-  mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
+  mask_prop_NA <- workingHRF_results$activation_masks$mask_prop_NA
+
+  # Step 3: pick the winning grid point per pop-mask voxel (argmin summed RSS).
+  winning_k <- pick_winning_grid_point(
+    sum_rss        = agg$sum_rss,
+    mask_prop_NA   = mask_prop_NA,
+    n_contributing = agg$n_contributing,
+    verbose        = verbose
+  )
+
+  # Step 4: fill non-activated voxels with the cortex-wide modal winner.
+  winning_k <- modal_unmask(
+    winning_k    = winning_k,
+    mask_prop_NA = mask_prop_NA,
+    hrf_grid     = hrf_grid,
+    verbose      = verbose
+  )
+
+  # Step 5: assemble the regularize result (pop_avg + xifti template).
+  build_regularize_result(
+    winning_k          = winning_k,
+    hrf_grid           = hrf_grid,
+    mask_prop_NA       = mask_prop_NA,
+    workingHRF_results = workingHRF_results,
+    verbose            = verbose
+  )
+}
+
+
+# ---- Step helpers ------------------------------------------------------------
+
+
+#' Step 1: attach t2p / FWHM columns to the HRF grid
+#' @keywords internal
+add_grid_metrics <- function(hrf_grid) {
+  m <- get_hrf_metrics(hrf_grid$a1, hrf_grid$b1, hrf_grid$c)
+  hrf_grid$time_to_peak <- m$time_to_peak
+  hrf_grid$FWHM         <- m$FWHM
+  hrf_grid
+}
+
+
+#' Step 2: sum per-candidate RSS across activated subjects
+#'
+#' Streams over subjects to build \code{sum_rss[voxel, candidate]}, restricted
+#' to each subject's per-voxel activation mask. Also tracks
+#' \code{n_contributing[voxel]} for diagnostics.
+#'
+#' @keywords internal
+sum_rss_across_subjects <- function(subject_results, subj_masks, n_candidates, verbose = 1) {
+  n_voxels   <- nrow(subj_masks)
+  n_subjects <- ncol(subj_masks)
+  stopifnot(length(subject_results) == n_subjects)
+
+  if (verbose > 0) {
+    cat(sprintf("Streaming RSS: %d subjects x %d voxels x %d candidates\n",
+                n_subjects, n_voxels, n_candidates))
+  }
+
+  sum_rss        <- matrix(0, nrow = n_voxels, ncol = n_candidates)
+  n_contributing <- integer(n_voxels)
+
+  for (i in seq_len(n_subjects)) {
+    if (verbose > 0 && (i %% 100 == 0 || i == n_subjects)) {
+      cat(sprintf("  subject %d/%d\n", i, n_subjects))
+    }
+    subj <- subject_results[[i]]
+    if (is.null(subj) || is.null(subj$glm_result)) next
+    RSS <- rbind(subj$glm_result$mGLM0s$cortexL$RSS,
+                 subj$glm_result$mGLM0s$cortexR$RSS)
+    if (is.null(RSS) || nrow(RSS) == 0L) {
+      warning("Subject ", i,
+              " has no RSS. Was fit_allHRFs run with save_rss = TRUE? Skipping.")
+      next
+    }
+    mask_v <- as.logical(subj_masks[, i])
+    valid  <- which(mask_v & !is.na(RSS[, 1]))
+    if (length(valid) == 0) next
+
+    sum_rss[valid, ]      <- sum_rss[valid, ] + RSS[valid, ]
+    n_contributing[valid] <- n_contributing[valid] + 1L
+  }
+
+  list(sum_rss = sum_rss, n_contributing = n_contributing)
+}
+
+
+#' Step 3: pick the winning grid point per voxel via argmin summed RSS
+#'
+#' Only voxels in the pop-mask that had at least one contributing subject get
+#' a winner; the rest stay \code{NA} (they'll be filled by modal_unmask).
+#'
+#' @keywords internal
+pick_winning_grid_point <- function(sum_rss, mask_prop_NA, n_contributing, verbose = 1) {
+  n_voxels        <- length(mask_prop_NA)
   pop_mask_voxels <- which(!is.na(mask_prop_NA))
+  eligible        <- pop_mask_voxels[n_contributing[pop_mask_voxels] > 0L]
 
-  pop_avg <- stats::aggregate(
-    cbind(time_to_peak, FWHM) ~ voxel,
-    data = best_params_df[best_params_df$mask & best_params_df$voxel %in% pop_mask_voxels, ],
-    FUN = mean
+  winning_k <- rep(NA_integer_, n_voxels)
+  if (length(eligible) > 0) {
+    # max.col of negated sum = argmin of sum, vectorized over rows.
+    winning_k[eligible] <- max.col(-sum_rss[eligible, , drop = FALSE], ties.method = "first")
+  }
+  if (verbose > 0) {
+    cat(sprintf("Argmin filled %d/%d pop-mask voxels\n",
+                sum(!is.na(winning_k)), length(pop_mask_voxels)))
+  }
+  winning_k
+}
+
+
+#' Step 4: modal-fill non-activated voxels with the cortex-wide winner
+#'
+#' Takes the single most-common winning grid point across all activated
+#' voxels and assigns it to every voxel outside the pop-mask.
+#'
+#' @keywords internal
+modal_unmask <- function(winning_k, mask_prop_NA, hrf_grid, verbose = 1) {
+  n_candidates <- nrow(hrf_grid)
+  activated    <- winning_k[!is.na(winning_k)]
+  if (length(activated) == 0) return(winning_k)
+
+  tab      <- tabulate(activated, nbins = n_candidates)
+  mode_k   <- which.max(tab)
+  unmask_v <- which(is.na(mask_prop_NA))
+  winning_k[unmask_v] <- mode_k
+
+  if (verbose > 0) {
+    cat(sprintf("Modal fill: %d voxels -> grid[%d] = (a1=%.2f, b1=%.2f, c=%.4f)\n",
+                length(unmask_v), mode_k,
+                hrf_grid$a1[mode_k], hrf_grid$b1[mode_k], hrf_grid$c[mode_k]))
+  }
+  winning_k
+}
+
+
+#' Step 5: assemble the pop_avg + regularize result object
+#'
+#' @keywords internal
+build_regularize_result <- function(winning_k, hrf_grid, mask_prop_NA, workingHRF_results, verbose = 1) {
+  # t2p_mean / fwhm_mean columns are kept for downstream compatibility with
+  # plot.regularizeHRFs (references them by name). Values are looked up from
+  # the grid at each voxel's winning candidate -- semantically "winner's t2p"
+  # rather than "mean t2p across subjects".
+  pop_avg <- data.frame(
+    voxel      = seq_along(winning_k),
+    a1 = hrf_grid$a1[winning_k],
+    b1 = hrf_grid$b1[winning_k],
+    c  = hrf_grid$c[winning_k],
+    t2p_mean   = hrf_grid$time_to_peak[winning_k],
+    fwhm_mean  = hrf_grid$FWHM[winning_k]
   )
-  names(pop_avg)[2:3] <- c("t2p_mean", "fwhm_mean")
 
-  if (verbose > 0) cat("Population average computed for", nrow(pop_avg), "voxels\n")
-
-  # Step 3.5: Unmask (fill + smooth) t2p_mean / fwhm_mean before snapping
-  pop_avg <- unmask_pop_avg(pop_avg, workingHRF_results, mask_prop_NA, verbose = verbose)
-
-  # Step 4: Snap back to a1/b1 grid
-  if (verbose > 0) cat("\nSnapping t2p/fwhm back to grid...\n")
-  snapped <- snap_to_grid_t2p_fwhm(pop_avg$t2p_mean, pop_avg$fwhm_mean, hrf_grid, winning_result$winning_c)
-  pop_avg$a1_snapped <- snapped$a1
-  pop_avg$b1_snapped <- snapped$b1
-  pop_avg$c_snapped <- snapped$c
+  valid_c   <- pop_avg$c[!is.na(pop_avg$c)]
+  winning_c <- if (length(valid_c) == 0) NA_real_
+               else as.numeric(names(sort(table(valid_c), decreasing = TRUE))[1])
 
   result <- list(
-    pop_avg        = pop_avg,
-    best_params_df = best_params_df,
-    winning_c      = winning_result$winning_c,
-    c_votes        = winning_result$c_votes,
-    hrf_grid       = hrf_grid,
-    mask_prop_NA   = mask_prop_NA
+    pop_avg      = pop_avg,
+    winning_c    = winning_c,
+    hrf_grid     = hrf_grid,
+    mask_prop_NA = mask_prop_NA,
+    winning_k    = winning_k
   )
-
-  # Attach a xifti geometry template (from any successful workingHRF subject)
-  # so plot.regularizeHRFs methods don't need the user to pass one.
   attr(result, "xii") <- extract_xii_template(workingHRF_results)
-
   class(result) <- "regularizeHRFs"
 
-  if (verbose > 0) cat("\nregularize_allHRFs complete.\n")
-  return(result)
+  if (verbose > 0) cat("regularize_allHRFs complete.\n")
+  result
 }
+
+
+# ---- Supporting helpers ------------------------------------------------------
 
 
 #' Compute HRF Metrics (Time-to-Peak and FWHM)
@@ -93,18 +222,12 @@ regularize_allHRFs <- function(workingHRF_results,
 #' Converts HRF parameters (a1, b1, c) to interpretable metrics:
 #' time-to-peak and full-width-at-half-maximum.
 #'
-#' @param a1 Numeric vector of a1 parameter values.
-#' @param b1 Numeric vector of b1 parameter values.
-#' @param c Numeric vector of c parameter values.
-#' @param tapered Logical. If TRUE (default), applies tapering for c > 0
-#'   to handle the undershoot properly when computing FWHM.
+#' @param a1 First peak parameter
+#' @param b1 First scale parameter
+#' @param c Undershoot amplitude
+#' @param tapered Whether to apply tapering for c > 0 HRFs
 #'
-#' @return A data.frame with columns:
-#'   \describe{
-#'     \item{a1, b1, c}{Input parameter values}
-#'     \item{time_to_peak}{Time to peak (= a1 - b1)}
-#'     \item{FWHM}{Full-width-at-half-maximum of the HRF}
-#'   }
+#' @return Data.frame with columns a1, b1, c, time_to_peak, FWHM
 #'
 #' @keywords internal
 get_hrf_metrics <- function(a1, b1, c, tapered = TRUE) {
@@ -166,226 +289,11 @@ get_hrf_metrics <- function(a1, b1, c, tapered = TRUE) {
 }
 
 
-#' Determine Winning C Value Across Subjects
+#' Snap continuous (a1, b1, c) to nearest grid point
 #'
-#' Compares RSS between c values (e.g., c=0 vs c=1/6) across all subjects
-#' and voxels to determine which c value provides better fits overall.
-#'
-#' @param allHRF_results Results from \code{fit_allHRFs()}.
-#' @param workingHRF_results Results from \code{fit_workingHRF()}.
-#' @param verbose Integer verbosity level.
-#'
-#' @return A list with:
-#'   \describe{
-#'     \item{winning_c}{The c value with more wins (lower RSS more often)}
-#'     \item{c_votes}{Named vector with vote counts per c value}
-#'     \item{c_keys}{Character vector of c value keys}
-#'   }
-#'
-#' @keywords internal
-determine_winning_c <- function(allHRF_results, workingHRF_results, verbose = 1) {
-  # Get masks
-  mask_prop_NA <- workingHRF_results[["activation_masks"]][["mask_prop_NA"]]
-  pop_mask_voxels <- which(!is.na(mask_prop_NA))
-  subject_masks <- workingHRF_results[["activation_masks"]][["masks"]]
-
-  n_subjects <- length(allHRF_results[["subject_results"]])
-  n_voxels <- nrow(subject_masks)
-
-  # Get c value keys from first subject
-  c_keys <- names(allHRF_results[["subject_results"]][[1]][["glm_result"]][["mGLM0s"]][["cortexL"]][["best_per_c"]])
-
-  if (verbose > 0) cat("C values found:", c_keys, "\n")
-
-  # Initialize vote counts
-  c_votes <- setNames(rep(0, length(c_keys)), c_keys)
-
-  # Count votes across all subjects
-  for (i in 1:n_subjects) {
-    subj_result <- allHRF_results[["subject_results"]][[i]][["glm_result"]][["mGLM0s"]]
-    subj_mask <- subject_masks[, i]
-
-    # Get RSS for each c value (combine cortexL and cortexR)
-    rss_by_c <- lapply(c_keys, function(k) {
-      c(subj_result[["cortexL"]][["best_per_c"]][[k]]$rss,
-        subj_result[["cortexR"]][["best_per_c"]][[k]]$rss)
-    })
-    names(rss_by_c) <- c_keys
-
-    # Apply masks: both subject mask and population mask
-    both_mask <- subj_mask & (seq_len(n_voxels) %in% pop_mask_voxels)
-
-    # For masked voxels, find which c has lower RSS and count votes
-    for (k in c_keys) {
-      rss_k <- rss_by_c[[k]][both_mask]
-      # Compare against other c values
-      other_keys <- setdiff(c_keys, k)
-      wins <- rep(TRUE, sum(both_mask))
-      for (ok in other_keys) {
-        wins <- wins & (rss_k < rss_by_c[[ok]][both_mask])
-      }
-      c_votes[k] <- c_votes[k] + sum(wins)
-    }
-  }
-
-  # Determine winning c
-  winning_c_key <- names(which.max(c_votes))
-  winning_c <- as.numeric(winning_c_key)
-
-  if (verbose > 0) {
-    cat("C votes:", paste(names(c_votes), "=", c_votes, collapse = ", "), "\n")
-    cat("Winning c:", winning_c, "\n")
-  }
-
-  return(list(
-    winning_c = winning_c,
-    c_votes = c_votes,
-    c_keys = c_keys
-  ))
-}
-
-
-#' Extract Best HRF Parameters Per Subject
-#'
-#' Extracts the best HRF parameters for each voxel and subject using the
-#' winning c value. Combines cortexL and cortexR data and adds t2p/fwhm
-#' metrics via lookup from the precomputed hrf_grid.
-#'
-#' @param allHRF_results Results from \code{fit_allHRFs()}.
-#' @param workingHRF_results Results from \code{fit_workingHRF()}.
-#' @param winning_c The winning c value from \code{determine_winning_c()}.
-#' @param hrf_grid HRF grid with precomputed time_to_peak and FWHM columns.
-#' @param verbose Integer verbosity level.
-#'
-#' @return A data.frame with columns:
-#'   \describe{
-#'     \item{voxel}{Voxel index (1 to n_voxels)}
-#'     \item{subject}{Subject index}
-#'     \item{a1, b1, c}{Best HRF parameters for winning c}
-#'     \item{rss}{Residual sum of squares}
-#'     \item{time_to_peak, FWHM}{HRF metrics looked up from grid}
-#'     \item{mask}{Subject activation mask (TRUE/FALSE)}
-#'   }
-#'
-#' @keywords internal
-extract_best_params_per_subject <- function(allHRF_results, workingHRF_results,
-                                             winning_c, hrf_grid, verbose = 1) {
-  # Get subject masks
-
-subject_masks <- workingHRF_results[["activation_masks"]][["masks"]]
-  n_subjects <- length(allHRF_results[["subject_results"]])
-  n_voxels <- nrow(subject_masks)
-
-  # Convert winning_c to character key
-  winning_c_key <- as.character(winning_c)
-
-  # Create lookup for t2p/fwhm from hrf_grid
-  # Key: "a1_b1_c" -> row index in hrf_grid
-  hrf_grid$key <- paste(hrf_grid$a1, hrf_grid$b1, hrf_grid$c, sep = "_")
-
-  if (verbose > 0) cat("Extracting best params for", n_subjects, "subjects...\n")
-
-  best_params_list <- vector("list", n_subjects)
-
-  for (i in seq_len(n_subjects)) {
-    if (verbose > 1 && i %% 100 == 0) cat("  Subject", i, "/", n_subjects, "\n")
-
-    subj_result <- allHRF_results[["subject_results"]][[i]][["glm_result"]][["mGLM0s"]]
-    subj_mask <- subject_masks[, i]
-
-    # Get best params for winning c (cortexL + cortexR)
-    best_L <- subj_result[["cortexL"]][["best_per_c"]][[winning_c_key]]
-    best_R <- subj_result[["cortexR"]][["best_per_c"]][[winning_c_key]]
-
-    # Combine hemispheres
-    a1_vec <- c(best_L$a1, best_R$a1)
-    b1_vec <- c(best_L$b1, best_R$b1)
-    c_vec <- c(best_L$c, best_R$c)
-    rss_vec <- c(best_L$rss, best_R$rss)
-
-    # Create lookup keys and get t2p/fwhm
-    keys <- paste(a1_vec, b1_vec, c_vec, sep = "_")
-    grid_idx <- match(keys, hrf_grid$key)
-
-    best_params_list[[i]] <- data.frame(
-      voxel = seq_len(n_voxels),
-      subject = i,
-      a1 = a1_vec,
-      b1 = b1_vec,
-      c = c_vec,
-      rss = rss_vec,
-      time_to_peak = hrf_grid$time_to_peak[grid_idx],
-      FWHM = hrf_grid$FWHM[grid_idx],
-      mask = subj_mask
-    )
-  }
-
-  best_params_df <- do.call(rbind, best_params_list)
-
-  if (verbose > 0) {
-    cat("Built best_params_df:", nrow(best_params_df), "rows\n")
-  }
-
-  return(best_params_df)
-}
-
-
-#' Snap t2p/fwhm Values to Nearest Grid Point
-#'
-#' Converts population-averaged t2p and fwhm values back to the nearest
-#' (a1, b1) grid point for a fixed c value. Uses normalized Euclidean
-#' distance in (t2p, fwhm) space to find the closest match.
-#'
-#' @param t2p Numeric vector of time-to-peak values.
-#' @param fwhm Numeric vector of FWHM values.
-#' @param hrf_grid HRF grid with precomputed time_to_peak and FWHM columns.
-#' @param fixed_c The fixed c value to snap to.
-#'
-#' @return A data.frame with columns: a1, b1, c (snapped to grid).
-#'
-#' @keywords internal
-snap_to_grid_t2p_fwhm <- function(t2p, fwhm, hrf_grid, fixed_c) {
-  # Filter grid to matching c value
-  grid_subset <- hrf_grid[abs(hrf_grid$c - fixed_c) < 1e-6, ]
-
-  # Normalization ranges
-  t2p_range <- max(grid_subset$time_to_peak) - min(grid_subset$time_to_peak)
-  fwhm_range <- max(grid_subset$FWHM) - min(grid_subset$FWHM)
-
-  # Build matrices for vectorized distance computation
-  # grid_t2p and grid_fwhm are length-G vectors (G = grid subset size)
-  grid_t2p <- grid_subset$time_to_peak
-  grid_fwhm <- grid_subset$FWHM
-
-  # Compute distance matrix: (n_voxels x G)
-  # Each row is a voxel, each column is a grid point
-  t2p_dist <- outer(t2p, grid_t2p, function(a, b) ((a - b) / t2p_range)^2)
-  fwhm_dist <- outer(fwhm, grid_fwhm, function(a, b) ((a - b) / fwhm_range)^2)
-  dist_matrix <- sqrt(t2p_dist + fwhm_dist)
-
-  # Find nearest grid point for each voxel
-  nearest_idx <- apply(dist_matrix, 1, which.min)
-
-  data.frame(
-    a1 = grid_subset$a1[nearest_idx],
-    b1 = grid_subset$b1[nearest_idx],
-    c = fixed_c
-  )
-}
-
-
-#' Snap Parameters to Nearest Grid Point
-#'
-#' Snaps arbitrary (a1, b1, c) values to the nearest valid HRF grid point.
-#' Matches c value first, then finds the nearest (a1, b1) by normalized
-#' Euclidean distance.
-#'
-#' @param a1 Numeric vector of a1 values to snap.
-#' @param b1 Numeric vector of b1 values to snap.
-#' @param c Numeric vector of c values to snap.
-#' @param hrf_grid HRF grid data.frame with a1, b1, c columns.
-#'
-#' @return A data.frame with columns: a1, b1, c (snapped to grid).
+#' Used by \code{fit_bestHRF} to round personalized-mode HRFs back to a grid
+#' point. Not used by \code{regularize_allHRFs} (which produces on-grid winners
+#' directly).
 #'
 #' @keywords internal
 snap_to_grid <- function(a1, b1, c, hrf_grid) {
@@ -466,67 +374,13 @@ sanitize_template_meta <- function(xii) {
 }
 
 
-#' Unmask pop_avg (fill + smooth t2p_mean / fwhm_mean) before grid snapping
+#' Fill + smooth a xifti map
 #'
-#' Builds full-cortex xifti maps from \code{pop_avg$t2p_mean} and
-#' \code{pop_avg$fwhm_mean}, fills and smooths them via \code{unmask_xifti},
-#' then returns an expanded \code{pop_avg} with one row per non-\code{NA}
-#' cortex voxel.
+#' Used by \code{plot.regularizeHRFs} to render continuous param maps: fills
+#' masked-out voxels via a chosen method, then optionally smooths. Not used
+#' by \code{regularize_allHRFs} aggregation any more (pop_rss produces winners
+#' directly on the grid).
 #'
-#' @param pop_avg The data.frame produced by Step 3 of
-#'   \code{regularize_allHRFs} (cols: voxel, t2p_mean, fwhm_mean).
-#' @param workingHRF_results Used to extract a xifti template.
-#' @param mask_prop_NA Population mask vector from
-#'   \code{workingHRF_results$activation_masks$mask_prop_NA}.
-#' @param method,surf_FWHM,impute_FUN,impute_mask See \code{unmask_xifti}.
-#' @param verbose Print step info.
-#' @return The expanded \code{pop_avg} data.frame.
-#' @keywords internal
-unmask_pop_avg <- function(pop_avg, workingHRF_results, mask_prop_NA,
-                            method = "median", surf_FWHM = 4,
-                            impute_FUN = function(x) mean(x, na.rm = TRUE),
-                            impute_mask = NULL,
-                            verbose = 1) {
-  if (verbose > 0) cat("\nUnmasking pop_avg (method=", method,
-                       ", surf_FWHM=", surf_FWHM, "mm)...\n", sep = "")
-  xii_template <- extract_xii_template(workingHRF_results)
-  if (is.null(xii_template)) {
-    stop("No xifti template available from workingHRF_results; cannot unmask.")
-  }
-  N <- length(mask_prop_NA)
-  out <- data.frame(voxel = seq_len(N))
-  for (col in c("t2p_mean", "fwhm_mean")) {
-    v <- rep(NA, N); v[pop_avg$voxel] <- pop_avg[[col]]
-    xii <- ciftiTools::newdata_xifti(xii_template, v)
-    xii <- unmask_xifti(xii, method = method, surf_FWHM = surf_FWHM,
-                        impute_FUN = impute_FUN, impute_mask = impute_mask)
-    out[[col]] <- as.matrix(xii)[, 1]
-  }
-  out <- out[stats::complete.cases(out), ]
-  if (verbose > 0) cat("Unmasked pop_avg covers", nrow(out), "voxels (was ",
-                       nrow(pop_avg), ")\n", sep = "")
-  out
-}
-
-
-#' Fill missing values in a xifti and smooth
-#'
-#' Method \code{"median"} replaces all \code{NA}s with the global median of
-#' the in-mask values (one scalar sprayed everywhere). Method \code{"impute"}
-#' uses \code{ciftiTools::impute_xifti} to fill from face-sharing surface
-#' neighbors. After filling, the map is smoothed with
-#' \code{ciftiTools::smooth_cifti}.
-#'
-#' @param xii A \code{xifti} object with \code{NA} values to fill.
-#' @param method One of \code{"median"} (default), \code{"impute"}.
-#' @param surf_FWHM Cortex smoothing FWHM in mm (required, no default — caller
-#'   sets policy; \code{unmask_pop_avg} is the canonical entry point).
-#'   \code{0} skips smoothing.
-#' @param impute_FUN For \code{method="impute"}: function applied to neighbor
-#'   values. Default is mean (ignoring \code{NA}).
-#' @param impute_mask For \code{method="impute"}: optional logical mask of
-#'   voxels to impute. Default \code{NULL} = impute every \code{NA} location.
-#' @return The filled, smoothed \code{xifti}.
 #' @keywords internal
 unmask_xifti <- function(xii,
                           method = c("median", "impute"),

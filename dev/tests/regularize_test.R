@@ -65,13 +65,13 @@ check("mask_prop_NA identical",
 
 cat("\n--- pop_avg shape checks ---\n")
 required_cols <- c("voxel", "t2p_mean", "fwhm_mean",
-                   "a1_snapped", "b1_snapped", "c_snapped")
+                   "a1", "b1", "c")
 check("pop_avg has expected columns",
       all(required_cols %in% names(got$pop_avg)),
       paste("missing:", paste(setdiff(required_cols, names(got$pop_avg)), collapse=",")))
-check("pop_avg$c_snapped is single value (== winning_c)",
-      length(unique(got$pop_avg$c_snapped)) == 1 &&
-        abs(unique(got$pop_avg$c_snapped) - got$winning_c) < 1e-12)
+check("pop_avg$c is single value (== winning_c)",
+      length(unique(got$pop_avg$c)) == 1 &&
+        abs(unique(got$pop_avg$c) - got$winning_c) < 1e-12)
 
 cat("\n")
 if (fail == 0) {

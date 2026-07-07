@@ -7,28 +7,36 @@
 regularize_allHRFs(workingHRF_results, allHRF_results, verbose = 1)
 }
 \arguments{
-\item{workingHRF_results}{Results from \code{fit_workingHRF()}. Needed for
-the activation masks (which voxels are kept in pop_avg) and the xifti
-geometry template attached for downstream plotting.}
+\item{workingHRF_results}{Output of \code{fit_workingHRF()}. Supplies
+the group activation mask (\code{$activation_masks}) and a xifti
+geometry template.}
 
-\item{allHRF_results}{Results from \code{fit_allHRFs()}.}
+\item{allHRF_results}{Output of \code{fit_allHRFs()}. Supplies the HRF
+grid and per-subject RSS matrices.}
 
-\item{verbose}{Integer verbosity level.}
+\item{verbose}{Integer verbosity.}
 }
 \value{
-A list with class \code{"regularizeHRFs"} containing:
+A list with class \code{"regularizeHRFs"}:
 \describe{
-\item{pop_avg}{Population average HRF map per voxel.}
-\item{best_params_df}{Per-subject best HRF parameters (intermediate).}
-\item{winning_c}{Winning c value (scalar).}
-\item{c_votes}{Vote counts per c value.}
-\item{hrf_grid}{HRF grid with t2p/fwhm columns.}
-\item{mask_prop_NA}{Population activation mask.}
+\item{pop_avg}{Per-voxel winner: columns \code{voxel, a1,
+      b1, c} (values come straight off the grid).}
+\item{winning_c}{Modal c across pop_avg (scalar).}
+\item{hrf_grid}{HRF grid with \code{time_to_peak} + \code{FWHM} columns added.}
+\item{mask_prop_NA}{Population activation mask (passed through).}
+\item{winning_k}{Grid index per voxel picked by argmin; \code{mode_k}
+for non-activated voxels after modal fill.}
 }
 }
 \description{
-Aggregates per-subject best-HRF parameters from \code{fit_allHRFs()} into a
-population template: per-voxel mean time-to-peak / FWHM, unmasked + smoothed,
-snapped back to the HRF grid. Per-subject candidate scoring lives in
-\code{\link{fit_bestHRF}} now -- this function is aggregation only.
+Aggregates per-subject 25-candidate fits into a population template using
+summed-RSS: for each voxel, sum per-candidate RSS across all activated
+subjects, then pick the grid point with the lowest sum. Winner stays on
+the grid (no snap, no smoothing). Non-activated voxels get filled with the
+cortex-wide modal winning grid point.
+}
+\details{
+Requires \code{fit_allHRFs()} to have been run with \code{save_rss = TRUE}
+and the per-subject RSS matrices to be retained on
+\code{allHRF_results$subject_results$glm_result$mGLM0s$cortex[LR]$RSS}.
 }

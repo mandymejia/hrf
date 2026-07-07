@@ -7,22 +7,16 @@
 get_hrf_metrics(a1, b1, c, tapered = TRUE)
 }
 \arguments{
-\item{a1}{Numeric vector of a1 parameter values.}
+\item{a1}{First peak parameter}
 
-\item{b1}{Numeric vector of b1 parameter values.}
+\item{b1}{First scale parameter}
 
-\item{c}{Numeric vector of c parameter values.}
+\item{c}{Undershoot amplitude}
 
-\item{tapered}{Logical. If TRUE (default), applies tapering for c > 0
-to handle the undershoot properly when computing FWHM.}
+\item{tapered}{Whether to apply tapering for c > 0 HRFs}
 }
 \value{
-A data.frame with columns:
-\describe{
-\item{a1, b1, c}{Input parameter values}
-\item{time_to_peak}{Time to peak (= a1 - b1)}
-\item{FWHM}{Full-width-at-half-maximum of the HRF}
-}
+Data.frame with columns a1, b1, c, time_to_peak, FWHM
 }
 \description{
 Converts HRF parameters (a1, b1, c) to interpretable metrics:

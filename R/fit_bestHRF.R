@@ -315,9 +315,9 @@ resolve_hrf_map <- function(mode, cfg, pop_avg, hrf_grid,
   if (mode == "adapted") {
     list(
       map = data.frame(voxel = pop_avg$voxel,
-                       a1    = pop_avg$a1_snapped,
-                       b1    = pop_avg$b1_snapped,
-                       c     = pop_avg$c_snapped),
+                       a1    = pop_avg$a1,
+                       b1    = pop_avg$b1,
+                       c     = pop_avg$c),
       winning_candidate_id = NULL,
       candidate_scores     = NULL
     )
@@ -452,7 +452,7 @@ validate_bestHRF_inputs <- function(cfg) {
   if (is.null(reg$hrf_grid)) {
     stop("fit_allHRFs_result$regularize_allHRFs$hrf_grid is NULL. Pass an hrfs object from fit_allHRFs().")
   }
-  required_pa <- c("voxel", "a1_snapped", "b1_snapped", "c_snapped")
+  required_pa <- c("voxel", "a1", "b1", "c")
   missing_pa <- setdiff(required_pa, names(reg$pop_avg))
   if (length(missing_pa) > 0L) {
     stop("fit_allHRFs_result$regularize_allHRFs$pop_avg is missing column(s): ",
@@ -773,15 +773,15 @@ package_results <- function(raw, xii) {
 #' subject's personalized HRF. For each combination of \code{a1_offset} and
 #' \code{b1_offset}, shifts the population-average snapped a1/b1 by the
 #' offset (clamped to the hrf_grid valid range) and snaps back to the nearest
-#' grid point. \code{c_snapped} is taken verbatim from \code{pop_avg}.
+#' grid point. \code{c} is taken verbatim from \code{pop_avg}.
 #'
 #' Port of the per-subject body of \code{regularize_allHRFs::create_candidate_maps}.
 #' During the migration window this lives in both files; regularize keeps using
 #' its copy until Phase 2 strips the candidate-fitting machinery from
 #' \code{regularize_allHRFs.R}.
 #'
-#' @param pop_avg Data frame with columns \code{voxel}, \code{a1_snapped},
-#'   \code{b1_snapped}, \code{c_snapped} (the regularize pop_avg).
+#' @param pop_avg Data frame with columns \code{voxel}, \code{a1},
+#'   \code{b1}, \code{c} (the regularize pop_avg).
 #' @param hrf_grid HRF grid with at least \code{a1}, \code{b1}, \code{c},
 #'   \code{time_to_peak}, \code{FWHM} columns.
 #' @param a1_offsets Numeric vector of a1 offsets to scan (default
@@ -815,9 +815,9 @@ build_candidate_maps <- function(pop_avg, hrf_grid,
     a1_off <- offset_combos$a1_offset[i]
     b1_off <- offset_combos$b1_offset[i]
 
-    a1_shifted <- pmin(pmax(pop_avg$a1_snapped + a1_off, a1_min), a1_max)
-    b1_shifted <- pmin(pmax(pop_avg$b1_snapped + b1_off, b1_min), b1_max)
-    c_vals     <- pop_avg$c_snapped
+    a1_shifted <- pmin(pmax(pop_avg$a1 + a1_off, a1_min), a1_max)
+    b1_shifted <- pmin(pmax(pop_avg$b1 + b1_off, b1_min), b1_max)
+    c_vals     <- pop_avg$c
 
     snapped <- snap_to_grid(a1_shifted, b1_shifted, c_vals, hrf_grid)
 

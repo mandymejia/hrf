@@ -146,13 +146,12 @@ fit_allHRFs <- function(
   } else {
     result_paths
   }
-  # Load the saved .qs files into a list and strip out design_3D to save memory
+  # Load saved .qs files. Drop design_3D (huge) but keep RSS in memory:
+  # regularize_allHRFs streams per-subject RSS matrices to aggregate.
   loaded_subject_results <- lapply(result_paths, function(fp) {
     if(!is.na(fp) && file.exists(fp)) {
       obj <- load_object(file_path = fp, delete_after_load = FALSE)
-      obj$design_3D <- NULL  # Remove the large 3D array from memory
-      obj$glm_result$mGLM0s$cortexL$RSS <- NULL
-      obj$glm_result$mGLM0s$cortexR$RSS <- NULL
+      obj$design_3D <- NULL
       return(obj)
     } else {
       return(NULL)
@@ -188,6 +187,15 @@ fit_allHRFs <- function(
 
   if (verbose > 0) cat("Running regularize_allHRFs aggregation...\n")
   reg_result <- regularize_allHRFs(fit_workingHRF, fit_allHRFs, verbose = verbose)
+
+  # RSS is no longer needed after regularize. Null it before we assemble the
+  # combo so the saved .rds stays lean.
+  fit_allHRFs$subject_results <- lapply(fit_allHRFs$subject_results, function(obj) {
+    if (is.null(obj)) return(NULL)
+    obj$glm_result$mGLM0s$cortexL$RSS <- NULL
+    obj$glm_result$mGLM0s$cortexR$RSS <- NULL
+    obj
+  })
 
   combo <- list(
     fit_workingHRF     = fit_workingHRF,
