@@ -213,9 +213,9 @@ plot_pop_avg <- function(x,
   # a1/b1/c use snapped grid values; t2p/FWHM use the imputed continuous means
   # produced by unmask_pop_avg (median-filled + surf_FWHM smoothed).
   col_name <- switch(param,
-    a1           = "a1_snapped",
-    b1           = "b1_snapped",
-    c            = "c_snapped",
+    a1           = "a1",
+    b1           = "b1",
+    c            = "c",
     time_to_peak = "t2p_mean",
     FWHM         = "fwhm_mean"
   )
@@ -369,9 +369,9 @@ plot_param_heatmap <- function(x,
       title <- if (mask) "Best per-subject HRF params (masked)" else "Best per-subject HRF params"
     }
   } else {
-    src_df <- data.frame(a1 = x$pop_avg$a1_snapped,
-                         b1 = x$pop_avg$b1_snapped,
-                         c  = x$pop_avg$c_snapped)
+    src_df <- data.frame(a1 = x$pop_avg$a1,
+                         b1 = x$pop_avg$b1,
+                         c  = x$pop_avg$c)
     if (is.null(title)) {
       title <- "Population-average HRF params (per voxel)"
     }
