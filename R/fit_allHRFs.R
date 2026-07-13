@@ -127,6 +127,7 @@ fit_allHRFs <- function(
   )
 
   # Parallel processing setup for subjects (2b + 2c per subject)
+  subj_wall_t0 <- Sys.time()
   if (n_cores > 1) {
     subject_results <- run_parallel_subjects_allHRFs(cfg, n_cores = n_cores,
                                                       log_dir = log_dir,
@@ -137,6 +138,9 @@ fit_allHRFs <- function(
     subject_results <- run_sequential_subjects_allHRFs(cfg, work_dir = work_dir,
                                                         save_rss = save_rss)
   }
+  subj_wall_sec <- as.numeric(Sys.time() - subj_wall_t0, units = "secs")
+  write_phase_summary(subject_results, log_dir,
+                      wall_sec = subj_wall_sec, n_cores = n_cores)
 
  
   result_paths <- sapply(subject_results, function(x) if(!is.null(x$file_path)) x$file_path else NA)
@@ -265,6 +269,10 @@ run_parallel_subjects_allHRFs <- function(cfg, n_cores, log_dir, work_dir, save_
 
   if (cfg$verbose > 0) cat("Processing subjects in parallel\n")
 
+  progress_file <- file.path(log_dir, "progress.txt")
+  cat(sprintf("# fit_allHRFs progress log — %s\n", format(Sys.time())),
+      file = progress_file, append = TRUE)
+
   parallel::parLapplyLB(cl, seq_along(cfg$BOLD), function(i) {
     tryCatch({
       cat(sprintf("[cluster] worker started subj %d\n", i))
@@ -272,9 +280,21 @@ run_parallel_subjects_allHRFs <- function(cfg, n_cores, log_dir, work_dir, save_
       file_path <- save_object(result, label = sprintf("subject_%03d", i),
                                prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
       cat(sprintf("[cluster] worker done    subj %d\n", i))
-      list(subject_idx = i, status = "saved", file_path = file_path)
+      pt <- result$phase_times %||% list()
+      cat(sprintf(
+        "%s subj=%04d status=%s total=%.2f load_bold=%.2f fit_working=%.2f design_matrices=%.2f multiGLM=%.2f\n",
+        format(Sys.time(), "%H:%M:%S"), i, result$status %||% "NA",
+        result$processing_time %||% NA_real_,
+        pt$load_bold %||% NA_real_, pt$fit_working %||% NA_real_,
+        pt$design_matrices %||% NA_real_, pt$multiGLM %||% NA_real_
+      ), file = progress_file, append = TRUE)
+      list(subject_idx = i, status = "saved", file_path = file_path,
+           phase_times = result$phase_times, processing_time = result$processing_time)
     }, error = function(e) {
       cat(sprintf("[cluster] worker FAILED  subj %d: %s\n", i, e$message))
+      cat(sprintf("%s subj=%04d status=error msg=%s\n",
+                  format(Sys.time(), "%H:%M:%S"), i, e$message),
+          file = progress_file, append = TRUE)
       list(subject_idx = i, status = "error", error = e$message)
     })
   })
@@ -308,12 +328,74 @@ run_sequential_subjects_allHRFs <- function(cfg, work_dir, save_rss) {
       result <- process_entire_subject(subject_idx = i, cfg = cfg, save_rss = save_rss)
       file_path <- save_object(result, label = sprintf("subject_%03d", i),
                                prefix = "allhrf_", tmp = FALSE, work_dir = work_dir)
-      list(subject_idx = i, status = "saved", file_path = file_path)
+      list(subject_idx = i, status = "saved", file_path = file_path,
+           phase_times = result$phase_times, processing_time = result$processing_time)
     }, error = function(e) {
       list(subject_idx = i, status = "error", error = e$message)
     })
   })
 }
+
+#' Aggregate per-subject phase timings and write a profile summary
+#'
+#' @keywords internal
+write_phase_summary <- function(subject_results, log_dir, wall_sec, n_cores) {
+  if (!dir.exists(log_dir)) dir.create(log_dir, recursive = TRUE)
+  ok <- Filter(function(x) !is.null(x$phase_times), subject_results)
+  n_ok <- length(ok)
+  if (n_ok == 0L) {
+    warning("write_phase_summary: no subjects with phase_times")
+    return(invisible(NULL))
+  }
+  phases <- c("load_bold", "fit_working", "design_matrices", "multiGLM")
+  mat <- do.call(rbind, lapply(ok, function(x) {
+    sapply(phases, function(p) x$phase_times[[p]] %||% NA_real_)
+  }))
+  total <- sapply(ok, function(x) x$processing_time %||% NA_real_)
+
+  stat_row <- function(v) {
+    v <- v[is.finite(v)]
+    if (!length(v)) return(rep(NA_real_, 5))
+    c(mean = mean(v), median = median(v), sd = sd(v),
+      min = min(v), max = max(v))
+  }
+  per_subj <- rbind(
+    load_bold        = stat_row(mat[, "load_bold"]),
+    fit_working      = stat_row(mat[, "fit_working"]),
+    design_matrices  = stat_row(mat[, "design_matrices"]),
+    multiGLM         = stat_row(mat[, "multiGLM"]),
+    total_per_subj   = stat_row(total)
+  )
+  total_cpu <- colSums(mat, na.rm = TRUE)
+  share <- 100 * total_cpu / sum(total_cpu)
+
+  path <- file.path(log_dir, "phase_summary.txt")
+  con <- file(path, "w")
+  on.exit(close(con), add = TRUE)
+  wl <- function(...) cat(..., "\n", sep = "", file = con)
+  wl("fit_allHRFs phase profile")
+  wl("=========================")
+  wl("subjects (with phase_times) : ", n_ok, " of ", length(subject_results))
+  wl("wall time (subject loop)    : ", sprintf("%.1f", wall_sec), " sec (",
+     sprintf("%.2f", wall_sec / 60), " min)")
+  wl("n_cores                     : ", n_cores)
+  wl("")
+  wl("Per-subject phase timings (seconds):")
+  wl(sprintf("%-18s %8s %8s %8s %8s %8s", "phase", "mean", "median", "sd", "min", "max"))
+  for (nm in rownames(per_subj)) {
+    r <- per_subj[nm, ]
+    wl(sprintf("%-18s %8.2f %8.2f %8.2f %8.2f %8.2f",
+               nm, r[1], r[2], r[3], r[4], r[5]))
+  }
+  wl("")
+  wl("Aggregate CPU time by phase (all subjects summed):")
+  wl(sprintf("%-18s %10s %8s", "phase", "cpu_sec", "share_%"))
+  for (p in phases) {
+    wl(sprintf("%-18s %10.1f %7.1f%%", p, total_cpu[p], share[p]))
+  }
+  invisible(path)
+}
+
 
 #' Process entire subject through allHRFs pipeline
 #'
@@ -341,6 +423,15 @@ process_entire_subject <- function(subject_idx, cfg, save_rss = FALSE) {
   tictoc::tic()
   cat(sprintf("[subj %d] start\n", subject_idx))
   start_time <- Sys.time()
+  phase_times <- list()
+  time_phase <- function(name, expr) {
+    t0 <- Sys.time()
+    val <- force(expr)
+    dt <- as.numeric(Sys.time() - t0, units = "secs")
+    phase_times[[name]] <<- dt
+    cat(sprintf("[subj %d] %s: %.2f sec\n", subject_idx, name, dt))
+    val
+  }
 
   BOLD_file     <- cfg$BOLD[subject_idx]
   EVs           <- cfg$EVs[[subject_idx]]
@@ -348,32 +439,32 @@ process_entire_subject <- function(subject_idx, cfg, save_rss = FALSE) {
   scrub         <- if (!is.null(cfg$scrub))    cfg$scrub[[subject_idx]]  else NULL
 
   tryCatch({
-    tictoc::tic()
-    bold_data <- load_bold_data(BOLD_file, cfg$brainstructures, cfg$resamp_res, cfg$smoothing, cfg$surf_FWHM)
-    cat(sprintf("[subj %d] load_bold_data: ", subject_idx)); tictoc::toc()
+    bold_data <- time_phase("load_bold", {
+      load_bold_data(BOLD_file, cfg$brainstructures, cfg$resamp_res, cfg$smoothing, cfg$surf_FWHM)
+    })
     nT <- bold_data$nT
 
-    tictoc::tic()
-    working_result <- fit_working_one_subject(
-      BOLD_xii      = bold_data$BOLD_xii,
-      nuisance_file = nuisance_file,
-      scrub         = scrub,
-      cfg           = cfg,
-      subject_idx   = subject_idx
-    )
-    cat(sprintf("[subj %d] fit_working_one_subject: ", subject_idx)); tictoc::toc()
+    working_result <- time_phase("fit_working", {
+      fit_working_one_subject(
+        BOLD_xii      = bold_data$BOLD_xii,
+        nuisance_file = nuisance_file,
+        scrub         = scrub,
+        cfg           = cfg,
+        subject_idx   = subject_idx
+      )
+    })
 
-    tictoc::tic()
-    design_3D <- create_all_design_matrices(EVs, nT, cfg$TR, cfg$hrf_grid,
-                                            cfg$onsets, cfg$offsets, cfg$verbose, subject_idx)
-    cat(sprintf("[subj %d] all design matrices: ", subject_idx)); tictoc::toc()
+    design_3D <- time_phase("design_matrices", {
+      create_all_design_matrices(EVs, nT, cfg$TR, cfg$hrf_grid,
+                                 cfg$onsets, cfg$offsets, cfg$verbose, subject_idx)
+    })
 
-    tictoc::tic()
-    glm_result <- fit_multiGLM_all_designs(
-      bold_data$BOLD_xii, design_3D$array, nuisance_file, cfg$TR, cfg$brainstructures,
-      cfg$hpf, scrub, cfg$resamp_res, cfg$verbose, subject_idx, EVs, cfg$onsets, cfg$offsets
-    )
-    cat(sprintf("[subj %d] multiGLM: ", subject_idx)); tictoc::toc()
+    glm_result <- time_phase("multiGLM", {
+      fit_multiGLM_all_designs(
+        bold_data$BOLD_xii, design_3D$array, nuisance_file, cfg$TR, cfg$brainstructures,
+        cfg$hpf, scrub, cfg$resamp_res, cfg$verbose, subject_idx, EVs, cfg$onsets, cfg$offsets
+      )
+    })
 
     # Extract best (a1, b1, rss) per voxel for EACH unique c value
     # This reduces storage from ~17 MB/subject to ~0.9 MB/subject
@@ -424,6 +515,7 @@ process_entire_subject <- function(subject_idx, cfg, save_rss = FALSE) {
       glm_result = glm_result,  # Contains bestmodel_xii
       working = working_result,
       processing_time = processing_time,
+      phase_times = phase_times,
       status = "success"
     ))
 
@@ -434,6 +526,7 @@ process_entire_subject <- function(subject_idx, cfg, save_rss = FALSE) {
     return(list(
       subject_idx = subject_idx,
       processing_time = processing_time,
+      phase_times = phase_times,
       status = "error",
       error = e$message
     ))
