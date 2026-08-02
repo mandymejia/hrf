@@ -6,7 +6,7 @@
 \usage{
 resolve_personalized_hrf_map(
   cfg,
-  pop_avg,
+  pop_best,
   hrf_grid,
   allHRF_subject,
   BOLD_xii,
@@ -17,7 +17,7 @@ resolve_personalized_hrf_map(
 \item{cfg}{The fit_bestHRF cfg list; supplies EVs, TR, brainstructures,
 hpf, onsets, offsets, a1_offsets, b1_offsets, verbose.}
 
-\item{pop_avg, hrf_grid}{Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs}.}
+\item{pop_best, hrf_grid}{Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs}.}
 
 \item{allHRF_subject}{Optional list with \code{qs_path} pointing to the
 subject's fit_allHRFs qs cache (which carries both per-model RSS and
@@ -35,7 +35,7 @@ List with \code{map}, \code{winning_candidate_id},
 \code{candidate_scores}.
 }
 \description{
-Builds 25 candidate maps around \code{pop_avg}, scores them via the
+Builds 25 candidate maps around \code{pop_best}, scores them via the
 lookup path (when \code{allHRF_subject} supplies cached RSS + Fstat) or
 the refit path (otherwise), and returns the winning candidate's map plus
 diagnostics.

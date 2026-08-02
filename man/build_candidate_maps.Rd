@@ -5,7 +5,7 @@
 \title{Build Candidate HRF Maps for One Subject's Personalization}
 \usage{
 build_candidate_maps(
-  pop_avg,
+  pop_best,
   hrf_grid,
   a1_offsets = c(-2, -1, 0, 1, 2),
   b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
@@ -13,8 +13,8 @@ build_candidate_maps(
 )
 }
 \arguments{
-\item{pop_avg}{Data frame with columns \code{voxel}, \code{a1},
-\code{b1}, \code{c} (the regularize pop_avg).}
+\item{pop_best}{Data frame with columns \code{voxel}, \code{a1},
+\code{b1}, \code{c} (the regularize pop_best).}
 
 \item{hrf_grid}{HRF grid with at least \code{a1}, \code{b1}, \code{c},
 \code{time_to_peak}, \code{FWHM} columns.}
@@ -41,7 +41,7 @@ Generates the candidate HRF maps that fit_bestHRF scores when picking a
 subject's personalized HRF. For each combination of \code{a1_offset} and
 \code{b1_offset}, shifts the population-average snapped a1/b1 by the
 offset (clamped to the hrf_grid valid range) and snaps back to the nearest
-grid point. \code{c} is taken verbatim from \code{pop_avg}.
+grid point. \code{c} is taken verbatim from \code{pop_best}.
 }
 \details{
 Port of the per-subject body of \code{regularize_allHRFs::create_candidate_maps}.

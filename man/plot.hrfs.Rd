@@ -24,8 +24,7 @@ Routes \code{type} to the matching sub-object plot method:
 \item working-HRF: \code{"proportion"}, \code{"binary"}, \code{"mask"}
 \item allHRF:      \code{"hrfs"}, \code{"param_grid"}, \code{"single_hrf"},
 \code{"multiple_hrf"}
-\item regularize:  \code{"pop_avg"}, \code{"pop_avg_continuous"},
-\code{"mean"}, \code{"mean_all"}, \code{"param_heatmap"}
+\item regularize:  \code{"pop_best"}, \code{"param_heatmap"}
 }
 \code{type = "design"} is defined by both workingHRF AND allHRFs; pass
 \code{which = "working"} (default) or \code{which = "all"} to disambiguate.

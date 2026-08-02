@@ -42,8 +42,8 @@
 #'   \item{\code{fit_workingHRF}}{class \code{"workingHRF"}: activation_masks,
 #'     per-subject working GLMs, hrf_params.}
 #'   \item{\code{fit_allHRFs}}{class \code{"allHRFs"}: per-subject 25-candidate
-#'     GLM cache (path attr "result_paths"), best_params_results, hrf_grid.}
-#'   \item{\code{regularize_allHRFs}}{class \code{"regularizeHRFs"}: pop_avg,
+#'     GLM cache (path attr "result_paths"), hrf_grid.}
+#'   \item{\code{regularize_allHRFs}}{class \code{"regularizeHRFs"}: pop_best,
 #'     best_params_df, winning_c, c_votes, mask_prop_NA, hrf_grid.}
 #'   \item{\code{session_info}}{Pipeline knobs used (brainstructures, resamp_res,
 #'     hpf, onsets, offsets, smoothing, surf_FWHM, derivatives, alpha,
@@ -162,10 +162,6 @@ fit_allHRFs <- function(
     }
   })
 
-  if(verbose > 0) cat("Extracting best parameters across all subjects (2d step)...\n")
-  tictoc::tic()
-  best_params_results <- extract_best_params_all_subjects(loaded_subject_results, hrf_grid, verbose)
-  tictoc::toc()
 
 
   if (verbose > 0) cat("Aggregating working-HRF subject results into activation masks...\n")
@@ -182,7 +178,6 @@ fit_allHRFs <- function(
   class(fit_workingHRF) <- "workingHRF"
 
   fit_allHRFs <- list(
-    best_params_results = best_params_results,
     subject_results     = loaded_subject_results,
     hrf_grid            = hrf_grid
   )
@@ -691,52 +686,6 @@ extract_hrf_params <- function(hrf_grid, idx) {
 
   return(params)
 }
-
-#' Extract best parameters across all subjects
-#'
-#' Collects best-fitting HRF parameters from all subjects and combines
-#' into a single data frame. This implements "Step 2d" of the allHRFs pipeline.
-#'
-#' @inheritParams subject_results_Param
-#' @inheritParams hrf_grid_Param
-#' @inheritParams verbose_Param
-#'
-#' @return Data frame with columns: a1, b1, c, voxel, subject.
-#'
-#' @keywords internal
-extract_best_params_all_subjects <- function(subject_results, hrf_grid, verbose) {
-  if(verbose > 0) cat("Extracting best parameters from", length(subject_results), "subjects\n")
-
-  best_params_df <- NULL
-
-  # For each subject:
-  for(i in 1:length(subject_results)) {
-
-    # Skip failed subjects
-    if(subject_results[[i]]$status != "success") next
-    #&# Store failed subjects for user to debug
-
-    # 1. Get the best model indices from GLM results
-    bestmodel_xii <- subject_results[[i]]$glm_result$bestmodel_xii
-    bestmodel_mat <- as.matrix(bestmodel_xii)
-
-    # 2. Convert model indices to parameter values using vectorized approach
-    bestmodel_vec <- as.vector(bestmodel_mat)
-    best_params_df_i <- data.frame(
-      a1 = hrf_grid$a1[bestmodel_vec],
-      b1 = hrf_grid$b1[bestmodel_vec],
-      c = hrf_grid$c[bestmodel_vec],
-      voxel = seq_along(bestmodel_vec),
-      subject = i  # Subject index
-    )
-
-    # 3. Accumulate across subjects
-    best_params_df <- rbind(best_params_df, best_params_df_i)
-  }
-
-  return(best_params_df)
-}
-
 #' Input validation for fit_allHRFs
 #'
 #' Validates inputs specific to the allHRFs pipeline, including HRF grid

@@ -29,7 +29,7 @@ fit_bestHRF(
 }
 \arguments{
 \item{fit_allHRFs_result}{An \code{hrfs} object returned by
-\code{\link{fit_allHRFs}}. Supplies \code{pop_avg} + \code{hrf_grid} via
+\code{\link{fit_allHRFs}}. Supplies \code{pop_best} + \code{hrf_grid} via
 \code{fit_allHRFs_result$regularize_allHRFs}, and the per-subject qs
 cache via \code{fit_allHRFs_result$fit_allHRFs} (its \code{result_paths}
 attribute) for lookup-mode personalized scoring.}
@@ -52,7 +52,7 @@ NULL, personalized mode falls back to refit scoring (multiGLM against
 this subject's BOLD) -- use NULL for new subjects not in the original
 \code{fit_allHRFs} run.}
 
-\item{a1_offsets, b1_offsets}{Numeric vectors of pop_avg offsets to scan
+\item{a1_offsets, b1_offsets}{Numeric vectors of pop_best offsets to scan
 for personalized candidates. Defaults give 5x5 = 25 candidates.}
 
 \item{contrasts}{Numeric matrix. Contrast matrix A (n_contrasts x n_task).
@@ -99,7 +99,7 @@ use). Includes \code{$winning_candidate_id} and \code{$candidate_scores}.}
 \description{
 Fits a voxel-wise GLM under one or both HRF models per voxel: the
 population-average HRF (\code{"adapted"}) and/or a subject-personalized
-HRF chosen here by scoring 25 candidates around the pop_avg. Always
+HRF chosen here by scoring 25 candidates around the pop_best. Always
 produces a canonical-HRF baseline (\code{"working"}) alongside.
 }
 \details{

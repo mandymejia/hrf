@@ -6,7 +6,7 @@
 \usage{
 plot_param_heatmap(
   x,
-  source = c("subjects", "pop_avg"),
+  source = c("subjects", "pop_best"),
   mask = FALSE,
   title = NULL
 )
@@ -16,8 +16,8 @@ plot_param_heatmap(
 
 \item{source}{Character. \code{"subjects"} (default) counts per-voxel
 per-subject best HRFs from \code{x$best_params_df} (one count per
-(voxel, subject) pair). \code{"pop_avg"} counts per-voxel regularized
-population HRFs from \code{x$pop_avg} (one count per voxel; the
+(voxel, subject) pair). \code{"pop_best"} counts per-voxel regularized
+population HRFs from \code{x$pop_best} (one count per voxel; the
 "averaged" view used in Fig 3).}
 
 \item{mask}{Logical. Only relevant when \code{source = "subjects"}.

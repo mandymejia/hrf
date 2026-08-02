@@ -134,8 +134,8 @@ Object of class \code{"hrfs"}; a named list with three sub-objects
 \item{\code{fit_workingHRF}}{class \code{"workingHRF"}: activation_masks,
 per-subject working GLMs, hrf_params.}
 \item{\code{fit_allHRFs}}{class \code{"allHRFs"}: per-subject 25-candidate
-GLM cache (path attr "result_paths"), best_params_results, hrf_grid.}
-\item{\code{regularize_allHRFs}}{class \code{"regularizeHRFs"}: pop_avg,
+GLM cache (path attr "result_paths"), hrf_grid.}
+\item{\code{regularize_allHRFs}}{class \code{"regularizeHRFs"}: pop_best,
 best_params_df, winning_c, c_votes, mask_prop_NA, hrf_grid.}
 \item{\code{session_info}}{Pipeline knobs used (brainstructures, resamp_res,
 hpf, onsets, offsets, smoothing, surf_FWHM, derivatives, alpha,

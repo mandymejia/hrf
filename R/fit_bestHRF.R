@@ -2,7 +2,7 @@
 #'
 #' Fits a voxel-wise GLM under one or both HRF models per voxel: the
 #' population-average HRF (\code{"adapted"}) and/or a subject-personalized
-#' HRF chosen here by scoring 25 candidates around the pop_avg. Always
+#' HRF chosen here by scoring 25 candidates around the pop_best. Always
 #' produces a canonical-HRF baseline (\code{"working"}) alongside.
 #'
 #' Candidate scoring for personalized mode:
@@ -16,7 +16,7 @@
 #' }
 #'
 #' @param fit_allHRFs_result An \code{hrfs} object returned by
-#'   \code{\link{fit_allHRFs}}. Supplies \code{pop_avg} + \code{hrf_grid} via
+#'   \code{\link{fit_allHRFs}}. Supplies \code{pop_best} + \code{hrf_grid} via
 #'   \code{fit_allHRFs_result$regularize_allHRFs}, and the per-subject qs
 #'   cache via \code{fit_allHRFs_result$fit_allHRFs} (its \code{result_paths}
 #'   attribute) for lookup-mode personalized scoring.
@@ -32,7 +32,7 @@
 #'   NULL, personalized mode falls back to refit scoring (multiGLM against
 #'   this subject's BOLD) -- use NULL for new subjects not in the original
 #'   \code{fit_allHRFs} run.
-#' @param a1_offsets,b1_offsets Numeric vectors of pop_avg offsets to scan
+#' @param a1_offsets,b1_offsets Numeric vectors of pop_best offsets to scan
 #'   for personalized candidates. Defaults give 5x5 = 25 candidates.
 #' @param contrasts Numeric matrix. Contrast matrix A (n_contrasts x n_task).
 #'   Default NULL uses identity (each beta tested individually).
@@ -117,7 +117,7 @@ fit_bestHRF <- function(fit_allHRFs_result,
 
   validate_bestHRF_inputs(cfg)
 
-  pop_avg  <- cfg$fit_allHRFs_result$regularize_allHRFs$pop_avg
+  pop_best  <- cfg$fit_allHRFs_result$regularize_allHRFs$pop_best
   hrf_grid <- cfg$fit_allHRFs_result$regularize_allHRFs$hrf_grid
 
   # Lookup mode is opt-in via subject_idx. The qs cache holds both per-model
@@ -170,7 +170,7 @@ fit_bestHRF <- function(fit_allHRFs_result,
   # (smoothed-UNSCALED) + raw nuisance (refit) or qs_path (lookup).
   hrf_resolutions <- setNames(
     lapply(cfg$use, resolve_hrf_map,
-           cfg = cfg, pop_avg = pop_avg, hrf_grid = hrf_grid,
+           cfg = cfg, pop_best = pop_best, hrf_grid = hrf_grid,
            allHRF_subject = allHRF_subject,
            BOLD_xii = BOLD_xii_unscaled, nuisance = nuisance_mat),
     cfg$use
@@ -295,12 +295,12 @@ fit_one_mode <- function(j, cfg, y, nT, nuisance_block,
 #' Resolve HRF Map for One Mode
 #'
 #' Returns the HRF map (and any per-mode diagnostics) for one requested mode.
-#' \code{"adapted"} is a pure pop_avg lookup; \code{"personalized"} delegates
+#' \code{"adapted"} is a pure pop_best lookup; \code{"personalized"} delegates
 #' to \code{\link{resolve_personalized_hrf_map}} which scores candidates.
 #'
 #' @param mode One of \code{"personalized"} or \code{"adapted"}.
 #' @param cfg The fit_bestHRF cfg list.
-#' @param pop_avg,hrf_grid Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs} by
+#' @param pop_best,hrf_grid Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs} by
 #'   the caller (passed explicitly so this fn doesn't re-extract per call).
 #' @param allHRF_subject,BOLD_xii,nuisance See
 #'   \code{\link{resolve_personalized_hrf_map}}; ignored when
@@ -309,20 +309,20 @@ fit_one_mode <- function(j, cfg, y, nT, nuisance_block,
 #'   \code{voxel, a1, b1, c}), \code{winning_candidate_id} (integer or NULL),
 #'   and \code{candidate_scores} (numeric vector or NULL).
 #' @keywords internal
-resolve_hrf_map <- function(mode, cfg, pop_avg, hrf_grid,
+resolve_hrf_map <- function(mode, cfg, pop_best, hrf_grid,
                             allHRF_subject = NULL,
                             BOLD_xii = NULL, nuisance = NULL) {
   if (mode == "adapted") {
     list(
-      map = data.frame(voxel = pop_avg$voxel,
-                       a1    = pop_avg$a1,
-                       b1    = pop_avg$b1,
-                       c     = pop_avg$c),
+      map = data.frame(voxel = pop_best$voxel,
+                       a1    = pop_best$a1,
+                       b1    = pop_best$b1,
+                       c     = pop_best$c),
       winning_candidate_id = NULL,
       candidate_scores     = NULL
     )
   } else {
-    resolve_personalized_hrf_map(cfg, pop_avg, hrf_grid,
+    resolve_personalized_hrf_map(cfg, pop_best, hrf_grid,
                                  allHRF_subject, BOLD_xii, nuisance)
   }
 }
@@ -330,14 +330,14 @@ resolve_hrf_map <- function(mode, cfg, pop_avg, hrf_grid,
 
 #' Resolve Personalized HRF Map
 #'
-#' Builds 25 candidate maps around \code{pop_avg}, scores them via the
+#' Builds 25 candidate maps around \code{pop_best}, scores them via the
 #' lookup path (when \code{allHRF_subject} supplies cached RSS + Fstat) or
 #' the refit path (otherwise), and returns the winning candidate's map plus
 #' diagnostics.
 #'
 #' @param cfg The fit_bestHRF cfg list; supplies EVs, TR, brainstructures,
 #'   hpf, onsets, offsets, a1_offsets, b1_offsets, verbose.
-#' @param pop_avg,hrf_grid Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs}.
+#' @param pop_best,hrf_grid Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs}.
 #' @param allHRF_subject Optional list with \code{qs_path} pointing to the
 #'   subject's fit_allHRFs qs cache (which carries both per-model RSS and
 #'   canonical-HRF Fstat). When supplied, lookup scoring is used; NULL
@@ -349,9 +349,9 @@ resolve_hrf_map <- function(mode, cfg, pop_avg, hrf_grid,
 #' @return List with \code{map}, \code{winning_candidate_id},
 #'   \code{candidate_scores}.
 #' @keywords internal
-resolve_personalized_hrf_map <- function(cfg, pop_avg, hrf_grid,
+resolve_personalized_hrf_map <- function(cfg, pop_best, hrf_grid,
                                          allHRF_subject, BOLD_xii, nuisance) {
-  cands <- build_candidate_maps(pop_avg, hrf_grid,
+  cands <- build_candidate_maps(pop_best, hrf_grid,
                                 a1_offsets = cfg$a1_offsets,
                                 b1_offsets = cfg$b1_offsets,
                                 verbose    = max(0, cfg$verbose - 1))$candidate_maps
@@ -446,16 +446,16 @@ load_qs_cache <- function(qs_path) {
 #' @keywords internal
 validate_bestHRF_inputs <- function(cfg) {
   reg <- cfg$fit_allHRFs_result$regularize_allHRFs
-  if (is.null(reg$pop_avg)) {
-    stop("fit_allHRFs_result$regularize_allHRFs$pop_avg is NULL. Pass an hrfs object from fit_allHRFs().")
+  if (is.null(reg$pop_best)) {
+    stop("fit_allHRFs_result$regularize_allHRFs$pop_best is NULL. Pass an hrfs object from fit_allHRFs().")
   }
   if (is.null(reg$hrf_grid)) {
     stop("fit_allHRFs_result$regularize_allHRFs$hrf_grid is NULL. Pass an hrfs object from fit_allHRFs().")
   }
   required_pa <- c("voxel", "a1", "b1", "c")
-  missing_pa <- setdiff(required_pa, names(reg$pop_avg))
+  missing_pa <- setdiff(required_pa, names(reg$pop_best))
   if (length(missing_pa) > 0L) {
-    stop("fit_allHRFs_result$regularize_allHRFs$pop_avg is missing column(s): ",
+    stop("fit_allHRFs_result$regularize_allHRFs$pop_best is missing column(s): ",
          paste(missing_pa, collapse = ", "))
   }
   required_grid <- c("a1", "b1", "c", "time_to_peak", "FWHM")
@@ -773,15 +773,15 @@ package_results <- function(raw, xii) {
 #' subject's personalized HRF. For each combination of \code{a1_offset} and
 #' \code{b1_offset}, shifts the population-average snapped a1/b1 by the
 #' offset (clamped to the hrf_grid valid range) and snaps back to the nearest
-#' grid point. \code{c} is taken verbatim from \code{pop_avg}.
+#' grid point. \code{c} is taken verbatim from \code{pop_best}.
 #'
 #' Port of the per-subject body of \code{regularize_allHRFs::create_candidate_maps}.
 #' During the migration window this lives in both files; regularize keeps using
 #' its copy until Phase 2 strips the candidate-fitting machinery from
 #' \code{regularize_allHRFs.R}.
 #'
-#' @param pop_avg Data frame with columns \code{voxel}, \code{a1},
-#'   \code{b1}, \code{c} (the regularize pop_avg).
+#' @param pop_best Data frame with columns \code{voxel}, \code{a1},
+#'   \code{b1}, \code{c} (the regularize pop_best).
 #' @param hrf_grid HRF grid with at least \code{a1}, \code{b1}, \code{c},
 #'   \code{time_to_peak}, \code{FWHM} columns.
 #' @param a1_offsets Numeric vector of a1 offsets to scan (default
@@ -798,7 +798,7 @@ package_results <- function(raw, xii) {
 #'     \item{offset_combos}{Data.frame of the offset combinations scanned.}
 #'   }
 #' @keywords internal
-build_candidate_maps <- function(pop_avg, hrf_grid,
+build_candidate_maps <- function(pop_best, hrf_grid,
                                  a1_offsets = c(-2, -1, 0, 1, 2),
                                  b1_offsets = c(-0.5, -0.25, 0, 0.25, 0.5),
                                  verbose = 1) {
@@ -815,9 +815,9 @@ build_candidate_maps <- function(pop_avg, hrf_grid,
     a1_off <- offset_combos$a1_offset[i]
     b1_off <- offset_combos$b1_offset[i]
 
-    a1_shifted <- pmin(pmax(pop_avg$a1 + a1_off, a1_min), a1_max)
-    b1_shifted <- pmin(pmax(pop_avg$b1 + b1_off, b1_min), b1_max)
-    c_vals     <- pop_avg$c
+    a1_shifted <- pmin(pmax(pop_best$a1 + a1_off, a1_min), a1_max)
+    b1_shifted <- pmin(pmax(pop_best$b1 + b1_off, b1_min), b1_max)
+    c_vals     <- pop_best$c
 
     snapped <- snap_to_grid(a1_shifted, b1_shifted, c_vals, hrf_grid)
 
@@ -825,7 +825,7 @@ build_candidate_maps <- function(pop_avg, hrf_grid,
     grid_idx <- match(keys, hrf_grid$key)
 
     candidate_maps[[i]] <- data.frame(
-      voxel        = pop_avg$voxel,
+      voxel        = pop_best$voxel,
       a1           = snapped$a1,
       b1           = snapped$b1,
       c            = snapped$c,

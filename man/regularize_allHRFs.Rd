@@ -19,9 +19,9 @@ grid and per-subject RSS matrices.}
 \value{
 A list with class \code{"regularizeHRFs"}:
 \describe{
-\item{pop_avg}{Per-voxel winner: columns \code{voxel, a1,
+\item{pop_best}{Per-voxel winner: columns \code{voxel, a1,
       b1, c} (values come straight off the grid).}
-\item{winning_c}{Modal c across pop_avg (scalar).}
+\item{winning_c}{Modal c across pop_best (scalar).}
 \item{hrf_grid}{HRF grid with \code{time_to_peak} + \code{FWHM} columns added.}
 \item{mask_prop_NA}{Population activation mask (passed through).}
 \item{winning_k}{Grid index per voxel picked by argmin; \code{mode_k}

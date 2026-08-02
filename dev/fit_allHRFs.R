@@ -84,11 +84,9 @@ plot(combo, type = "design", which = "all",     subject = 1, hrf_idx = 19)
 plot(combo, type = "design", which = "all",     subject = 1, hrf_idx = 21)
 
 # regularize types
-plot(combo, type = "pop_avg",            param = "a1")
-plot(combo, type = "pop_avg_continuous", param = "a1")
-plot(combo, type = "mean_all",           param = "a1")
-plot(combo, type = "mean",               param = "a1")
-plot(combo, type = "param_heatmap")
+plot(combo, type = "pop_avg",       param = "a1")               # unmasked (modal-filled)
+plot(combo, type = "pop_avg",       param = "a1", mask = TRUE)  # masked (non-activated -> NA)
+plot(combo, type = "param_heatmap", source = "pop_avg")
 
 # hrf_grid preview (independent of combo)
 plot_hrf_preview(default_hrf_grid, EVs = session_data$EVs_list[[1]],

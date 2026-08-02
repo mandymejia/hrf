@@ -5,8 +5,7 @@
 #'   \item working-HRF: \code{"proportion"}, \code{"binary"}, \code{"mask"}
 #'   \item allHRF:      \code{"hrfs"}, \code{"param_grid"}, \code{"single_hrf"},
 #'                       \code{"multiple_hrf"}
-#'   \item regularize:  \code{"pop_avg"}, \code{"pop_avg_continuous"},
-#'                       \code{"mean"}, \code{"mean_all"}, \code{"param_heatmap"}
+#'   \item regularize:  \code{"pop_best"}, \code{"param_heatmap"}
 #' }
 #' \code{type = "design"} is defined by both workingHRF AND allHRFs; pass
 #' \code{which = "working"} (default) or \code{which = "all"} to disambiguate.
@@ -33,10 +32,7 @@ plot.hrfs <- function(x, type, which = c("working", "all"), ...) {
     param_grid         = "fit_allHRFs",
     single_hrf         = "fit_allHRFs",
     multiple_hrf       = "fit_allHRFs",
-    pop_avg            = "regularize_allHRFs",
-    pop_avg_continuous = "regularize_allHRFs",
-    mean_all           = "regularize_allHRFs",
-    mean               = "regularize_allHRFs",
+    pop_best            = "regularize_allHRFs",
     param_heatmap      = "regularize_allHRFs"
   )
 

@@ -2,7 +2,7 @@
 % Please edit documentation in R/regularize_allHRFs.R
 \name{build_regularize_result}
 \alias{build_regularize_result}
-\title{Step 5: assemble the pop_avg + regularize result object}
+\title{Step 5: assemble the pop_best + regularize result object}
 \usage{
 build_regularize_result(
   winning_k,
@@ -13,6 +13,6 @@ build_regularize_result(
 )
 }
 \description{
-Step 5: assemble the pop_avg + regularize result object
+Step 5: assemble the pop_best + regularize result object
 }
 \keyword{internal}

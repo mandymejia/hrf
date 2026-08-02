@@ -2,12 +2,8 @@
 #'
 #' Diagnostic plots for the offset-based regularize output.
 #' \itemize{
-#'   \item \code{"pop_avg"} – population-average HRF parameter map (brain
-#'     surface, grid-snapped values from \code{x$pop_avg}).
-#'   \item \code{"mean_all"} – mean of raw per-subject best a1/b1/c across ALL
-#'     subjects (no activation filter), from \code{x$best_params_df}.
-#'   \item \code{"mean"} – mean of raw per-subject best a1/b1/c, restricted to
-#'     subjects activated at each voxel (\code{best_params_df$mask == TRUE}).
+#'   \item \code{"pop_best"} – population-average HRF parameter map (brain
+#'     surface, grid-snapped values from \code{x$pop_best}).
 #'   \item \code{"param_heatmap"} – frequency heatmap of per-subject best HRF
 #'     parameters on the underlying HRF grid.
 #' }
@@ -20,160 +16,19 @@
 #'
 #' @return Invisibly returns the plot object.
 #' @export
-plot.regularizeHRFs <- function(x, type = c("pop_avg", "pop_avg_continuous",
-                                              "mean_all", "mean", "param_heatmap"), ...) {
+plot.regularizeHRFs <- function(x, type = c("pop_best", "param_heatmap"), ...) {
   type <- match.arg(type)
 
   switch(type,
-    pop_avg            = plot_pop_avg(x, ...),
-    pop_avg_continuous = plot_pop_avg_continuous(x, ...),
-    mean_all           = plot_mean_param(x, ...),
-    mean               = plot_mean_param_filtered(x, ...),
-    param_heatmap      = plot_param_heatmap(x, ...)
+    pop_best       = plot_pop_best(x, ...),
+    param_heatmap = plot_param_heatmap(x, ...)
   )
-}
-
-
-#' Plot Population Mean Parameter Maps (raw, all subjects)
-#'
-#' Brain-surface mean of raw per-subject best a1/b1/c from
-#' \code{x$best_params_df}, averaged over all subjects with non-\code{NA} mask.
-#'
-#' @param x A \code{regularizeHRFs} object.
-#' @param param One of \code{"a1"}, \code{"b1"}, \code{"c"}.
-#' @param fname Optional path to save the rendered PNG.
-#' @param title Optional plot title.
-#' @param shadows,material,NA_color Standard \code{plot.xifti} aesthetics.
-#' @param ... Additional args passed to \code{plot.xifti}.
-#'
-#' @return Invisibly returns the plot result.
-#' @keywords internal
-#' @importFrom ciftiTools newdata_xifti
-#' @importFrom dplyr filter group_by summarize
-plot_mean_param <- function(x,
-                            param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
-                            fname = NULL,
-                            title = NULL,
-                            shadows = 1,
-                            material = list(lit = TRUE, smooth = FALSE),
-                            NA_color = "#505560",
-                            zlim = NULL,
-                            ...) {
-  param <- match.arg(param)
-
-  xii_template <- attr(x, "xii")
-  if (is.null(xii_template)) {
-    stop("attr(x, \"xii\") is missing. Re-run regularize_allHRFs to attach it.")
-  }
-
-  best_params_df <- x$best_params_df
-  mask_prop_NA   <- x$mask_prop_NA
-
-  bp_avg <- best_params_df %>%
-    dplyr::filter(!is.na(.data$mask)) %>%
-    dplyr::group_by(.data$voxel) %>%
-    dplyr::summarize(param_mean = mean(.data[[param]], na.rm = TRUE), .groups = "drop")
-
-  full_vector <- rep(NA, length(mask_prop_NA))
-  full_vector[bp_avg$voxel] <- bp_avg$param_mean * mask_prop_NA[bp_avg$voxel]
-
-  # Defaults tuned for the standard HRF grid (a1 in {3..12}, b1 in {0.5..2},
-  # c in {0, 1/6}). Pass `zlim` to override for any other grid.
-  if (is.null(zlim)) {
-    # Dynamic from the actual HRF grid (people can use different grids).
-    zlim <- range(x$hrf_grid[[param]])
-  }
-  color_mode <- if (param == "c") "sequential" else "diverging"
-
-  if (is.null(title)) {
-    title <- paste0("Mean of ", param, " (over all subjects)")
-  }
-
-  new_xifti <- ciftiTools::newdata_xifti(xii_template, full_vector)
-  plot_result <- plot(
-    new_xifti,
-    zlim = zlim,
-    color_mode = color_mode,
-    fname = fname,
-    title = title,
-    shadows = shadows,
-    material = material,
-    NA_color = NA_color,
-    ...
-  )
-  invisible(plot_result)
-}
-
-
-#' Plot Population Mean Parameter Maps (raw, activated subjects only)
-#'
-#' Brain-surface mean of raw per-subject best a1/b1/c from
-#' \code{x$best_params_df}, restricted to subjects with
-#' \code{mask == TRUE} at each voxel.
-#'
-#' @inheritParams plot_mean_param
-#' @return Invisibly returns the plot result.
-#' @keywords internal
-#' @importFrom ciftiTools newdata_xifti
-#' @importFrom dplyr filter group_by summarize
-plot_mean_param_filtered <- function(x,
-                                     param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
-                                     fname = NULL,
-                                     title = NULL,
-                                     shadows = 1,
-                                     material = list(lit = TRUE, smooth = FALSE),
-                                     NA_color = "#505560",
-                                     zlim = NULL,
-                                     ...) {
-  param <- match.arg(param)
-
-  xii_template <- attr(x, "xii")
-  if (is.null(xii_template)) {
-    stop("attr(x, \"xii\") is missing. Re-run regularize_allHRFs to attach it.")
-  }
-
-  best_params_df <- x$best_params_df
-  mask_prop_NA   <- x$mask_prop_NA
-
-  bp_avg <- best_params_df %>%
-    dplyr::filter(.data$mask == TRUE) %>%
-    dplyr::group_by(.data$voxel) %>%
-    dplyr::summarize(param_mean = mean(.data[[param]], na.rm = TRUE), .groups = "drop")
-
-  full_vector <- rep(NA, length(mask_prop_NA))
-  full_vector[bp_avg$voxel] <- bp_avg$param_mean * mask_prop_NA[bp_avg$voxel]
-
-  # Defaults tuned for the standard HRF grid (a1 in {3..12}, b1 in {0.5..2},
-  # c in {0, 1/6}). Pass `zlim` to override for any other grid.
-  if (is.null(zlim)) {
-    # Dynamic from the actual HRF grid (people can use different grids).
-    zlim <- range(x$hrf_grid[[param]])
-  }
-  color_mode <- if (param == "c") "sequential" else "diverging"
-
-  if (is.null(title)) {
-    title <- paste0("Mean of ", param, " (over subjects with activation)")
-  }
-
-  new_xifti <- ciftiTools::newdata_xifti(xii_template, full_vector)
-  plot_result <- plot(
-    new_xifti,
-    zlim = zlim,
-    color_mode = color_mode,
-    fname = fname,
-    title = title,
-    shadows = shadows,
-    material = material,
-    NA_color = NA_color,
-    ...
-  )
-  invisible(plot_result)
 }
 
 
 #' Plot Population-Average HRF Parameter Map (Brain Surface)
 #'
-#' Renders the population-averaged HRF parameter from \code{x$pop_avg}
+#' Renders the population-averaged HRF parameter from \code{x$pop_best}
 #' (snapped to the HRF grid) onto the cortex-surface xifti template attached
 #' as \code{attr(x, "xii")} by \code{regularize_allHRFs()}.
 #'
@@ -186,12 +41,15 @@ plot_mean_param_filtered <- function(x,
 #' @param zlim Optional length-2 numeric. If \code{NULL}, dynamically derived
 #'   from \code{range(x$hrf_grid[[param]])} so the colorbar always spans the
 #'   actual grid the user picked.
+#' @param mask Logical. \code{FALSE} (default) shows the modal-filled (unmasked)
+#'   pop_best; \code{TRUE} re-applies \code{mask_prop_NA} so non-activated voxels
+#'   stay NA (the masked view).
 #' @param ... Additional args passed to \code{plot.xifti}.
 #'
 #' @return Invisibly returns the plot result.
 #' @keywords internal
 #' @importFrom ciftiTools newdata_xifti
-plot_pop_avg <- function(x,
+plot_pop_best <- function(x,
                          param = c("a1", "b1", "c", "time_to_peak", "FWHM"),
                          fname = NULL,
                          title = NULL,
@@ -199,6 +57,7 @@ plot_pop_avg <- function(x,
                          material = list(lit = TRUE, smooth = FALSE),
                          NA_color = "#505560",
                          zlim = NULL,
+                         mask = FALSE,
                          ...) {
   param <- match.arg(param)
 
@@ -208,10 +67,10 @@ plot_pop_avg <- function(x,
          "before the xii template was attached. Re-run regularize_allHRFs().")
   }
 
-  pop_avg <- x$pop_avg
+  pop_best <- x$pop_best
   mask_prop_NA <- x$mask_prop_NA
-  # a1/b1/c use snapped grid values; t2p/FWHM use the imputed continuous means
-  # produced by unmask_pop_avg (median-filled + surf_FWHM smoothed).
+  # All columns are the winning grid point's values (pop_rss argmin); t2p_mean /
+  # fwhm_mean are the winner's t2p / FWHM (legacy "_mean" names), not subject means.
   col_name <- switch(param,
     a1           = "a1",
     b1           = "b1",
@@ -219,14 +78,15 @@ plot_pop_avg <- function(x,
     time_to_peak = "t2p_mean",
     FWHM         = "fwhm_mean"
   )
-  if (!col_name %in% colnames(pop_avg)) {
-    stop("Column '", col_name, "' not found in x$pop_avg.")
+  if (!col_name %in% colnames(pop_best)) {
+    stop("Column '", col_name, "' not found in x$pop_best.")
   }
 
-  # Show the imputed values directly. Multiplying by mask_prop_NA would re-NA
-  # the voxels that unmask_pop_avg just filled (defeats the imputation step).
+  # pop_best is already modal-filled (unmasked). Default shows it as-is; mask=TRUE
+  # re-NAs the off-pop-mask voxels -- a pure mask, never a weighting (non-weighted RSS).
   full_vector <- rep(NA, length(mask_prop_NA))
-  full_vector[pop_avg$voxel] <- pop_avg[[col_name]]
+  full_vector[pop_best$voxel] <- pop_best[[col_name]]
+  if (mask) full_vector[is.na(mask_prop_NA)] <- NA
 
   if (is.null(zlim)) {
     # Dynamic from the actual HRF grid (people can use different grids).
@@ -253,85 +113,6 @@ plot_pop_avg <- function(x,
 }
 
 
-#' Plot continuous (imputed, non-snapped) per-voxel HRF parameter
-#'
-#' Computes the per-voxel mean of \code{best_params_df$<param>} across
-#' subjects (mask-filtered), sprays it onto a full cortical xifti, then
-#' fills + smooths it with \code{unmask_xifti} (same imputation used inside
-#' \code{regularize_allHRFs} for t2p/FWHM). Plots the resulting continuous
-#' map. Unlike \code{type = "pop_avg"} (which snaps to the HRF grid), this
-#' preserves the continuous between-grid values.
-#'
-#' @param x A \code{regularizeHRFs} object.
-#' @param param One of \code{"a1"} or \code{"b1"}.
-#' @param fname,title,shadows,material,NA_color,zlim Plot args (see
-#'   \code{plot_pop_avg}).
-#' @param surf_FWHM Surface smoothing FWHM (mm) for the imputation step.
-#'   Default \code{4} matches \code{unmask_pop_avg}.
-#' @param impute_method Passed to \code{unmask_xifti}. Default \code{"median"}.
-#' @param ... Additional args passed to \code{plot.xifti}.
-#'
-#' @return Invisibly returns the plot result.
-#' @keywords internal
-#' @importFrom ciftiTools newdata_xifti
-plot_pop_avg_continuous <- function(x,
-                                    param = c("a1", "b1"),
-                                    fname = NULL,
-                                    title = NULL,
-                                    shadows = 1,
-                                    material = list(lit = TRUE, smooth = FALSE),
-                                    NA_color = "#505560",
-                                    zlim = NULL,
-                                    surf_FWHM = 4,
-                                    impute_method = "median",
-                                    ...) {
-  param <- match.arg(param)
-
-  xii_template <- attr(x, "xii")
-  if (is.null(xii_template)) {
-    stop("attr(x, \"xii\") is missing. Re-run regularize_allHRFs to attach it.")
-  }
-
-  # Replicate Step 3 of regularize_allHRFs (R/regularize_allHRFs.R:98-103) exactly,
-  # but for the requested param instead of t2p/FWHM. Same mask + same voxel filter.
-  bpd <- x$best_params_df
-  mask_prop_NA <- x$mask_prop_NA
-  pop_mask_voxels <- which(!is.na(mask_prop_NA))
-  agg <- stats::aggregate(
-    stats::as.formula(paste(param, "~ voxel")),
-    data = bpd[bpd$mask & bpd$voxel %in% pop_mask_voxels, ],
-    FUN = mean
-  )
-
-  N <- length(mask_prop_NA)
-  v <- rep(NA_real_, N); v[agg$voxel] <- agg[[param]]
-  xii <- ciftiTools::newdata_xifti(xii_template, v)
-  xii <- unmask_xifti(xii, method = impute_method, surf_FWHM = surf_FWHM,
-                      impute_FUN = function(z) mean(z, na.rm = TRUE))
-
-  if (is.null(zlim)) {
-    # Dynamic zlim from the actual HRF grid (people can use different grids).
-    zlim <- range(x$hrf_grid[[param]])
-  }
-  if (is.null(title)) {
-    title <- paste0("Population avg ", param, " (imputed, continuous)")
-  }
-
-  plot_result <- plot(
-    xii,
-    zlim = zlim,
-    color_mode = "diverging",
-    fname = fname,
-    title = title,
-    shadows = shadows,
-    material = material,
-    NA_color = NA_color,
-    ...
-  )
-  invisible(plot_result)
-}
-
-
 #' Plot HRF parameter frequency on the HRF grid
 #'
 #' Heatmap of how often each \code{(a1, b1, c)} grid combination appears,
@@ -340,8 +121,8 @@ plot_pop_avg_continuous <- function(x,
 #' @param x A \code{regularizeHRFs} object.
 #' @param source Character. \code{"subjects"} (default) counts per-voxel
 #'   per-subject best HRFs from \code{x$best_params_df} (one count per
-#'   (voxel, subject) pair). \code{"pop_avg"} counts per-voxel regularized
-#'   population HRFs from \code{x$pop_avg} (one count per voxel; the
+#'   (voxel, subject) pair). \code{"pop_best"} counts per-voxel regularized
+#'   population HRFs from \code{x$pop_best} (one count per voxel; the
 #'   "averaged" view used in Fig 3).
 #' @param mask Logical. Only relevant when \code{source = "subjects"}.
 #'   If \code{TRUE}, restrict to voxel-subject pairs where the working-HRF
@@ -354,7 +135,7 @@ plot_pop_avg_continuous <- function(x,
 #' @importFrom dplyr distinct summarise group_by select left_join filter mutate
 #' @keywords internal
 plot_param_heatmap <- function(x,
-                               source = c("subjects", "pop_avg"),
+                               source = c("subjects", "pop_best"),
                                mask = FALSE,
                                title = NULL) {
   if (!inherits(x, "regularizeHRFs")) {
@@ -369,9 +150,13 @@ plot_param_heatmap <- function(x,
       title <- if (mask) "Best per-subject HRF params (masked)" else "Best per-subject HRF params"
     }
   } else {
-    src_df <- data.frame(a1 = x$pop_avg$a1,
-                         b1 = x$pop_avg$b1,
-                         c  = x$pop_avg$c)
+    # Count only ACTIVATED voxels -- the real per-voxel RSS picks. Non-activated
+    # voxels are modal-filled by modal_unmask (imputation, not real picks), so
+    # counting them dumps a large artificial spike on the single modal grid point.
+    keep   <- !is.na(x$mask_prop_NA[x$pop_best$voxel])
+    src_df <- data.frame(a1 = x$pop_best$a1[keep],
+                         b1 = x$pop_best$b1[keep],
+                         c  = x$pop_best$c[keep])
     if (is.null(title)) {
       title <- "Population-average HRF params (per voxel)"
     }

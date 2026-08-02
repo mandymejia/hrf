@@ -19,9 +19,9 @@
 #'
 #' @return A list with class \code{"regularizeHRFs"}:
 #'   \describe{
-#'     \item{pop_avg}{Per-voxel winner: columns \code{voxel, a1,
+#'     \item{pop_best}{Per-voxel winner: columns \code{voxel, a1,
 #'       b1, c} (values come straight off the grid).}
-#'     \item{winning_c}{Modal c across pop_avg (scalar).}
+#'     \item{winning_c}{Modal c across pop_best (scalar).}
 #'     \item{hrf_grid}{HRF grid with \code{time_to_peak} + \code{FWHM} columns added.}
 #'     \item{mask_prop_NA}{Population activation mask (passed through).}
 #'     \item{winning_k}{Grid index per voxel picked by argmin; \code{mode_k}
@@ -60,7 +60,7 @@ regularize_allHRFs <- function(workingHRF_results, allHRF_results, verbose = 1) 
     verbose      = verbose
   )
 
-  # Step 5: assemble the regularize result (pop_avg + xifti template).
+  # Step 5: assemble the regularize result (pop_best + xifti template).
   build_regularize_result(
     winning_k          = winning_k,
     hrf_grid           = hrf_grid,
@@ -178,7 +178,7 @@ modal_unmask <- function(winning_k, mask_prop_NA, hrf_grid, verbose = 1) {
 }
 
 
-#' Step 5: assemble the pop_avg + regularize result object
+#' Step 5: assemble the pop_best + regularize result object
 #'
 #' @keywords internal
 build_regularize_result <- function(winning_k, hrf_grid, mask_prop_NA, workingHRF_results, verbose = 1) {
@@ -186,7 +186,7 @@ build_regularize_result <- function(winning_k, hrf_grid, mask_prop_NA, workingHR
   # plot.regularizeHRFs (references them by name). Values are looked up from
   # the grid at each voxel's winning candidate -- semantically "winner's t2p"
   # rather than "mean t2p across subjects".
-  pop_avg <- data.frame(
+  pop_best <- data.frame(
     voxel      = seq_along(winning_k),
     a1 = hrf_grid$a1[winning_k],
     b1 = hrf_grid$b1[winning_k],
@@ -195,12 +195,12 @@ build_regularize_result <- function(winning_k, hrf_grid, mask_prop_NA, workingHR
     fwhm_mean  = hrf_grid$FWHM[winning_k]
   )
 
-  valid_c   <- pop_avg$c[!is.na(pop_avg$c)]
+  valid_c   <- pop_best$c[!is.na(pop_best$c)]
   winning_c <- if (length(valid_c) == 0) NA_real_
                else as.numeric(names(sort(table(valid_c), decreasing = TRUE))[1])
 
   result <- list(
-    pop_avg      = pop_avg,
+    pop_best      = pop_best,
     winning_c    = winning_c,
     hrf_grid     = hrf_grid,
     mask_prop_NA = mask_prop_NA,

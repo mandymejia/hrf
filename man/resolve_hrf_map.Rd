@@ -7,7 +7,7 @@
 resolve_hrf_map(
   mode,
   cfg,
-  pop_avg,
+  pop_best,
   hrf_grid,
   allHRF_subject = NULL,
   BOLD_xii = NULL,
@@ -19,7 +19,7 @@ resolve_hrf_map(
 
 \item{cfg}{The fit_bestHRF cfg list.}
 
-\item{pop_avg, hrf_grid}{Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs} by
+\item{pop_best, hrf_grid}{Pulled from \code{cfg$fit_allHRFs_result$regularize_allHRFs} by
 the caller (passed explicitly so this fn doesn't re-extract per call).}
 
 \item{allHRF_subject, BOLD_xii, nuisance}{See
@@ -33,7 +33,7 @@ and \code{candidate_scores} (numeric vector or NULL).
 }
 \description{
 Returns the HRF map (and any per-mode diagnostics) for one requested mode.
-\code{"adapted"} is a pure pop_avg lookup; \code{"personalized"} delegates
+\code{"adapted"} is a pure pop_best lookup; \code{"personalized"} delegates
 to \code{\link{resolve_personalized_hrf_map}} which scores candidates.
 }
 \keyword{internal}
