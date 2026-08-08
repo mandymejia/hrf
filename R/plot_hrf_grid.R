@@ -507,6 +507,7 @@ plot_hrfs_all <- function(hrf_grid, show_t2p_limits = TRUE,
     xlim(0, 30) +
     scale_color_manual(values = swatches, name = "a1") +
     scale_linetype_manual(values = ltypes, guide = "none") +
+    guides(color = guide_legend(override.aes = list(linetype = ltypes))) +
     scale_y_continuous(breaks = c(0, 0.5, 1)) +
     labs(y = "HRF", x = "Time (s)") +
     theme_few() +
@@ -682,6 +683,7 @@ plot_hrfs_slices <- function(hrf_grid, canonical_a1 = 6, canonical_b1 = 1,
                 mapping = aes(x = .data$sec, y = .data$HRF_tapered)) +
       scale_color_manual(values = swatches, name = color_var) +
       scale_linetype_manual(values = ltypes, guide = "none") +
+      guides(color = guide_legend(override.aes = list(linetype = ltypes))) +
       scale_y_continuous(breaks = c(0, 0.5, 1)) +
       xlim(0, 30) +
       labs(x = "Time (s)", y = "HRF",
@@ -754,6 +756,7 @@ plot_hrfs_all_tapered <- function(hrf_grid, show_t2p_limits = TRUE,
     xlim(0, 30) +
     scale_color_manual(values = swatches, name = "a1") +
     scale_linetype_manual(values = ltypes, guide = "none") +
+    guides(color = guide_legend(override.aes = list(linetype = ltypes))) +
     scale_y_continuous(breaks = c(0, 0.5, 1)) +
     labs(y = "HRF", x = "Time (s)") +
     theme_few() +
