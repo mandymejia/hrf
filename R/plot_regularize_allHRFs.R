@@ -6,6 +6,9 @@
 #'     surface, grid-snapped values from \code{x$pop_best}).
 #'   \item \code{"param_heatmap"} – frequency heatmap of per-subject best HRF
 #'     parameters on the underlying HRF grid.
+#'   \item \code{"param_grid"}, \code{"slices"}, \code{"hrfs"} – grid-shape
+#'     methodology figures drawn from the grid this run actually fit
+#'     (\code{x$hrf_grid}), delegated to \code{\link{plot.hrf_grid}}.
 #' }
 #'
 #' @param x An object of class \code{"regularizeHRFs"} from
@@ -16,12 +19,23 @@
 #'
 #' @return Invisibly returns the plot object.
 #' @export
-plot.regularizeHRFs <- function(x, type = c("pop_best", "param_heatmap"), ...) {
+plot.regularizeHRFs <- function(x, type = c("pop_best", "param_heatmap",
+                                            "param_grid", "slices", "hrfs"), ...) {
   type <- match.arg(type)
 
   switch(type,
-    pop_best       = plot_pop_best(x, ...),
-    param_heatmap = plot_param_heatmap(x, ...)
+    pop_best      = plot_pop_best(x, ...),
+    param_heatmap = plot_param_heatmap(x, ...),
+    # Grid-shape figures: plot the grid this run ACTUALLY fit (x$hrf_grid), so
+    # param_grid / slices / hrfs always match the data (e.g. full-grid = 66,
+    # standard = 48) instead of a hardcoded regenerated grid.
+    param_grid = ,
+    slices     = ,
+    hrfs       = {
+      g <- x$hrf_grid
+      class(g) <- c("hrf_grid", "data.frame")
+      plot(g, type = type, ...)
+    }
   )
 }
 

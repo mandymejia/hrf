@@ -4,7 +4,11 @@
 \alias{plot.regularizeHRFs}
 \title{Plot method for regularizeHRFs objects}
 \usage{
-\method{plot}{regularizeHRFs}(x, type = c("pop_best", "param_heatmap"), ...)
+\method{plot}{regularizeHRFs}(
+  x,
+  type = c("pop_best", "param_heatmap", "param_grid", "slices", "hrfs"),
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"regularizeHRFs"} from
@@ -25,5 +29,8 @@ Diagnostic plots for the offset-based regularize output.
 surface, grid-snapped values from \code{x$pop_best}).
 \item \code{"param_heatmap"} – frequency heatmap of per-subject best HRF
 parameters on the underlying HRF grid.
+\item \code{"param_grid"}, \code{"slices"}, \code{"hrfs"} – grid-shape
+methodology figures drawn from the grid this run actually fit
+(\code{x$hrf_grid}), delegated to \code{\link{plot.hrf_grid}}.
 }
 }
